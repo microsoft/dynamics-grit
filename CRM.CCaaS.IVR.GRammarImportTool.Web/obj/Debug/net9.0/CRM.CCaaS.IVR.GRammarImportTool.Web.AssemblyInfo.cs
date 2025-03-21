@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("CRM.CCaaS.IVR.GRammarImportTool.Web")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e90c5cb326c6b970928fa98630c51f4bf92aab4b")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d5d873c6786f41f9d373c91616758d75830eb599")]
 [assembly: System.Reflection.AssemblyProductAttribute("CRM.CCaaS.IVR.GRammarImportTool.Web")]
 [assembly: System.Reflection.AssemblyTitleAttribute("CRM.CCaaS.IVR.GRammarImportTool.Web")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

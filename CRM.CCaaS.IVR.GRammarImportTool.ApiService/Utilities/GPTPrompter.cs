@@ -5,14 +5,23 @@ using Azure;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Utilities
 {
-    public class ChatGPTPrompter
+    public class GPTPrompter
     {
-        public static async Task<string> GetFileEntityTypeAsync(string fileContent)
+        private readonly IChatClient _chatClient;
+        private readonly List<ChatMessage> _initialChatHistory;
+        private List<ChatMessage> _chatHistory;
+
+        public GPTPrompter(IConfiguration configuration)
         {
-            var config = new ConfigurationBuilder().AddUserSecrets<Program>().Build();
-            string endpoint = config["AZURE_OPENAI_ENDPOINT"];
-            string deployment = config["AZURE_OPENAI_GPT_NAME"];
-            string key = config["AZURE_OPENAI_GPT_KEY"];
+            var config = configuration;
+            string? endpoint = config["AZURE_OPENAI_ENDPOINT"];
+            string? deployment = config["AZURE_OPENAI_GPT_NAME"];
+            string? key = config["AZURE_OPENAI_GPT_KEY"];
+
+            if (string.IsNullOrEmpty(endpoint) || string.IsNullOrEmpty(deployment) || string.IsNullOrEmpty(key))
+            {
+                throw new InvalidOperationException("Azure OpenAI configuration is missing.");
+            }
 
             IKernelBuilder builder = Kernel.CreateBuilder();
             builder.Services.AddAzureOpenAIChatCompletion(
@@ -21,13 +30,11 @@ namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Utilities
                 "service-key"); // Secret key
             var kernel = builder.Build();
 
-            IChatClient chatClient =
+            _chatClient =
                 new AzureOpenAIClient(new Uri(endpoint), new AzureKeyCredential(key))
                     .AsChatClient(deployment);
 
-
-            // Start the conversation with context for the AI model
-            List<ChatMessage> chatHistory = new()
+            _initialChatHistory = new List<ChatMessage>
             {
                 new ChatMessage(ChatRole.System, """
                     You are a software engineer who is migrating an old IVR application which uses GRXML grammars into a more up to date Microsoft Copilot Studio bot.
@@ -223,7 +230,6 @@ namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Utilities
                                         <one-of>
                                             <item> that&apos;s </item>
                                             <item> that is</item>
-                                        </one-of>
                                         incorrect
                                     </item>
                                     <item> 
@@ -352,37 +358,29 @@ namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Utilities
                                                     ]
                                                 }
                                             }
-                
                 """),
                 new ChatMessage(ChatRole.System, """
                     From now on, you will receive GRXML content and you will have to give me the expected output in JSON format.
                 """),
             };
 
-            //string directoryPath = @"C:\dotnet\grammars\gpt-convert";
-            //string[] filePaths = Directory.GetFiles(directoryPath, "*.grxml");
+            _chatHistory = new List<ChatMessage>(_initialChatHistory);
+        }
 
-            //foreach (string filePath in filePaths)
-            //{
-                // Get user prompt and add to chat history
-                // Console.WriteLine("Answer for file: " + filePath);
-                //Console.Write(filePath + ";");
-                // var userPrompt = Console.ReadLine();
-                //string fileContents = File.ReadAllText(filePath);
-                chatHistory.Add(new ChatMessage(ChatRole.User, fileContent));
+        public async Task<string> GetFileEntityTypeAsync(string fileContent)
+        {
+            _chatHistory.Add(new ChatMessage(ChatRole.User, fileContent));
 
-                // Stream the AI response and add to chat history
-                // Console.WriteLine("AI Response:");
-                var response = "";
-                await foreach (var item in
-                    chatClient.CompleteStreamingAsync(chatHistory))
-                {
-                    Console.Write(item.Text);
-                    response += item.Text;
-                }
-                chatHistory.Add(new ChatMessage(ChatRole.Assistant, response));
-                Console.WriteLine();
-            //}
+            // Stream the AI response and add to chat history
+            var response = "";
+            await foreach (var item in
+                _chatClient.CompleteStreamingAsync(_chatHistory))
+            {
+                Console.Write(item.Text);
+                response += item.Text;
+            }
+            _chatHistory.Add(new ChatMessage(ChatRole.Assistant, response));
+            Console.WriteLine();
 
             return response;
         }

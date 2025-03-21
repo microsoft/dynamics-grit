@@ -10,6 +10,7 @@ builder.AddServiceDefaults();
 // Add services to the container.
 builder.Services.AddProblemDetails();
 builder.Services.AddAntiforgery();
+builder.Services.AddSingleton<GPTPrompter>();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
@@ -36,14 +37,15 @@ app.MapGet("/get-antiforgery-token", (IAntiforgery antiforgery, HttpContext cont
 })
 .WithName("GetAntiforgeryToken");
 
-
 app.MapPost("/grit", async ([FromForm] IFormFile file) =>
 {
     var fileContent = await FileReader.ReadFileAsTextAsync(file);
-    var entityType = await ChatGPTPrompter.GetFileEntityTypeAsync(fileContent);
+    var gptPrompter = app.Services.GetRequiredService<GPTPrompter>();
+    var entityType = await gptPrompter.GetFileEntityTypeAsync(fileContent);
 
     return Results.Ok(entityType);
 })
+.DisableAntiforgery()
 .WithName("Grit");
 
 
