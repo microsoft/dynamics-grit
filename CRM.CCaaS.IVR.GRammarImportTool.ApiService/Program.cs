@@ -39,6 +39,11 @@ app.MapGet("/get-antiforgery-token", (IAntiforgery antiforgery, HttpContext cont
 
 app.MapPost("/grit", async ([FromForm] IFormFile file) =>
 {
+    if (file.Length == 0)
+    {
+        return Results.BadRequest("File is empty.");
+    }
+
     var fileContent = await FileReader.ReadFileAsTextAsync(file);
     var gptPrompter = app.Services.GetRequiredService<GPTPrompter>();
     var entityType = await gptPrompter.GetFileEntityTypeAsync(fileContent);

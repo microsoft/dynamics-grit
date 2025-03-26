@@ -230,6 +230,7 @@ namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Utilities
                                         <one-of>
                                             <item> that&apos;s </item>
                                             <item> that is</item>
+                                        </one-of>
                                         incorrect
                                     </item>
                                     <item> 
@@ -373,14 +374,16 @@ namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Utilities
 
             // Stream the AI response and add to chat history
             var response = "";
-            await foreach (var item in
-                _chatClient.CompleteStreamingAsync(_chatHistory))
+            await foreach (var item in _chatClient.CompleteStreamingAsync(_chatHistory))
             {
                 Console.Write(item.Text);
                 response += item.Text;
             }
-            _chatHistory.Add(new ChatMessage(ChatRole.Assistant, response));
             Console.WriteLine();
+
+
+            // Reset chat history to initial state
+            _chatHistory = new List<ChatMessage>(_initialChatHistory);
 
             return response;
         }
