@@ -1,0 +1,42 @@
+# 1ES dependabot documentation: https://eng.ms/docs/products/dependabot
+# Documentation of this file's schema: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+# Find the state of your active Dependabot PRs at https://aka.ms/dependabot
+
+version: 2
+
+updates:
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    target-branch: "main"
+    open-pull-requests-limit: 10
+    ignore:
+      - dependency-name: "CoreServices.InfraSharedBuildTools"
+      - dependency-name: "Microsoft.Extension*" # do not update this to next major version (it requires retargeting binaries to the next .NET runtime
+        update-types:
+          - version-update:semver-minor
+    auto-complete: true
+    groups:
+      test-dependencies:
+        patterns:
+          - "MSTest*"
+          - "Microsoft.NET.Test.Sdk"
+          - "Moq*"
+          - "FluentAssertions*"
+          - "xunit*"
+      BuildSdks:
+        patterns:
+          - "MSTest.Test*"
+          - "Microsoft.NET.Test.Sdk"
+          - "Moq*"
+          - "FluentAssertions*"
+          - "xunit*"
+      Patterns:
+        patterns:
+          - "Microsoft.Build.*"
+      InfraSharedBuildTools:
+        patterns:
+          - "CoreServices.InfraSharedBuildTools"
+    work-items:
+      area-path: "OneCRM"
