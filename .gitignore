@@ -4,6 +4,7 @@ OneBranch Specific
 
 # Root folders
 /out
+/obj
 
 
 # Build generated files in src
