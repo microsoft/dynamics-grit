@@ -46,9 +46,10 @@ namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Utilities
                     Custom entities can be of types ClosedListEntity or RegexEntity. 
                     So, use the 'Entity Type' column to tell me if it is a ClosedListEntity or a RegexEntity.
                     A ClosedListEntity is a list of synonyms that are interchangeable. A RegexEntity is a list of regular expressions that match the entity.
-                    Output the answer in a JSON format having three fields: ‘Entity Type’, having the entity type that you found; ‘Reason’, explaining why you chose that entity type; ‘YAML’, the YAML code representing the new entity.
+                    Output the answer in a YAML format having three fields: ‘Entity Type’, having the entity type that you found; ‘Reason’, explaining why you chose that entity type; ‘YAML’, the YAML code representing the new entity.
                     The YAML code is only needed for custom entities.
-                    I will provide some examples of GRXML conversions for you to train yourself.
+                    I will provide some examples of GRXML conversions for you to train yourself. Make sure you do not repeat the same words in the synonyms of a ClosedListEntity. 
+                    The synonyms must not repeat the id of the closed list item either.
                 """),
                 new ChatMessage(ChatRole.System, """
                     Example 1:
@@ -276,92 +277,77 @@ namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Utilities
                             </grammar>
 
 
-                            Output:
+                            YAML Output:
                                             Entity type: CustomListEntity
                                             Reason: although the GRXML input represents a Boolean, you should make it a CustomListEntity to enable multiple synonyms for the answers ‘yes’ and ‘no’.
                                             YAML:
-                                            {
-                                                "kind": "CustomEntityComponent",
-                                                "displayName": "auth7561_IDVConfPhNum_QA",
-                                                "state": "Active",
-                                                "status": "Active",
-                                                "schemaName": "auth7561_IDVConfPhNum_QA",
-                                                "entity": {
-                                                    "kind": "ClosedListEntity",
-                                                    "items": [
-                                                        {
-                                                            "id": "YES",
-                                                            "displayName": "YES",
-                                                            "synonyms": [
-                                                                "yep",
-                                                                "yup",
-                                                                "it is",
-                                                                "i do",
-                                                                "i would",
-                                                                "you should",
-                                                                "it",
-                                                                "is",
-                                                                "yeah yes",
-                                                                "right",
-                                                                "correct",
-                                                                "sure",
-                                                                "yes",
-                                                                "yeah",
-                                                                "okay",
-                                                                "affirmative",
-                                                                "exactly",
-                                                                "good",
-                                                                "cool",
-                                                                "alright",
-                                                                "you got it",
-                                                                "what i want",
-                                                                "that is correct",
-                                                                "that would be fine",
-                                                                "i guess so",
-                                                                "i think so",
-                                                                "you bet",
-                                                                "betcha",
-                                                                "thanks"
-                                                            ]
-
-                                                        },
-                                                        {
-                                                            "id": "NO",
-                                                            "displayName": "NO",
-                                                            "synonyms": [
-                                                                "no",
-                                                                "nope",
-                                                                "absolutely not",
-                                                                "wrong",
-                                                                "negative",
-                                                                "that's not",
-                                                                "that is not",
-                                                                "no that's not",
-                                                                "no that is not",
-                                                                "correct",
-                                                                "right",
-                                                                "no that's incorrect",
-                                                                "no that is incorrect",
-                                                                "no i do not",
-                                                                "no i don't",
-                                                                "no i would not",
-                                                                "no i wouldn't",
-                                                                "not at this time",
-                                                                "no way",
-                                                                "not really",
-                                                                "not right now",
-                                                                "no it isn't",
-                                                                "no it's not",
-                                                                "no you should not",
-                                                                "no you shouldn't"
-                                                            ]
-                                                        }
-                                                    ]
-                                                }
-                                            }
+                                               - kind: CustomEntityComponent
+                                                 displayName: auth7561_IDVConfPhNum_QA
+                                                 state: Active
+                                                 status: Active
+                                                 schemaName: auth7561_IDVConfPhNum_QA
+                                                 entity:
+                                                   kind: ClosedListEntity
+                                                   items:
+                                                     - id: YES
+                                                       displayName: YES
+                                                       synonyms:
+                                                         - yep
+                                                         - yup
+                                                         - it is
+                                                         - i do
+                                                         - i would
+                                                         - you should
+                                                         - it
+                                                         - is
+                                                         - right
+                                                         - correct
+                                                         - sure
+                                                         - yeah
+                                                         - okay
+                                                         - affirmative
+                                                         - exactly
+                                                         - good
+                                                         - cool
+                                                         - alright
+                                                         - you got it
+                                                         - what i want
+                                                         - that is correct
+                                                         - that would be fine
+                                                         - i guess so
+                                                         - i think so
+                                                         - you bet
+                                                         - betcha
+                                                         - thanks
+                                                     - id: NO
+                                                       displayName: NO
+                                                       synonyms:
+                                                         - nope
+                                                         - absolutely not
+                                                         - wrong
+                                                         - negative
+                                                         - that's not
+                                                         - that is not
+                                                         - no that's not
+                                                         - no that is not
+                                                         - no that's incorrect
+                                                         - no that is incorrect
+                                                         - no i do not
+                                                         - no i don't
+                                                         - no i would not
+                                                         - no i wouldn't
+                                                         - not at this time
+                                                         - no way
+                                                         - not really
+                                                         - not right now
+                                                         - no it isn't
+                                                         - no it's not
+                                                         - no you should not
+                                                         - no you shouldn't
                 """),
                 new ChatMessage(ChatRole.System, """
-                    From now on, you will receive GRXML content and you will have to give me the expected output in JSON format.
+                    Make sure that the synonyms are unique among them and they do not repeat the id of the closed list item.
+                    From now on, you will receive GRXML content and you will have to give me the expected output in YAML format.
                 """),
             };
 
@@ -383,7 +369,7 @@ namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Utilities
 
 
             // Reset chat history to initial state
-            _chatHistory = new List<ChatMessage>(_initialChatHistory);
+            _chatHistory = [.. _initialChatHistory];
 
             return response;
         }
