@@ -11,8 +11,4 @@
     <ProjectReference Include="..\CRM.CCaaS.IVR.GRammarImportTool.ServiceDefaults\CRM.CCaaS.IVR.GRammarImportTool.ServiceDefaults.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.3" />
-  </ItemGroup>
-
 </Project>

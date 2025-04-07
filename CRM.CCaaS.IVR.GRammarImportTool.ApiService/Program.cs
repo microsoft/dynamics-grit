@@ -12,9 +12,6 @@ builder.Services.AddProblemDetails();
 builder.Services.AddAntiforgery();
 builder.Services.AddSingleton<GPTPrompter>();
 
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
-
 var app = builder.Build();
 
 app.UseAntiforgery();
@@ -22,10 +19,10 @@ app.UseAntiforgery();
 // Configure the HTTP request pipeline.
 app.UseExceptionHandler();
 
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
+//if (app.Environment.IsDevelopment())
+//{
+//    app..MapOpenApi();
+//}
 
 
 // Endpoint to get anti-forgery token

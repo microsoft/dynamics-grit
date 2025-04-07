@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.AI;
 using Azure.AI.OpenAI;
-using Microsoft.SemanticKernel;
 using Azure;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Utilities
@@ -22,13 +21,6 @@ namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Utilities
             {
                 throw new InvalidOperationException("Azure OpenAI configuration is missing.");
             }
-
-            IKernelBuilder builder = Kernel.CreateBuilder();
-            builder.Services.AddAzureOpenAIChatCompletion(
-                deployment,
-                endpoint,
-                "service-key"); // Secret key
-            var kernel = builder.Build();
 
             _chatClient =
                 new AzureOpenAIClient(new Uri(endpoint), new AzureKeyCredential(key))
@@ -358,15 +350,14 @@ namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Utilities
         {
             _chatHistory.Add(new ChatMessage(ChatRole.User, fileContent));
 
-            // Stream the AI response and add to chat history
+            // Get the AI response and add to chat history
             var response = "";
-            await foreach (var item in _chatClient.CompleteStreamingAsync(_chatHistory))
+            await foreach (var item in _chatClient.GetStreamingResponseAsync(_chatHistory))
             {
                 Console.Write(item.Text);
                 response += item.Text;
             }
             Console.WriteLine();
-
 
             // Reset chat history to initial state
             _chatHistory = [.. _initialChatHistory];
