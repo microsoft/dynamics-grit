@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Antiforgery;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Utilities;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging.Console;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,6 +12,7 @@ builder.AddServiceDefaults();
 builder.Services.AddProblemDetails();
 builder.Services.AddAntiforgery();
 builder.Services.AddSingleton<GPTPrompter>();
+
 
 var app = builder.Build();
 
@@ -23,7 +25,6 @@ app.UseExceptionHandler();
 //{
 //    app..MapOpenApi();
 //}
-
 
 // Endpoint to get anti-forgery token
 app.MapGet("/get-antiforgery-token", (IAntiforgery antiforgery, HttpContext context) =>
@@ -46,7 +47,7 @@ app.MapPost("/grit", async ([FromForm] IFormFile file) =>
     {
         var fileContent = await FileReader.ReadFileAsTextAsync(file);
         var gptPrompter = app.Services.GetRequiredService<GPTPrompter>();
-        var entityType = await gptPrompter.GetFileEntityTypeAsync(fileContent);
+        var entityType = await gptPrompter.GetFileEntityTypeAsync(file.FileName, fileContent);
         return Results.Ok(entityType);
     }
     catch (Exception ex)
@@ -56,7 +57,6 @@ app.MapPost("/grit", async ([FromForm] IFormFile file) =>
 })
 .DisableAntiforgery()
 .WithName("Grit");
-
 
 app.MapDefaultEndpoints();
 
