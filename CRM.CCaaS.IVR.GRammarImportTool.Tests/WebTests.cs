@@ -22,6 +22,8 @@ public class WebTests
         await resourceNotificationService.WaitForResourceAsync("webfrontend", KnownResourceStates.Running).WaitAsync(TimeSpan.FromSeconds(30));
         var response = await httpClient.GetAsync("/");
 
+        httpClient.Dispose();
+
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }

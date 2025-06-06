@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Antiforgery;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Utilities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging.Console;
+using CRM.CCaaS.IVR.GRammarImportTool.ServiceDefaults;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,7 +13,6 @@ builder.AddServiceDefaults();
 builder.Services.AddProblemDetails();
 builder.Services.AddAntiforgery();
 builder.Services.AddSingleton<GPTPrompter>();
-
 
 var app = builder.Build();
 

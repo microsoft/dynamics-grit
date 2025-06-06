@@ -1,0 +1,991 @@
+root = true
+
+[*]
+
+# CA1047: Do not declare protected members in sealed types
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1047
+dotnet_diagnostic.CA1047.severity = error
+dotnet_diagnostic.RS1024.severity = none
+end_of_line = crlf
+indent_style = space
+insert_final_newline = true
+
+[*.cs]
+csharp_indent_block_contents = true
+csharp_indent_braces = false
+csharp_indent_case_contents = true
+csharp_indent_case_contents_when_block = true
+csharp_indent_labels = one_less_than_current
+csharp_indent_switch_labels = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_else = true
+csharp_new_line_before_finally = true
+csharp_new_line_before_members_in_anonymous_types = true
+csharp_new_line_before_members_in_object_initializers = true
+csharp_new_line_before_open_brace = all
+csharp_new_line_between_query_expression_clauses = true
+
+# IDE0036 Order modifiers
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0036
+csharp_preferred_modifier_order = public,private,protected,internal,static,extern,new,virtual,abstract,sealed,override,readonly,unsafe,volatile,async:none
+csharp_prefer_braces = when_multiline:suggestion
+csharp_prefer_simple_default_expression = true:suggestion
+csharp_prefer_simple_using_statement = true:suggestion
+csharp_prefer_static_local_function = true:suggestion
+csharp_preserve_single_line_blocks = true
+csharp_preserve_single_line_statements = true
+csharp_space_after_cast = false
+csharp_space_after_colon_in_inheritance_clause = true
+csharp_space_after_comma = true
+csharp_space_after_dot = false
+csharp_space_after_keywords_in_control_flow_statements = true
+csharp_space_after_semicolon_in_for_statement = true
+csharp_space_around_binary_operators = before_and_after
+csharp_space_around_declaration_statements = false
+csharp_space_before_colon_in_inheritance_clause = true
+csharp_space_before_comma = false
+csharp_space_before_dot = false
+csharp_space_before_open_square_brackets = false
+csharp_space_before_semicolon_in_for_statement = false
+csharp_space_between_empty_square_brackets = false
+csharp_space_between_method_call_empty_parameter_list_parentheses = false
+csharp_space_between_method_call_name_and_opening_parenthesis = false
+csharp_space_between_method_call_parameter_list_parentheses = false
+csharp_space_between_method_declaration_empty_parameter_list_parentheses = false
+csharp_space_between_method_declaration_name_and_open_parenthesis = false
+csharp_space_between_method_declaration_parameter_list_parentheses = false
+csharp_space_between_parentheses = false
+csharp_space_between_square_brackets = false
+csharp_style_allow_blank_lines_between_consecutive_braces_experimental = false:warning
+csharp_style_allow_blank_line_after_colon_in_constructor_initializer_experimental = true:silent
+csharp_style_allow_blank_line_after_token_in_arrow_expression_clause_experimental = false:silent
+csharp_style_allow_blank_line_after_token_in_conditional_expression_experimental = true:silent
+csharp_style_allow_embedded_statements_on_same_line_experimental = true:silent
+csharp_style_conditional_delegate_call = true:suggestion
+csharp_style_deconstructed_variable_declaration = true:suggestion
+csharp_style_expression_bodied_accessors = true:silent
+csharp_style_expression_bodied_constructors = false:silent
+csharp_style_expression_bodied_indexers = true:silent
+csharp_style_expression_bodied_lambdas = true:silent
+csharp_style_expression_bodied_local_functions = false:silent
+csharp_style_expression_bodied_methods = false:none
+csharp_style_expression_bodied_operators = false:none
+csharp_style_expression_bodied_properties = true:silent
+csharp_style_implicit_object_creation_when_type_is_apparent = true:suggestion
+csharp_style_inlined_variable_declaration = true:suggestion
+csharp_style_namespace_declarations = file_scoped
+csharp_style_pattern_local_over_anonymous_function = true:suggestion
+csharp_style_pattern_matching_over_as_with_null_check = true:suggestion
+csharp_style_pattern_matching_over_is_with_cast_check = true:suggestion
+csharp_style_prefer_extended_property_pattern = true:suggestion
+csharp_style_prefer_index_operator = true:suggestion
+csharp_style_prefer_local_over_anonymous_function = true:suggestion
+csharp_style_prefer_method_group_conversion = true:silent
+csharp_style_prefer_not_pattern = true:suggestion
+csharp_style_prefer_null_check_over_type_check = true:suggestion
+csharp_style_prefer_pattern_matching = true:suggestion
+csharp_style_prefer_range_operator = true:suggestion
+csharp_style_prefer_readonly_struct = true:suggestion
+csharp_style_prefer_switch_expression = true:suggestion
+csharp_style_prefer_top_level_statements = true:silent
+csharp_style_prefer_tuple_swap = true:suggestion
+csharp_style_prefer_utf8_string_literals = true:suggestion
+csharp_style_throw_expression = true:suggestion
+
+# IDE0059 Remove unnecessary value assignment
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0059
+csharp_style_unused_value_assignment_preference = discard_variable:suggestion
+
+# IDE0058 Remove unnecessary expression value
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0058
+csharp_style_unused_value_expression_statement_preference = discard_variable:silent
+csharp_style_var_elsewhere = true:suggestion
+csharp_style_var_for_built_in_types = true:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_using_directive_placement = outside_namespace:warning
+dotnet_analyzer_diagnostic.category-dataflow.severity = warning
+dotnet_analyzer_diagnostic.category-design.severity = warning
+dotnet_analyzer_diagnostic.category-documentation.severity = none
+dotnet_analyzer_diagnostic.category-globalization.severity = none
+dotnet_analyzer_diagnostic.category-interoperability.severity = warning
+dotnet_analyzer_diagnostic.category-maintainability.severity = warning
+dotnet_analyzer_diagnostic.category-naming.severity = none
+dotnet_analyzer_diagnostic.category-performance.severity = warning
+dotnet_analyzer_diagnostic.category-reliability.severity = warning
+dotnet_analyzer_diagnostic.category-security.severity = error
+dotnet_analyzer_diagnostic.category-Style.severity = warning
+dotnet_analyzer_diagnostic.category-usage.severity = warning
+
+# IDE0060 Remove unused parameter
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0060
+dotnet_code_quality_unused_parameters = all:warning
+
+# CA1001: Types that own disposable fields should be disposable
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1001
+dotnet_diagnostic.CA1001.severity = error
+
+# CA1012: Abstract types should not have constructors
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1012
+dotnet_diagnostic.CA1012.severity = warning
+
+# CA1018: Mark attributes with AttributeUsageAttribute
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1018
+dotnet_diagnostic.CA1018.severity = warning
+
+# CA1034: Nested types should not be visible
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1034
+dotnet_diagnostic.CA1034.severity = warning
+
+# CA1036: Override methods on comparable types
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1036
+dotnet_diagnostic.CA1036.severity = error
+
+# CA1047: Do not declare protected members in sealed types
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1047
+dotnet_diagnostic.CA1047.severity = error
+
+# CA1051: Do not declare visible instance fields
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1051
+dotnet_diagnostic.CA1051.severity = warning
+
+# CA1052: Static holder types should be sealed
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1052
+dotnet_diagnostic.CA1052.severity = error
+
+# CA1056: URI properties should not be strings
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1056
+dotnet_diagnostic.CA1056.severity = warning
+
+# CA1062: Validate arguments of public methods
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1062
+dotnet_diagnostic.CA1062.severity = warning
+
+# CA1063: Implement IDisposable correctly
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1063
+dotnet_diagnostic.CA1063.severity = error
+
+# CA1064: Exceptions should be public
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1064
+dotnet_diagnostic.CA1064.severity = warning
+
+# CA1307: Specify StringComparison for clarity
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1307
+dotnet_diagnostic.CA1307.severity = warning
+
+# CA1309: Use ordinal StringComparison
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1309
+dotnet_diagnostic.CA1309.severity = warning
+
+# CA1501: Avoid excessive inheritance
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1501
+dotnet_diagnostic.CA1501.severity = warning
+
+# CA1502: Avoid excessive complexity
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1502
+dotnet_diagnostic.CA1502.severity = warning
+
+# CA1505: Avoid unmaintainable code
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1505
+dotnet_diagnostic.CA1505.severity = warning
+
+# CA1506: Avoid excessive class coupling
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1506
+dotnet_diagnostic.CA1506.severity = suggestion
+
+# CA1507: Use nameof in place of string
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1507
+dotnet_diagnostic.CA1507.severity = error
+
+# CA1508: Avoid dead conditional code
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1508
+dotnet_diagnostic.CA1508.severity = warning
+
+# CA1724: Type Names Should Not Match Namespaces
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1724
+dotnet_diagnostic.CA1724.severity = warning
+
+# CA1801: Review unused parameters
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1801
+dotnet_diagnostic.CA1801.severity = suggestion
+
+# CA1812: Avoid uninstantiated internal classes
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1812
+dotnet_diagnostic.CA1812.severity = suggestion
+
+# CA1813: Avoid unsealed attributes
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1813
+dotnet_diagnostic.CA1813.severity = warning
+
+# CA1820: Test for empty strings using string length
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1820
+dotnet_diagnostic.CA1820.severity = warning
+
+# CA1822: Mark members as static
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1822
+dotnet_diagnostic.CA1822.severity = suggestion
+
+# CA1823: Avoid unused private fields
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1823
+dotnet_diagnostic.CA1823.severity = warning
+
+# CA1825: Avoid zero-length array allocations
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1825
+dotnet_diagnostic.CA1825.severity = warning
+
+# CA1826: Use property instead of Linq Enumerable method
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1826
+dotnet_diagnostic.CA1826.severity = warning
+
+# CA1827: Do not use Count/LongCount when Any can be used
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1827
+dotnet_diagnostic.CA1827.severity = warning
+
+# CA1829: Use Length/Count property instead of Enumerable.Count method
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1829
+dotnet_diagnostic.CA1829.severity = warning
+
+# CA1841: Prefer Dictionary Contains methods
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1841
+dotnet_diagnostic.CA1841.severity = suggestion
+
+# CA1848: Use the LoggerMessage delegates
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1848
+dotnet_diagnostic.CA1848.severity = none
+
+# CA1851: Possible multiple enumerations of IEnumerable collection
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1851
+dotnet_diagnostic.CA1851.severity = warning
+
+# CA1852: Seal internal types
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1852
+dotnet_diagnostic.CA1852.severity = none
+
+# CA1854: Prefer the 'IDictionary.TryGetValue(TKey, out TValue)' method
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1854
+dotnet_diagnostic.CA1854.severity = suggestion
+
+# CA2000: Dispose objects before losing scope
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2000
+dotnet_diagnostic.CA2000.severity = warning
+
+# CA2002: Do not lock on objects with weak identity
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2002
+dotnet_diagnostic.CA2002.severity = warning
+
+# CA2011: Do not assign property within its setter
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2011
+dotnet_diagnostic.CA2011.severity = error
+
+# CA2012: Use ValueTasks correctly
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2012
+dotnet_diagnostic.CA2012.severity = warning
+
+# CA2016: Forward the CancellationToken parameter to methods that take one
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2016
+dotnet_diagnostic.CA2016.severity = warning
+
+# CA2017: Parameter count mismatch
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2017
+dotnet_diagnostic.CA2017.severity = warning
+
+# CA2153: Avoid handling Corrupted State Exceptions
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2153
+dotnet_diagnostic.CA2153.severity = error
+
+# CA2201: Do not raise reserved exception types
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2201
+dotnet_diagnostic.CA2201.severity = suggestion
+
+# CA2211: Non-constant fields should not be visible
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2211
+dotnet_diagnostic.CA2211.severity = suggestion
+
+# CA2213: Disposable fields should be disposed
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2213
+dotnet_diagnostic.CA2213.severity = warning
+
+# CA2300: Do not use insecure deserializer BinaryFormatter
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2300
+dotnet_diagnostic.CA2300.severity = error
+
+# CA2301: Do not call BinaryFormatter.Deserialize without first setting BinaryFormatter.Binder
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2301
+dotnet_diagnostic.CA2301.severity = error
+
+# CA2302: Ensure BinaryFormatter.Binder is set before calling BinaryFormatter.Deserialize
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2302
+dotnet_diagnostic.CA2302.severity = error
+
+# CA2305: Do not use insecure deserializer LosFormatter
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2305
+dotnet_diagnostic.CA2305.severity = error
+
+# CA2310: Do not use insecure deserializer NetDataContractSerializer
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2310
+dotnet_diagnostic.CA2310.severity = error
+
+# CA2311: Do not deserialize without first setting NetDataContractSerializer.Binder
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2311
+dotnet_diagnostic.CA2311.severity = error
+
+# CA2312: Ensure NetDataContractSerializer.Binder is set before deserializing
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2312
+dotnet_diagnostic.CA2312.severity = error
+
+# CA2315: Do not use insecure deserializer ObjectStateFormatter
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2315
+dotnet_diagnostic.CA2315.severity = error
+
+# CA2321: Do not deserialize with JavaScriptSerializer using a SimpleTypeResolver
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2321
+dotnet_diagnostic.CA2321.severity = error
+
+# CA2322: Ensure JavaScriptSerializer is not initialized with SimpleTypeResolver before deserializing
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2322
+dotnet_diagnostic.CA2322.severity = error
+
+# CA2326: Do not use TypeNameHandling values other than None
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2326
+dotnet_diagnostic.CA2326.severity = error
+
+# CA2327: Do not use insecure JsonSerializerSettings
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2327
+dotnet_diagnostic.CA2327.severity = error
+
+# CA2328: Ensure that JsonSerializerSettings are secure
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2328
+dotnet_diagnostic.CA2328.severity = error
+
+# CA2329: Do not deserialize with JsonSerializer using an insecure configuration
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2329
+dotnet_diagnostic.CA2329.severity = error
+
+# CA2330: Ensure that JsonSerializer has a secure configuration when deserializing
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2330
+dotnet_diagnostic.CA2330.severity = error
+
+# CA2350: Ensure DataTable.ReadXml()'s input is trusted
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2350
+dotnet_diagnostic.CA2350.severity = error
+
+# CA2351: Ensure DataSet.ReadXml()'s input is trusted
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2351
+dotnet_diagnostic.CA2351.severity = error
+
+# CA2352: Unsafe DataSet or DataTable in serializable type can be vulnerable to remote code execution attacks
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2352
+dotnet_diagnostic.CA2352.severity = error
+
+# CA2353: Unsafe DataSet or DataTable in serializable type
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2353
+dotnet_diagnostic.CA2353.severity = error
+
+# CA2354: Unsafe DataSet or DataTable in deserialized object graph can be vulnerable to remote code execution attack
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2354
+dotnet_diagnostic.CA2354.severity = error
+
+# CA2355: Unsafe DataSet or DataTable in deserialized object graph
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2355
+dotnet_diagnostic.CA2355.severity = error
+
+# CA2356: Unsafe DataSet or DataTable in web deserialized object graph
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2356
+dotnet_diagnostic.CA2356.severity = error
+
+# CA2361: Ensure autogenerated class containing DataSet.ReadXml() is not used with untrusted data
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2361
+dotnet_diagnostic.CA2361.severity = error
+
+# CA2362: Unsafe DataSet or DataTable in autogenerated serializable type can be vulnerable to remote code execution attacks
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2362
+dotnet_diagnostic.CA2362.severity = error
+
+# CA3061: Do not add schema by URL
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca3061
+dotnet_diagnostic.CA3061.severity = error
+
+# CA3075: Insecure DTD Processing
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca3075
+dotnet_diagnostic.CA3075.severity = error
+
+# CA3076: Insecure XSLT Script Execution
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca3076
+dotnet_diagnostic.CA3076.severity = error
+
+# CA3077: Insecure Processing in API Design, XML Document and XML Text Reader
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca3077
+dotnet_diagnostic.CA3077.severity = error
+
+# CA3147: Mark verb handlers with ValidateAntiForgeryToken
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca3147
+dotnet_diagnostic.CA3147.severity = error
+
+# CA5350: Do Not Use Weak Cryptographic Algorithms
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca5350
+dotnet_diagnostic.CA5350.severity = error
+
+# CA5351: Do Not Use Broken Cryptographic Algorithms
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca5351
+dotnet_diagnostic.CA5351.severity = error
+
+# CA5358: Do Not Use Unsafe Cipher Modes
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca5358
+dotnet_diagnostic.CA5358.severity = error
+
+# CA5359: Do not disable certificate validation
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca5359
+dotnet_diagnostic.CA5359.severity = error
+
+# CA5360: Do not call dangerous methods in deserialization
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca5360
+dotnet_diagnostic.CA5360.severity = silent
+
+# CA5361: Do not disable Schannel use of strong crypto
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca5361
+dotnet_diagnostic.CA5361.severity = error
+
+# CA5363: Do not disable request validation
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca5363
+dotnet_diagnostic.CA5363.severity = silent
+
+# CA5364: Do not use deprecated security protocols
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca5364
+dotnet_diagnostic.CA5364.severity = error
+
+# CA5365: Do Not Disable HTTP Header Checking
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca5365
+dotnet_diagnostic.CA5365.severity = silent
+
+# CA5366: Use XmlReader For DataSet Read XML
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca5366
+dotnet_diagnostic.CA5366.severity = error
+
+# CA5368: Set ViewStateUserKey For Classes Derived From Page
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca5368
+dotnet_diagnostic.CA5368.severity = silent
+
+# CA5369: Use XmlReader for Deserialize
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca5369
+dotnet_diagnostic.CA5369.severity = error
+
+# CA5370: Use XmlReader for validating reader
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca5370
+dotnet_diagnostic.CA5370.severity = error
+
+# CA5371: Use XmlReader for schema read
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca5371
+dotnet_diagnostic.CA5371.severity = error
+
+# CA5372: Use XmlReader for XPathDocument
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca5372
+dotnet_diagnostic.CA5372.severity = error
+
+# CA5373: Do not use obsolete key derivation function
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca5373
+dotnet_diagnostic.CA5373.severity = silent
+
+# CA5374: Do Not Use XslTransform
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca5374
+dotnet_diagnostic.CA5374.severity = error
+
+# CA5378: Do not disable ServicePointManagerSecurityProtocols
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca5378
+dotnet_diagnostic.CA5378.severity = error
+
+# CA5379: Do not use weak key derivation function algorithm
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca5379
+dotnet_diagnostic.CA5379.severity = silent
+
+# CA5380: Do not add certificates to root store
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca5380
+dotnet_diagnostic.CA5380.severity = error
+
+# CA5381: Ensure certificates are not added to root store
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca5381
+dotnet_diagnostic.CA5381.severity = error
+
+# CA5383: Ensure use secure cookies in ASP.NET Core
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca5383
+dotnet_diagnostic.CA5383.severity = error
+
+# CA5384: Do not use digital signature algorithm (DSA)
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca5384
+dotnet_diagnostic.CA5384.severity = silent
+
+# CA5385: Use Rivest–Shamir–Adleman (RSA) algorithm with sufficient key size
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca5385
+dotnet_diagnostic.CA5385.severity = silent
+
+# CA5386: Avoid hardcoding SecurityProtocolType value
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca5386
+dotnet_diagnostic.CA5386.severity = error
+
+# CA5391: Use antiforgery tokens in ASP.NET Core MVC controllers
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca5391
+dotnet_diagnostic.CA5391.severity = error
+
+# CA5395: Miss HttpVerb attribute for action methods
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca5395
+dotnet_diagnostic.CA5395.severity = error
+
+# CA5396: Set HttpOnly to true for HttpCookie
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca5396
+dotnet_diagnostic.CA5396.severity = error
+
+# CA5397: Do not use deprecated SslProtocols values
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca5397
+dotnet_diagnostic.CA5397.severity = error
+
+# CA5398: Avoid hardcoded SslProtocols values
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca5398
+dotnet_diagnostic.CA5398.severity = error
+
+dotnet_diagnostic.IA5350.severity = error
+dotnet_diagnostic.IA5351.severity = error
+dotnet_diagnostic.IA5352.severity = error
+dotnet_diagnostic.IA6450.severity = error
+dotnet_diagnostic.IA6451.severity = error
+dotnet_diagnostic.IA6456.severity = error
+dotnet_diagnostic.IA6457.severity = error
+
+# IDE0001 Simplify name
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0001
+dotnet_diagnostic.IDE0001.severity = warning
+
+# IDE0002 Simplify member access
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0002
+dotnet_diagnostic.IDE0002.severity = warning
+dotnet_diagnostic.IDE0003.severity = warning
+
+# IDE0005 Remove unnecessary import
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0005
+dotnet_diagnostic.IDE0005.severity = suggestion
+dotnet_diagnostic.IDE0007.severity = suggestion
+dotnet_diagnostic.IDE0010.severity = silent
+dotnet_diagnostic.IDE0011.severity = suggestion
+dotnet_diagnostic.IDE0016.severity = suggestion
+dotnet_diagnostic.IDE0017.severity = suggestion
+dotnet_diagnostic.IDE0018.severity = suggestion
+dotnet_diagnostic.IDE0019.severity = suggestion
+dotnet_diagnostic.IDE0020.severity = suggestion
+dotnet_diagnostic.IDE0021.severity = none
+dotnet_diagnostic.IDE0022.severity = none
+dotnet_diagnostic.IDE0023.severity = none
+dotnet_diagnostic.IDE0024.severity = none
+dotnet_diagnostic.IDE0025.severity = none
+dotnet_diagnostic.IDE0026.severity = none
+dotnet_diagnostic.IDE0027.severity = none
+dotnet_diagnostic.IDE0028.severity = suggestion
+dotnet_diagnostic.IDE0029.severity = suggestion
+dotnet_diagnostic.IDE0030.severity = suggestion
+dotnet_diagnostic.IDE0031.severity = suggestion
+dotnet_diagnostic.IDE0032.severity = suggestion
+dotnet_diagnostic.IDE0033.severity = suggestion
+dotnet_diagnostic.IDE0034.severity = suggestion
+dotnet_diagnostic.IDE0036.severity = none
+dotnet_diagnostic.IDE0037.severity = silent
+dotnet_diagnostic.IDE0038.severity = suggestion
+dotnet_diagnostic.IDE0039.severity = suggestion
+dotnet_diagnostic.IDE0040.severity = suggestion
+dotnet_diagnostic.IDE0041.severity = suggestion
+dotnet_diagnostic.IDE0042.severity = suggestion
+dotnet_diagnostic.IDE0044.severity = warning
+dotnet_diagnostic.IDE0045.severity = suggestion
+dotnet_diagnostic.IDE0046.severity = silent
+dotnet_diagnostic.IDE0048.severity = silent
+dotnet_diagnostic.IDE0049.severity = warning
+dotnet_diagnostic.IDE0053.severity = none
+dotnet_diagnostic.IDE0054.severity = suggestion
+dotnet_diagnostic.IDE0055.severity = warning
+dotnet_diagnostic.IDE0056.severity = suggestion
+dotnet_diagnostic.IDE0057.severity = suggestion
+dotnet_diagnostic.IDE0058.severity = suggestion
+dotnet_diagnostic.IDE0059.severity = suggestion
+dotnet_diagnostic.IDE0060.severity = warning
+dotnet_diagnostic.IDE0061.severity = none
+dotnet_diagnostic.IDE0062.severity = suggestion
+dotnet_diagnostic.IDE0063.severity = suggestion
+dotnet_diagnostic.IDE0065.severity = warning
+dotnet_diagnostic.IDE0066.severity = suggestion
+dotnet_diagnostic.IDE0071.severity = suggestion
+dotnet_diagnostic.IDE0072.severity = silent
+dotnet_diagnostic.IDE0073.severity = none
+dotnet_diagnostic.IDE0074.severity = suggestion
+dotnet_diagnostic.IDE0075.severity = suggestion
+dotnet_diagnostic.IDE0078.severity = suggestion
+dotnet_diagnostic.IDE0079.severity = warning
+dotnet_diagnostic.IDE0083.severity = suggestion
+dotnet_diagnostic.IDE0090.severity = suggestion
+dotnet_diagnostic.IDE0130.severity = warning
+dotnet_diagnostic.IDE0150.severity = suggestion
+dotnet_diagnostic.IDE0161.severity = warning
+dotnet_diagnostic.IDE0170.severity = suggestion
+dotnet_diagnostic.IDE0180.severity = suggestion
+dotnet_diagnostic.IDE0270.severity = suggestion
+dotnet_diagnostic.IDE1005.severity = suggestion
+dotnet_diagnostic.IDE1006.severity = warning
+dotnet_diagnostic.IDE2000.severity = warning
+dotnet_diagnostic.IDE2002.severity = warning
+dotnet_diagnostic.IDE2003.severity = suggestion
+dotnet_diagnostic.IDE2004.severity = silent
+dotnet_diagnostic.IDE2005.severity = silent
+dotnet_diagnostic.IDE2006.severity = silent
+
+# StyleCop rules
+# https://github.com/DotNetAnalyzers/StyleCopAnalyzers/tree/master/documentation
+dotnet_diagnostic.SA0001.severity = silent
+dotnet_diagnostic.SA1005.severity = suggestion
+dotnet_diagnostic.SA1028.severity = warning
+dotnet_diagnostic.SA1101.severity = silent
+dotnet_diagnostic.SA1103.severity = suggestion
+dotnet_diagnostic.SA1117.severity = silent
+dotnet_diagnostic.SA1118.severity = warning
+dotnet_diagnostic.SA1119.severity = suggestion
+dotnet_diagnostic.SA1120.severity = silent
+dotnet_diagnostic.SA1121.severity = error
+dotnet_diagnostic.SA1127.severity = suggestion
+dotnet_diagnostic.SA1128.severity = suggestion
+dotnet_diagnostic.SA1131.severity = silent
+dotnet_diagnostic.SA1132.severity = silent
+dotnet_diagnostic.SA1133.severity = silent
+dotnet_diagnostic.SA1134.severity = silent
+dotnet_diagnostic.SA1139.severity = suggestion
+dotnet_diagnostic.SA1200.severity = suggestion
+dotnet_diagnostic.SA1201.severity = silent
+dotnet_diagnostic.SA1202.severity = suggestion
+dotnet_diagnostic.SA1203.severity = suggestion
+dotnet_diagnostic.SA1204.severity = suggestion
+dotnet_diagnostic.SA1214.severity = suggestion
+dotnet_diagnostic.SA1216.severity = suggestion
+dotnet_diagnostic.SA1309.severity = silent
+dotnet_diagnostic.SA1310.severity = suggestion
+dotnet_diagnostic.SA1400.severity = suggestion
+dotnet_diagnostic.SA1401.severity = suggestion
+dotnet_diagnostic.SA1402.severity = suggestion
+dotnet_diagnostic.SA1403.severity = error
+dotnet_diagnostic.SA1407.severity = silent
+dotnet_diagnostic.SA1408.severity = silent
+dotnet_diagnostic.SA1412.severity = silent
+dotnet_diagnostic.SA1413.severity = silent
+dotnet_diagnostic.SA1500.severity = suggestion
+dotnet_diagnostic.SA1502.severity = suggestion
+dotnet_diagnostic.SA1504.severity = suggestion
+dotnet_diagnostic.SA1518.severity = silent
+dotnet_diagnostic.SA1600.severity = silent
+dotnet_diagnostic.SA1601.severity = silent
+dotnet_diagnostic.SA1602.severity = silent
+dotnet_diagnostic.SA1603.severity = silent
+dotnet_diagnostic.SA1604.severity = silent
+dotnet_diagnostic.SA1605.severity = silent
+dotnet_diagnostic.SA1606.severity = silent
+dotnet_diagnostic.SA1607.severity = silent
+dotnet_diagnostic.SA1608.severity = silent
+dotnet_diagnostic.SA1609.severity = silent
+dotnet_diagnostic.SA1610.severity = silent
+dotnet_diagnostic.SA1611.severity = silent
+dotnet_diagnostic.SA1612.severity = silent
+dotnet_diagnostic.SA1613.severity = silent
+dotnet_diagnostic.SA1614.severity = silent
+dotnet_diagnostic.SA1615.severity = silent
+dotnet_diagnostic.SA1616.severity = silent
+dotnet_diagnostic.SA1617.severity = silent
+dotnet_diagnostic.SA1618.severity = silent
+dotnet_diagnostic.SA1619.severity = silent
+dotnet_diagnostic.SA1620.severity = silent
+dotnet_diagnostic.SA1621.severity = silent
+dotnet_diagnostic.SA1622.severity = silent
+dotnet_diagnostic.SA1623.severity = silent
+dotnet_diagnostic.SA1624.severity = silent
+dotnet_diagnostic.SA1625.severity = silent
+dotnet_diagnostic.SA1626.severity = silent
+dotnet_diagnostic.SA1627.severity = silent
+dotnet_diagnostic.SA1628.severity = silent
+dotnet_diagnostic.SA1629.severity = silent
+dotnet_diagnostic.SA1630.severity = silent
+dotnet_diagnostic.SA1631.severity = silent
+dotnet_diagnostic.SA1632.severity = silent
+dotnet_diagnostic.SA1633.severity = silent
+dotnet_diagnostic.SA1634.severity = silent
+dotnet_diagnostic.SA1635.severity = silent
+dotnet_diagnostic.SA1636.severity = silent
+dotnet_diagnostic.SA1637.severity = silent
+dotnet_diagnostic.SA1638.severity = silent
+dotnet_diagnostic.SA1639.severity = silent
+dotnet_diagnostic.SA1640.severity = silent
+dotnet_diagnostic.SA1641.severity = silent
+dotnet_diagnostic.SA1642.severity = silent
+dotnet_diagnostic.SA1643.severity = silent
+dotnet_diagnostic.SA1644.severity = silent
+dotnet_diagnostic.SA1645.severity = silent
+dotnet_diagnostic.SA1646.severity = silent
+dotnet_diagnostic.SA1647.severity = silent
+dotnet_diagnostic.SA1648.severity = silent
+dotnet_diagnostic.SA1649.severity = silent
+dotnet_diagnostic.SA1650.severity = silent
+dotnet_diagnostic.SA1651.severity = silent
+dotnet_diagnostic.SX1101.severity = suggestion
+dotnet_diagnostic.SX1309.severity = suggestion
+dotnet_diagnostic.SX1309S.severity = suggestion
+
+# VS Threading rules
+# https://github.com/microsoft/vs-threading/tree/main/doc/analyzers
+
+# VSTHRD002: Synchronously waiting on tasks or awaiters may cause deadlocks. Use await or JoinableTaskFactory.Run instead.
+dotnet_diagnostic.VSTHRD002.severity = warning
+
+# VSTHRD003: Avoid awaiting foreign Tasks
+dotnet_diagnostic.VSTHRD003.severity = none
+
+# VSTHRD011 Use AsyncLazy<T>
+dotnet_diagnostic.VSTHRD011.severity = error
+
+# VSTHRD012: Provide JoinableTaskFactory where allowed
+dotnet_diagnostic.VSTHRD012.severity = none
+
+# VSTHRD103 Call async methods when in an async method
+dotnet_diagnostic.VSTHRD103.severity = error
+
+# VSTHRD105 Avoid method overloads that assume TaskScheduler.Current
+dotnet_diagnostic.VSTHRD105.severity = warning
+
+# VSTHRD110 Observe result of async calls
+dotnet_diagnostic.VSTHRD110.severity = error
+
+# VSTHRD111: Add .ConfigureAwait(bool) to your await expression
+dotnet_diagnostic.VSTHRD111.severity = none
+
+# VSTHRD200 Use Async suffix for async methods
+dotnet_diagnostic.VSTHRD200.severity = warning
+
+# xUnit Rules
+# https://xunit.net/xunit.analyzers/rules/
+dotnet_diagnostic.xUnit1004.severity = none
+
+dotnet_naming_rule.interfaces_with_prefix.severity = error
+dotnet_naming_rule.interfaces_with_prefix.style = interface_prefix
+dotnet_naming_rule.interfaces_with_prefix.symbols = interfaces
+dotnet_naming_rule.interface_should_be_begins_with_i.severity = suggestion
+dotnet_naming_rule.interface_should_be_begins_with_i.style = begins_with_i
+dotnet_naming_rule.interface_should_be_begins_with_i.symbols = interface
+dotnet_naming_rule.non_field_members_should_be_pascal_case.severity = suggestion
+dotnet_naming_rule.non_field_members_should_be_pascal_case.style = pascal_case
+dotnet_naming_rule.non_field_members_should_be_pascal_case.symbols = non_field_members
+dotnet_naming_rule.parameters_camel_case.severity = error
+dotnet_naming_rule.parameters_camel_case.style = parameter
+dotnet_naming_rule.parameters_camel_case.symbols = parameters
+dotnet_naming_rule.private_fields_underscored.severity = error
+dotnet_naming_rule.private_fields_underscored.style = private_field
+dotnet_naming_rule.private_fields_underscored.symbols = private_fields
+dotnet_naming_rule.private_static_fields_pascal_case.severity = error
+dotnet_naming_rule.private_static_fields_pascal_case.style = private_static_field
+dotnet_naming_rule.private_static_fields_pascal_case.symbols = private_static_fields
+dotnet_naming_rule.public_symbols_pascal_case.severity = error
+dotnet_naming_rule.public_symbols_pascal_case.style = public_symbol
+dotnet_naming_rule.public_symbols_pascal_case.symbols = public_symbols
+dotnet_naming_rule.types_should_be_pascal_case.severity = suggestion
+dotnet_naming_rule.types_should_be_pascal_case.style = pascal_case
+dotnet_naming_rule.types_should_be_pascal_case.symbols = types
+dotnet_naming_style.begins_with_i.capitalization = pascal_case
+dotnet_naming_style.begins_with_i.required_prefix = I
+dotnet_naming_style.begins_with_i.required_suffix = 
+dotnet_naming_style.begins_with_i.word_separator = 
+dotnet_naming_style.interface_prefix.capitalization = pascal_case
+dotnet_naming_style.interface_prefix.required_prefix = I
+dotnet_naming_style.parameter.capitalization = camel_case
+dotnet_naming_style.pascal_case.capitalization = pascal_case
+dotnet_naming_style.pascal_case.required_prefix = 
+dotnet_naming_style.pascal_case.required_suffix = 
+dotnet_naming_style.pascal_case.word_separator = 
+dotnet_naming_style.private_field.capitalization = camel_case
+dotnet_naming_style.private_field.required_prefix = _
+dotnet_naming_style.private_static_field.capitalization = pascal_case
+dotnet_naming_style.public_symbol.capitalization = pascal_case
+dotnet_naming_symbols.interface.applicable_accessibilities = public, internal, private, protected, protected_internal, private_protected
+dotnet_naming_symbols.interface.applicable_kinds = interface
+dotnet_naming_symbols.interface.required_modifiers = 
+dotnet_naming_symbols.interfaces.applicable_accessibilities = *
+dotnet_naming_symbols.interfaces.applicable_kinds = interface
+dotnet_naming_symbols.non_field_members.applicable_accessibilities = public, internal, private, protected, protected_internal, private_protected
+dotnet_naming_symbols.non_field_members.applicable_kinds = property, event, method
+dotnet_naming_symbols.non_field_members.required_modifiers = 
+dotnet_naming_symbols.parameters.applicable_kinds = parameter
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_static_fields.applicable_accessibilities = private
+dotnet_naming_symbols.private_static_fields.applicable_kinds = field
+dotnet_naming_symbols.private_static_fields.required_modifiers = static
+dotnet_naming_symbols.public_symbols.applicable_accessibilities = public, internal, protected, protected_internal
+dotnet_naming_symbols.public_symbols.applicable_kinds = class, struct, enum, delegate, method, property, event
+dotnet_naming_symbols.types.applicable_accessibilities = public, internal, private, protected, protected_internal, private_protected
+dotnet_naming_symbols.types.applicable_kinds = class, struct, interface, enum
+dotnet_naming_symbols.types.required_modifiers = 
+
+# IDE0079 Remove unnecessary suppression
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0079
+dotnet_remove_unnecessary_suppression_exclusions = none
+dotnet_separate_import_directive_groups = false
+dotnet_sort_system_directives_first = true
+dotnet_style_allow_multiple_blank_lines_experimental = false:warning
+dotnet_style_allow_statement_immediately_after_block_experimental = true:warning
+
+# IDE0029 Use coalesce expression (non-nullable types)
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0029-ide0030
+dotnet_style_coalesce_expression = true:suggestion
+
+# IDE0028 Use collection initializers
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0028
+dotnet_style_collection_initializer = true:suggestion
+
+# IDE0033 Use explicitly provided tuple name
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0033
+dotnet_style_explicit_tuple_names = true:suggestion
+
+# IDE0130 Namespace does not match folder structure
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0130
+dotnet_style_namespace_match_folder = true:suggestion
+
+# IDE0031 Use null propagation
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0031
+dotnet_style_null_propagation = true:suggestion
+
+# IDE0017 Use object initializers
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0017
+dotnet_style_object_initializer = true:suggestion
+dotnet_style_operator_placement_when_wrapping = beginning_of_line
+
+# IDE0047 Remove unnecessary parentheses
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0047-ide0048
+dotnet_style_parentheses_in_arithmetic_binary_operators = always_for_clarity:silent
+
+# IDE0047 Remove unnecessary parentheses
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0047-ide0048
+dotnet_style_parentheses_in_other_binary_operators = always_for_clarity:silent
+
+# IDE0047 Remove unnecessary parentheses
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0047-ide0048
+dotnet_style_parentheses_in_other_operators = never_if_unnecessary:silent
+
+# IDE0047 Remove unnecessary parentheses
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0047-ide0048
+dotnet_style_parentheses_in_relational_binary_operators = always_for_clarity:silent
+
+# IDE0049 Use language keywords instead of framework type names for type references
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0049
+dotnet_style_predefined_type_for_locals_parameters_members = true
+
+# IDE0049 Use language keywords instead of framework type names for type references
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0049
+dotnet_style_predefined_type_for_member_access = true
+
+# IDE0032 Use auto-implemented property
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0032
+dotnet_style_prefer_auto_properties = true:suggestion
+
+# IDE0054 Use compound assignment
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0054-ide0074
+dotnet_style_prefer_compound_assignment = true:suggestion
+
+# IDE0045 Use conditional expression for assignment
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0045
+dotnet_style_prefer_conditional_expression_over_assignment = true:suggestion
+
+# IDE0046 Use conditional expression for return
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0046
+dotnet_style_prefer_conditional_expression_over_return = true:silent
+
+# IDE0037 Use inferred member name
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0037
+dotnet_style_prefer_inferred_anonymous_type_member_names = true:silent
+
+# IDE0037 Use inferred member name
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0037
+dotnet_style_prefer_inferred_tuple_names = true:silent
+
+# IDE0041 Use 'is null' check
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0041
+dotnet_style_prefer_is_null_check_over_reference_equality_method = true:suggestion
+
+# IDE0075 Simplify conditional expression
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0075
+dotnet_style_prefer_simplified_boolean_expressions = true:suggestion
+
+# IDE0071 Simplify interpolation
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0071
+dotnet_style_prefer_simplified_interpolation = true:suggestion
+
+# IDE0003 Remove this or Me qualification
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0003-ide0009
+dotnet_style_qualification_for_event = false:warning
+
+# IDE0003 Remove this or Me qualification
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0003-ide0009
+dotnet_style_qualification_for_field = false:warning
+
+# IDE0003 Remove this or Me qualification
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0003-ide0009
+dotnet_style_qualification_for_method = false:warning
+
+# IDE0003 Remove this or Me qualification
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0003-ide0009
+dotnet_style_qualification_for_property = false:warning
+
+# IDE0044 Add readonly modifier
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0044
+dotnet_style_readonly_field = true
+
+# IDE0040 Add accessibility modifiers
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0040
+dotnet_style_require_accessibility_modifiers = for_non_interface_members:suggestion
+
+# IDE0073 Require file header
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0073
+file_header_template = unset
+indent_size = 4
+tab_width = 4
+
+[*Tests.cs]
+
+# CA1852: Seal internal types
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1852
+dotnet_diagnostic.CA1852.severity = none
+dotnet_diagnostic.VSTHRD200.severity = none
+
+[*.csproj]
+indent_size = 2
+tab_width = 2
+
+[*.csx]
+indent_size = 4
+tab_width = 4
+
+[*.json]
+indent_size = 2
+tab_width = 2
+
+[*.proj]
+indent_size = 2
+tab_width = 2
+
+[*.props]
+indent_size = 2
+tab_width = 2
+
+[*.schema]
+indent_size = 2
+tab_width = 2
+
+[*.sfproj]
+indent_size = 2
+tab_width = 2
+
+[*.targets]
+indent_size = 2
+tab_width = 2
+
+[*.xml]
+indent_size = 2
+tab_width = 2
+
+[*.xsd]
+indent_size = 2
+tab_width = 2
