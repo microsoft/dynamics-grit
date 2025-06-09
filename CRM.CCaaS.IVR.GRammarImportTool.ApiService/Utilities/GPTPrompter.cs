@@ -1,9 +1,8 @@
 ﻿using Microsoft.Extensions.AI;
 using Azure.AI.OpenAI;
 using Azure;
-using Microsoft.Extensions.Configuration;
-using System.Text.Json;
-using Microsoft.Extensions.Logging;
+using System.IO.Compression;
+using System.Collections.Concurrent;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Utilities;
 
@@ -56,15 +55,92 @@ public class GPTPrompter
         _logger.LogInformation("GPTPrompter initialized successfully at {Timestamp}.", DateTime.UtcNow);
     }
 
-    public async Task<string> GetFileEntityTypeAsync(string fileName, string fileContent)
+    /// <summary>
+    /// Processes a zip file containing multiple files, calls the model for each file in parallel batches of 4, and returns a zip file containing one text file per entry with the model response.
+    /// </summary>
+    /// <param name="zipStream">A stream containing the zip file data.</param>
+    /// <returns>A stream containing a zip file with one text file per entry.</returns>
+    public async Task<Stream> GetFileEntityTypeZipAsync(Stream zipStream,
+        Func<int, string, Task> progressCallback,
+        Func<byte[], Task> completedCallback)
+    {
+        var results = new ConcurrentDictionary<string, string>();
+        using var archive = new ZipArchive(zipStream, ZipArchiveMode.Read, leaveOpen: true);
+
+        var entries = archive.Entries.Where(e => !string.IsNullOrEmpty(e.Name)).ToList();
+        int batchSize = 4;
+
+        await progressCallback(0, "Starting processing...");
+
+        for (int i = 0; i < entries.Count; i += batchSize)
+        {
+            int progress = (int)((i + batchSize) / (double)entries.Count * 100);
+
+           // if (i % 20 == 0) { 
+               await progressCallback(progress, $"Processing batch {i / batchSize + 1} of {Math.Ceiling(entries.Count / (double)batchSize)}...");
+            //}
+
+            var batch = entries.Skip(i).Take(batchSize).ToList();
+            _logger.LogInformation("Processing batch {BatchIndex} of files at {Timestamp}.", i / batchSize + 1, DateTime.UtcNow);
+            // Step 1: Read all file contents in this batch sequentially
+            var fileContents = new List<(string FileName, string Content)>();
+            foreach (var entry in batch)
+            {
+                using var entryStream = entry.Open();
+                using var reader = new StreamReader(entryStream);
+                string fileContent = reader.ReadToEnd();
+                fileContents.Add((entry.Name, fileContent));
+            }
+
+            // Step 2: Process the files in parallel
+            var tasks = fileContents.Select(async file =>
+            {
+                try
+                {
+                    string response = await ProcessSingleFileAsync(file.FileName, file.Content);
+                    results[file.FileName] = response;
+                }
+                catch (Exception ex)
+                {
+                    results[file.FileName] = $"Error: {ex.Message}";
+                }
+            }).ToList();
+
+            await Task.WhenAll(tasks);
+        }
+
+        _logger.LogInformation("Completed processing files in the zip archive at {Timestamp}.", DateTime.UtcNow);
+
+        // Create a new zip archive in memory with one text file per result
+        var outputStream = new MemoryStream();
+        using (var outputArchive = new ZipArchive(outputStream, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var kvp in results)
+            {
+                var entry = outputArchive.CreateEntry(Path.GetFileNameWithoutExtension(kvp.Key) + ".yaml");
+                using var entryStream = entry.Open();
+                using var writer = new StreamWriter(entryStream);
+                writer.Write(kvp.Value);
+            }
+        }
+        outputStream.Position = 0;
+        await completedCallback(outputStream.ToArray());
+        return outputStream;
+    }
+
+    // Helper method to process a single file (extracted from the original method)
+    private async Task<string> ProcessSingleFileAsync(string fileName, string fileContent)
     {
         _logger.LogInformation("Processing file content for entity type classification at {Timestamp}.", DateTime.UtcNow);
-        _chatHistory.Add(new ChatMessage(ChatRole.User, $"Convert the file {fileName} to Microsoft Copilot Studio Yaml: {fileContent}"));
+        var localChatHistory = new List<ChatMessage>(_initialChatHistory)
+            {
+                new ChatMessage(ChatRole.User, $"Convert the file {fileName} to Microsoft Copilot Studio Yaml: {fileContent}")
+            };
 
         var response = "";
         try
         {
-            await foreach (var item in _chatClient.GetStreamingResponseAsync(_chatHistory))
+            await foreach (var item in _chatClient.GetStreamingResponseAsync(localChatHistory))
             {
                 Console.Write(item.Text);
                 response += item.Text;
@@ -75,11 +151,6 @@ public class GPTPrompter
         {
             _logger.LogError(ex, "Error occurred while processing file content at {Timestamp}.", DateTime.UtcNow);
             throw;
-        }
-        finally
-        {
-            // Reset chat history to initial state
-            _chatHistory = [.. _initialChatHistory];
         }
 
         return response;
