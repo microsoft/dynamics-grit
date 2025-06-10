@@ -2,8 +2,9 @@ using Microsoft.AspNetCore.Antiforgery;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Utilities;
 using Microsoft.AspNetCore.Mvc;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Hubs; // Add this
-using CRM.CCaaS.IVR.GRammarImportTool.ServiceDefaults;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging.Console;
+using Microsoft.Extensions.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
 

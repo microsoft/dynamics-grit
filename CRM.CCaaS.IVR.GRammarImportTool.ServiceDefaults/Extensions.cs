@@ -8,12 +8,19 @@ using Microsoft.Extensions.ServiceDiscovery;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
+using System;
+using System.Diagnostics.CodeAnalysis;
 
-namespace CRM.CCaaS.IVR.GRammarImportTool.ServiceDefaults;
+#pragma warning disable IDE0130
+namespace Microsoft.Extensions.Hosting;
+#pragma warning restore IDE0130
 
 // Adds common .NET Aspire services: service discovery, resilience, health checks, and OpenTelemetry.
 // This project should be referenced by each service project in your solution.
 // To learn more about using this project, see https://aka.ms/dotnet/aspire/service-defaults
+#pragma warning disable IDE0079
+[SuppressMessage("Design", "CA1724:Type Names Should Not Match Namespaces", Justification = "Requirement for Aspire apps")]
+#pragma warning restore IDE0079
 public static class Extensions
 {
     public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
@@ -99,6 +106,7 @@ public static class Extensions
 
     public static WebApplication MapDefaultEndpoints(this WebApplication app)
     {
+        ArgumentNullException.ThrowIfNull(app);
         // Adding health checks endpoints to applications in non-development environments has security implications.
         // See https://aka.ms/dotnet/aspire/healthchecks for details before enabling these endpoints in non-development environments.
         if (app.Environment.IsDevelopment())

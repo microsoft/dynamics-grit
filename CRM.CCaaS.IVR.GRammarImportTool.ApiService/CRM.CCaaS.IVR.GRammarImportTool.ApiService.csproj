@@ -5,7 +5,13 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <UserSecretsId>f431975e-3f6c-4640-ba1f-7974d29dfb91</UserSecretsId>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <UseCommonOutputDirectory>true</UseCommonOutputDirectory>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\CRM.CCaaS.IVR.GRammarImportTool.ServiceDefaults\CRM.CCaaS.IVR.GRammarImportTool.ServiceDefaults.csproj" />

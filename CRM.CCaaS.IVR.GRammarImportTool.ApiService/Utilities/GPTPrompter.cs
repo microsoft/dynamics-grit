@@ -15,6 +15,7 @@ public class GPTPrompter
 
     public GPTPrompter(IConfiguration configuration, ILogger<GPTPrompter> logger)
     {
+        ArgumentNullException.ThrowIfNull(configuration);
         _logger = logger;
         var config = configuration;
         string? endpoint = config["AZURE_OPENAI_ENDPOINT"];
@@ -51,7 +52,7 @@ public class GPTPrompter
                 _initialChatHistory.Add(new ChatMessage(chatRole, content));
             }
         }
-        _chatHistory = new List<ChatMessage>(_initialChatHistory);
+        _chatHistory = [.. _initialChatHistory];
         _logger.LogInformation("GPTPrompter initialized successfully at {Timestamp}.", DateTime.UtcNow);
     }
 
@@ -64,6 +65,9 @@ public class GPTPrompter
         Func<int, string, Task> progressCallback,
         Func<byte[], Task> completedCallback)
     {
+        ArgumentNullException.ThrowIfNull(completedCallback);
+        ArgumentNullException.ThrowIfNull(progressCallback);
+
         var results = new ConcurrentDictionary<string, string>();
         using var archive = new ZipArchive(zipStream, ZipArchiveMode.Read, leaveOpen: true);
 
@@ -76,8 +80,8 @@ public class GPTPrompter
         {
             int progress = (int)((i + batchSize) / (double)entries.Count * 100);
 
-           // if (i % 20 == 0) { 
-               await progressCallback(progress, $"Processing batch {i / batchSize + 1} of {Math.Ceiling(entries.Count / (double)batchSize)}...");
+            // if (i % 20 == 0) { 
+            await progressCallback(progress, $"Processing batch {i / batchSize + 1} of {Math.Ceiling(entries.Count / (double)batchSize)}...");
             //}
 
             var batch = entries.Skip(i).Take(batchSize).ToList();

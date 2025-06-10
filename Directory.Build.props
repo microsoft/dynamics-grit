@@ -1,0 +1,64 @@
+<Project>
+  <Sdk Name="DotNet.ReproducibleBuilds.Isolated" />
+  <PropertyGroup>
+    <Company Condition=" '$(Company)' == '' ">Microsoft Corporation</Company>
+    <Copyright Condition=" '$(Copyright)' == '' ">Copyright © $([System.DateTime]::UtcNow.Year) $(Company). All rights reserved.</Copyright>
+    <Product Condition=" '$(Product)' == '' ">$(SolutionName)</Product>
+    <Description Condition=" '$(Description)' == '' ">$(SolutionName)</Description>
+    <NeutralLanguage Condition=" '$(NeutralLanguage)' == '' ">en-US</NeutralLanguage>
+    <DefaultPlatform>AnyCPU</DefaultPlatform>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Platform Condition=" '$(Platform)' == '' ">$(DefaultPlatform)</Platform>
+    <Platforms Condition=" '$(Platforms)' == '' ">$(DefaultPlatform)</Platforms>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+  </PropertyGroup>
+
+  <!-- Section PlatformTarget Begin -->
+  <!-- Platform can have any value. It is user-defined. PlatformTarget must have a valid value of AnyCPU, x86, x64, ARM -->
+  <!-- Documentation: https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/compiler-options/output#platformtarget -->
+  <PropertyGroup>
+    <_PlatformWithoutConfigurationInference>$(Platform)</_PlatformWithoutConfigurationInference>
+    <!-- Restricting the PlatformTarget to Default -->
+    <PlatformTarget Condition=" '$(_PlatformWithoutConfigurationInference)' != 'AnyCPU' ">$(DefaultPlatform)</PlatformTarget>
+  </PropertyGroup>
+  <!-- Section PlatformTarget End -->
+
+  <PropertyGroup>
+    <!-- Provide repo root variable: -->
+    <RepoRoot>$(MSBuildThisFileDirectory)</RepoRoot>
+
+    <!-- Needed by coreservices.buildtools. Must be set to something meaningful. -->
+    <SRCROOT>$(RepoRoot)</SRCROOT>
+
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <LangVersion>12</LangVersion>
+
+    <!-- This will make all the projects not packable by default, force to true only for the projects
+         that will generate packages or are deployable  -->
+    <IsPackable>false</IsPackable>
+    <Version>$(NugetVersion)</Version>
+
+    <DebugType Condition=" $(TargetFramework.StartsWith('net45')) Or $(TargetFramework.StartsWith('net46')) Or '$(TargetFramework)' == 'net47' Or '$(TargetFramework)' == 'net471' ">full</DebugType>
+    <DebugType Condition=" '$(DebugType)' == '' ">portable</DebugType>
+  </PropertyGroup>
+
+  <!-- Enable SourceLink -->
+  <PropertyGroup>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <BinariesBuildTypeArchDirectory Condition="'$(BinariesBuildTypeArchDirectory)' == ''">$(RepoRoot)out\$(Configuration)-$(Platform)\</BinariesBuildTypeArchDirectory>
+    <OutputPath Condition=" '$(OutputPath)' == '' ">$(BinariesBuildTypeArchDirectory)\$(OutputSubPath)\$(MSBuildProjectName)\</OutputPath>
+
+    <!-- Default to place all our ev2 deployment packages in a separate 'Deploy' folder -->
+    <ServiceGroupRootOutputPath Condition=" '$(ServiceGroupRootOutputPath)' == '' ">$(BinariesBuildTypeArchDirectory)Deploy\$(MSBuildProjectName)</ServiceGroupRootOutputPath>
+
+    <!-- Default to place nuget packages. Note that obpipeline requires this for package publishing: https://onebranch.visualstudio.com/OneBranch/_wiki/wikis/OneBranch.wiki/4621/Publish-Packages -->
+    <PackageOutputPath Condition="'$(PackageOutputPath)' == ''">$(RepoRoot)out\packages</PackageOutputPath>
+  </PropertyGroup>
+</Project>
