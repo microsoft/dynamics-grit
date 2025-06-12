@@ -1,0 +1,96 @@
+# Use this template to debug the state of your yaml pipeline or template - logs environment variables and files
+parameters:
+- { name: break, type: boolean, default: false }
+steps:
+  - task: PowerShell@2
+    displayName: "🐜 [DEBUG] environment"
+    condition: succeededOrFailed()
+    continueOnError: ${{ not(parameters.break) }}
+    inputs:
+      targetType: 'inline'
+      script: |-
+        $modulesPaths = @(
+          "$(Build.Repository.LocalPath)/eng/scripts/Modules/AzureDevOps.psm1"
+          "$(Build.Repository.LocalPath)/eng/scripts/Modules/CommitInfo.psm1"
+        )
+        foreach ($path in $modulesPaths) {
+          if (Test-Path $path) {
+            Write-Host "##[command]Import-Module $path -Scope Global -PassThru"
+            Import-Module $path -Scope Global -PassThru
+          }
+        }
+        $os = "$env:AGENT_OS"
+        Write-Information "Root: $(Pipeline.Workspace)"
+        Write-Information "`$env:AGENT_OS`: $os"
+        $failed = $false
+        
+        Invoke-Group "`$PSVersionTable" {
+            $PSVersionTable | Out-String | Write-Host
+        } -failureAsWarning
+
+        Invoke-Group "Environment variables" {
+            Get-ChildItem env:/* | Sort-Object {
+                $_.Name
+            } | ForEach-Object {
+                Write-Host ($_.Name + ":`n    " + $_.Value)
+            }
+        } -failureAsWarning
+
+        Invoke-Group "System info" {
+            if ($null -ne (Get-Command "systeminfo*")) {
+                Write-Command "systeminfo"
+                systeminfo | Write-Host
+            } elseif ($null -ne (Get-Command "uname*")) {
+                Write-Command "uname -a"
+                uname -a | Write-Host
+            } else {
+                Write-Information "Unable to find a command to run to get system info"
+            }
+        } -failureAsWarning
+
+        Invoke-Group "Processor info" {
+            if ($null -ne (Get-Command "Get-CimInstance*")) {
+                Write-Command "Get-CimInstance -ClassName Win32_Processor"
+                Get-CimInstance -ClassName Win32_Processor | Select-Object -Property Name, NumberOfCores, NumberOfLogicalProcessors | Out-String | Write-Host
+            } else {
+                Write-Command "lscpu"
+                lscpu | Write-Host
+            }
+        } -failureAsWarning
+
+        Invoke-Group "Ram usage" {
+            Write-Command "Get-Process"
+            Get-Process | Sort-Object { $_.WorkingSet64 } -Descending | Select-Object -First 11 | Out-String | Write-Host
+        } -failureAsWarning
+
+        Invoke-Group "Directories" {
+            Write-Host ((Get-ChildItem $(Pipeline.Workspace) -Recurse -Directory | ForEach-Object { $_.FullName } | Sort-Object) -join "`n")
+        } -failureAsWarning
+
+        $files = @()
+        Invoke-Group "Files" {
+            $files = Get-ChildItem $(Pipeline.Workspace) -Recurse -File
+            Write-Host (($files | ForEach-Object { $_.FullName } | Sort-Object) -join "`n")
+        } -failureAsWarning
+
+        Invoke-Group "LargeFiles" {
+            ($files | Sort-Object { $_.Length } -Descending | Select-Object -First 1000 FullName,Length | ForEach-Object {
+                "$($_.FullName): $([math]::round($_.Length / 1MB, 2)) MB"
+            }) -join "`n" | Write-Host
+        } -failureAsWarning
+
+        Invoke-Group "Drives" {
+            Write-Command "Get-PSDrive"
+            Get-PSDrive | Out-String | Write-Host
+        } -failureAsWarning
+
+        if ($os -eq "Linux") {
+            Invoke-Group "df -h" {
+                Write-Command "df -h"
+                df -h | Write-Host
+            } -failureAsWarning
+        }
+
+        if ($${{ parameters.break }} -and $failed) {
+            exit -1
+        }

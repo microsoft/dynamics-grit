@@ -1,0 +1,41 @@
+parameters:
+  - { name: rerunFailedTests,       type: boolean, default: false }
+  - { name: rerunMaxAttempts,       type: number, default: 5 }
+  - { name: rerunFailedThreshold,   type: number, default: 90 }
+
+steps:
+
+- task: VSTest@2
+  displayName: $(stepPrefix) Run tests (VSTest)
+  inputs:
+  # Test selection
+    testSelector: 'testAssemblies'
+    testAssemblyVer2: |
+      **\*.Tests.dll
+      !**\*TestAdapter.dll
+      !**\obj\**
+      !**\*FunctionalTests*.dll
+      ${{ parameters.testAssemblyVer2Ex }}
+    testFiltercriteria: '${{ parameters.testFiltercriteria }}'
+    searchFolder: '$(Build.SourcesDirectory)/out'
+  # Execution options
+    resultsFolder: '$(Build.SourcesDirectory)/TestResults'
+    runInParallel: true
+    codeCoverageEnabled: true
+    runSettingsFile: $(runSettingsFile)
+    rerunFailedTests: '${{ parameters.rerunFailedTests }}'
+    rerunMaxAttempts: '${{ parameters.rerunMaxAttempts }}'
+    rerunFailedThreshold: '${{ parameters.rerunFailedThreshold }}'
+
+  # Reporting options
+    testRunTitle: Unit Tests $(Build.BuildNumber)
+    platform: $(BuildPlatform)
+
+ - task: PublishTestResults@2
+   displayName: 'Publish test results'
+   inputs:
+    testResultsFormat: VSTest
+    testResultsFiles: '$(Build.SourcesDirectory)\out\logs\TestResults\**\*.trx'
+    failTaskOnFailedTests: true
+
+- template: debug-environment.yml

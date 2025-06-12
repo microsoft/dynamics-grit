@@ -33,6 +33,7 @@
     <SRCROOT>$(RepoRoot)</SRCROOT>
 
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsNotAsErrors>NU1603</WarningsNotAsErrors>
     <LangVersion>12</LangVersion>
 
     <!-- This will make all the projects not packable by default, force to true only for the projects

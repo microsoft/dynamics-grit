@@ -1,0 +1,35 @@
+variables:
+  # other variables
+  system.debug: ${{ parameters.debug }}
+
+  DefaultPlatform: "Any CPU"
+  BuildPlatform: $(DefaultPlatform)
+  Platform: $(BuildPlatform)
+
+  BuildConfiguration: Release
+
+  # Docker image which is used to build the project. More options and info at https://aka.ms/obpipelines/containers
+  WindowsContainerImage: 'onebranch.azurecr.io/windows/ltsc2022/vse2022:latest'
+  # LinuxContainerImage: 'mcr.microsoft.com/onebranch/azurelinux/build:3.0'
+
+  # Fix #8630031, onebranch fails to configure nuget plugin timeouts appropriately for container infra. We increase
+  # the timeouts here to avoid getting 401 errors on nuget restore
+  NUGET_PLUGIN_HANDSHAKE_TIMEOUT_IN_SECONDS: 60
+  NUGET_PLUGIN_REQUEST_TIMEOUT_IN_SECONDS: 60
+
+  # Enable more detailed msbuild logs
+  AdditionalMsbuildArguments: '/nologo /bl:$(Build.SourcesDirectory)/out/logs/msbuild._STAGE_.$(BuildConfiguration).binlog /flp1:logFile=$(Build.SourcesDirectory)/out/logs/msbuild._STAGE_.$(BuildConfiguration).log;Verbosity=d;Encoding=UTF-8 /flp2:logfile=$(Build.SourcesDirectory)/out/logs/msbuild._STAGE_.$(BuildConfiguration).err;errorsonly'
+  AdditionalRestoreArguments: ${{ replace(variables.AdditionalMsbuildArguments, '_STAGE_', 'restore') }} 
+  AdditionalBuildArguments: ${{ replace(variables.AdditionalMsbuildArguments, '_STAGE_', 'build') }} 
+  AdditionalTestArguments: ${{ replace(variables.AdditionalMsbuildArguments, '_STAGE_', 'test') }} 
+  AdditionalPackArguments: "${{ replace(variables.AdditionalMsbuildArguments, '_STAGE_', 'pack') }} /p:NoBuild=true"
+
+  # Prefix for making our build steps easier to distinguish from OneBranch build steps.
+  stepPrefix: 💻
+
+  # Configure git fetch depth. For now, GitVersion only appears to function with full history.
+  ob_git_fetchDepth: -1
+
+  NugetVersion: ""
+  CDP_DEFINITION_BUILD_COUNT: "$[counter('', 0)]" 
+

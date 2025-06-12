@@ -1,0 +1,14 @@
+steps:
+- template: debug-environment.yml
+- script: dotnet build eng\Prerequisites.msbuildproj
+  displayName: $(stepPrefix) Install prerequisites
+#- task: NuGetToolInstaller@1
+#  displayName: 'Use NuGet 6.x.x'
+#  inputs:
+#    versionSpec: 6.14.0
+- powershell: |
+    if (!(Test-Path $env:USERPROFILE\.nuget\packages\nuget)) {mkdir -p $env:USERPROFILE\.nuget\packages\nuget}
+      cpi -Verbose -Path C:\NuGet\nuget.exe -Destination $env:USERPROFILE\.nuget\packages\nuget\nuget.exe
+      ls $env:USERPROFILE\.nuget\packages\nuget\nuget.exe
+  name: copy_nuget
+  displayName: Copy nuget

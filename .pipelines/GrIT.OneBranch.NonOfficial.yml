@@ -6,22 +6,31 @@
 # Support:        https://aka.ms/onebranchsup                                   #
 #################################################################################
 
-trigger: none  # https://aka.ms/obpipelines/triggers
+trigger: # https://aka.ms/obpipelines/triggers
+  branches:
+    include:
+      - main
+      - feature/*
+  paths:
+    include:
+      - ./*
+      - .pipelines/*
+    exclude:
+      - ./*.md
 
 # global parameteres are configured here and show up in AzDO UI in build queue time. Required for MSBuild and .NET.
 # learn more at https://aka.ms/obpipelines/parameters
-# parameters:
-# - name: 'debug'
-#  displayName: 'Enable debug output'
-#  type: boolean
-#  default: false
+parameters:
+  - name: 'debug'
+    displayName: 'Enable debug output'
+    type: boolean
+    default: false
 
 variables:
-  CDP_DEFINITION_BUILD_COUNT: $[counter('', 0)]  # needed for onebranch.pipeline.version task https://aka.ms/obpipelines/versioning
+  - template: ./variables.yml
 
-  # Docker image which is used to build the project. More options and info at https://aka.ms/obpipelines/containers
-  WindowsContainerImage: 'onebranch.azurecr.io/windows/ltsc2022/vse2022:latest'
-  # LinuxContainerImage: 'mcr.microsoft.com/onebranch/azurelinux/build:3.0'
+  - name: BuildTemplate
+    value: NonOfficial
 
   ### Specify other global variables in this section! ###
   # https://aka.ms/obpipelines/variables
@@ -37,6 +46,8 @@ extends:
   template: v2/OneBranch.NonOfficial.CrossPlat.yml@templates  # https://aka.ms/obpipelines/templates
   parameters:
     featureFlags:
+      LinuxHostVersion:
+        Network: R1
       WindowsHostVersion:
         Version: 2022
     cloudvault:  # https://aka.ms/obpipelines/cloudvault
@@ -62,57 +73,20 @@ extends:
     # The file contains an example HelloWorld script. For more info and examples, see the links below
     # https://aka.ms/obpipelines/containerbuildexamples
     # https://aka.ms/obpipelines/containerprojectypes
-    - stage: stage1
-      displayName: Stage 1
+    - stage: build
+      displayName: Build
       jobs:
-      - job: sampleJob
+      - job: main
         pool:
           type: windows  # "linux" can be used if performing a linux-based container build
         variables:
           ob_outputDirectory: '$(Build.SourcesDirectory)\out'  # this directory is uploaded to pipeline artifacts and cloudvault. More info at https://aka.ms/obpipelines/artifacts
+          ob_sdl_binskim_break: true # https://aka.ms/obpipelines/sdl
+          ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/master') }}: # conditionally enable symbolsPublishing for master branch only
+            ob_symbolsPublishing_enabled: true # https://aka.ms/obpipelines/symbols
+          
+          # ob_sdl_suppression_suppressionFile: $(Build.SourcesDirectory)\.gdn\build.official.gdnsuppress
         steps:
-        - script: echo Hello, world!
-          displayName: 'Run a one-line script'
+        - template: .pipelines/templates/pre-build-steps.yml@self
+        - template: .pipelines/templates/build-steps.yml@self
 
-        # VSTest@3 should be used for Code Coverage in C* language builds. With VSTest, you dont need publish test results and codecoverage steps!
-        # - task: VSTest@3
-        #   inputs:
-        #     testSelector: 'testAssemblies'
-        #     testAssemblyVer2: |
-        #       **\*test*.dll
-        #       !**\*TestAdapter.dll
-        #       !**\obj\**
-        #     searchFolder: '$(Build.SourcesDirectory)\out' ## or use '$(Agent.BuildDirectory)'
-        #     ##testFiltercriteria: 'TestCategory=UnitTests'   ## update
-        #     resultsFolder: '$(Build.SourcesDirectory)\out\logs\TestResults'
-        #     runInParallel: true ## this setting helps to speed up test case execution but if youhave depdencies between tests you change or remove this but having it enabled is always recommended
-        #     codeCoverageEnabled: true
-        #     testRunTitle: 'release_x64' ## Update this for a custom readable way of taggin your test run when you query in ADO test runs view
-        #     platform: 'x64' ## you can modify this as needed
-        #     configuration: 'release'
-        #     publishRunAttachments: false
-        #     failOnMinTestsNotRun: true
-        #     rerunFailedTests: true
-        #     rerunFailedThreshold: '70'
-
-# For info and instructions on CloudTest, see https://aka.ms/obpipelines/cloudtest
-# uncomment this section and edit parameters to enable CloudTest
-#     - stage: cloudtest
-#       dependsOn: build_stage
-#       jobs:
-#       - job: cloudtestjob
-#         pool:
-#           type: cloudtestagentless
-#         continueOnError: true
-#         steps:
-#         - task: CloudTestServerBuildTask@1
-#           displayName: 'CloudTest'
-#           inputs:
-#             connectedServiceName: 'CloudTest-prod'
-#             cloudTestTenant: 'onebranchtest'
-#             testMapLocation: '[BuildRoot]\ClassLibrary.UnitTest\TestMapCdp.xml'
-#             pipelineArtifactName: 'drop_build_main'
-#             pipelineArtifactBuildUrl: '$(System.TaskDefinitionsUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)'
-#             parserProperties: 'worker:VsTestVersion=V150;CodeCoverageType=Dynamic;worker:TestVar=$(RUN_PIPELINE_VARIABLE)'
-#             cacheEnabled: false
-#             scheduleBuildRequesterAlias: 'azbldrun'

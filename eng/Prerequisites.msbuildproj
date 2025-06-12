@@ -1,0 +1,57 @@
+<Project Sdk="Microsoft.Build.NoTargets"> 
+  <!--
+    Installs common build prerequisites. These are tools presumed to be
+    on every developer machine, and which do not frequently change.
+
+    In general, prefer to acquire build tools via PackageReference in the
+    project which relies on them.
+
+    - Git, package restored from Git-Windows-Minimal
+    - Nuget, curl download from https://dist.nuget.org/
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <NugetBinaryUrl>https://dist.nuget.org/win-x86-commandline/latest/nuget.exe</NugetBinaryUrl>
+    <EnableCentralPackageVersions>false</EnableCentralPackageVersions>
+    <NugetInstallDest>$(NuGetPackageRoot)\nuget</NugetInstallDest>
+    <SkipOutputSubPathCheck>true</SkipOutputSubPathCheck>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Git-Windows-Minimal" GeneratePathProperty="true" />
+  </ItemGroup>
+
+  <Target Name="Prep" BeforeTargets="Build" DependsOnTargets="PreCheck;GetGit;GetNuget;AddPaths" />
+  <Target Name="PreCheck">
+    <Error Condition="'$(NuGetPackageRoot)' == '' or !Exists('$(NuGetPackageRoot)')" Text="Error, NuGetPackageRoot not defined or does not exist" />
+  </Target>
+  <Target Name="GetGit">
+    <!-- reference https://www.nuget.org/packages/Git-Windows-Minimal/ -->
+    <ItemGroup>
+      <NewPaths Include="$([System.IO.Path]::GetFullPath('$(PkgGit-Windows-Minimal)\git\tools\cmd'))" />
+    </ItemGroup>
+  </Target>
+  <Target Name="GetNuget">
+    <!-- reference https://www.nuget.org/downloads -->
+    <MakeDir Directories="$(NugetInstallDest)" />
+    <Exec Condition="!Exists('$(NugetInstallDest)\nuget.exe')" Command="curl.exe --version" />
+    <ItemGroup>
+      <NewPaths Include="$([System.IO.Path]::GetFullPath('$(NugetInstallDest)'))" />
+    </ItemGroup>
+  </Target>
+  <Target Name="AddPaths">
+    <!-- on azure devops, it's sufficient to just to echo the following, which adds the paths to subsequent build steps -->
+    <Message Importance="High" Text="##vso[task.prependpath]%(NewPaths.Identity)" />
+
+    <!-- cdpx, on the other hand, lacks support for modifying the path between build steps. instead, emit a helper script to add the necessary paths -->
+    <ItemGroup>
+      <AddPathsScriptLines Include="@echo off"/>
+      <AddPathsScriptLines Include="set path=%(NewPaths.Identity)%3B%25PATH%25"/>
+    </ItemGroup>
+    <WriteLinesToFile
+        File="$(BaseIntermediateOutputPath)\prerequites_paths.cmd"
+        Lines="@(AddPathsScriptLines)"
+        Overwrite="true"
+        Encoding="ASCII"/>
+  </Target>
+</Project>

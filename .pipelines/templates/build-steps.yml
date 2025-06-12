@@ -1,0 +1,26 @@
+parameters:
+- { name: placeholder, type: string, default: '' }
+
+steps:
+- task: MSBuild@1
+  displayName: $(stepPrefix) Restore (MSBuild)
+  inputs:
+    solution: '$(Build.SourcesDirectory)\CRM.CCaaS.IVR.GRammarImportTool.sln' # This could be a .sln or .csproj file as well
+    platform: $(BuildPlatform)
+    configuration: $(BuildConfiguration)
+    msbuildArguments: '-t:restore $(AdditionalRestoreArguments)'
+    maximumCpuCount: true
+    logProjectEvents: true
+
+# TODO: migrate this task to DotNetCoreCLI@2 build when we port to dotnet core 
+# see: https://learn.microsoft.com/en-us/azure/devops/pipelines/tasks/reference/dotnet-core-cli-v2?view=azure-pipelines
+- task: MSBuild@1
+  displayName: $(stepPrefix) Build (MSBuild)
+  inputs:
+    solution: '$(Build.SourcesDirectory)\CRM.CCaaS.IVR.GRammarImportTool.sln' # This could be a .sln or .csproj file as well
+    platform: $(BuildPlatform)
+    configuration: $(BuildConfiguration)
+    msbuildArguments: '-t:build $(AdditionalBuildArguments)'
+    maximumCpuCount: true
+    logProjectEvents: true
+ 

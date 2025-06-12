@@ -10,7 +10,6 @@ public class GPTPrompter
 {
     private readonly IChatClient _chatClient;
     private readonly List<ChatMessage> _initialChatHistory;
-    private List<ChatMessage> _chatHistory;
     private readonly ILogger<GPTPrompter> _logger;
 
     public GPTPrompter(IConfiguration configuration, ILogger<GPTPrompter> logger)
@@ -52,7 +51,6 @@ public class GPTPrompter
                 _initialChatHistory.Add(new ChatMessage(chatRole, content));
             }
         }
-        _chatHistory = [.. _initialChatHistory];
         _logger.LogInformation("GPTPrompter initialized successfully at {Timestamp}.", DateTime.UtcNow);
     }
 
