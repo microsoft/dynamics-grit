@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <Sdk Name="Aspire.AppHost.Sdk" Version="9.0.0" />
 
@@ -9,7 +9,9 @@
     <Nullable>enable</Nullable>
     <IsAspireHost>true</IsAspireHost>
     <UserSecretsId>4106147c-6fd3-46a2-9483-7763f5bdec5c</UserSecretsId>
-    <UseCommonOutputDirectory>true</UseCommonOutputDirectory>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <RestoreProjectStyle>PackageReference</RestoreProjectStyle>    
+    <IntermediateOutputPath>../out</IntermediateOutputPath>
   </PropertyGroup>
 
   <ItemGroup>

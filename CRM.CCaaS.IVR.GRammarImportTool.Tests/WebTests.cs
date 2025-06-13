@@ -1,28 +1,43 @@
 namespace CRM.CCaaS.IVR.GRammarImportTool.Tests;
 
-public class WebTests
+public class WebTests : IClassFixture<TestD>, IDisposable
 {
-    [Fact]
-    public async Task GetWebResourceRootReturnsOkStatusCode()
+    private bool _disposedValue;
+    private readonly TestD _testD;
+    private readonly HttpClient _httpClient;
+
+    public WebTests(TestD testD)
     {
-        // Arrange
-        var appHost = await DistributedApplicationTestingBuilder.CreateAsync<Projects.CRM_CCaaS_IVR_GRammarImportTool_AppHost>();
-        appHost.Services.ConfigureHttpClientDefaults(clientBuilder =>
+        _testD = testD;
+        _httpClient = _testD.GetHttpClient();
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!_disposedValue)
         {
-            clientBuilder.AddStandardResilienceHandler();
-        });
-        // To output logs to the xUnit.net ITestOutputHelper, consider adding a package from https://www.nuget.org/packages?q=xunit+logging
+            if (disposing)
+            {
+                _httpClient.Dispose();
+            }
 
-        await using var app = await appHost.BuildAsync();
-        var resourceNotificationService = app.Services.GetRequiredService<ResourceNotificationService>();
-        await app.StartAsync();
+            _disposedValue = true;
+        }
+    }
 
-        // Act
-        var httpClient = app.CreateHttpClient("webfrontend");
-        await resourceNotificationService.WaitForResourceAsync("webfrontend", KnownResourceStates.Running).WaitAsync(TimeSpan.FromSeconds(30));
-        var response = await httpClient.GetAsync("/");
+    public void Dispose()
+    {
+        // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
 
-        httpClient.Dispose();
+    [Fact]
+    public async Task When_app_started_Then_healthcheck_success()
+    {
+        var response = await _httpClient.GetAsync("/health");
+
+        _httpClient.Dispose();
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

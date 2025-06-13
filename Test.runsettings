@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<RunSettings>
+  <MSTest>
+    <OrderTestsByNameInClass>true</OrderTestsByNameInClass>
+  </MSTest>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="Code Coverage">
+        <Configuration>
+          <CodeCoverage>
+            <ModulePaths>
+              <Exclude>
+                <ModulePath>.*\\*.tests.dll</ModulePath>
+              </Exclude>
+            </ModulePaths>
+            <Sources>
+              <Exclude>
+                <Source>.*\\obj\\Debug\\net9.0.*</Source>
+                <Source>.*\\obj\\Release\\net9.0.*</Source>
+              </Exclude>
+            </Sources>
+            <Functions>
+              <Exclude>
+              <Function>.*PlaceHolder.*</Function>
+              </Exclude>
+            </Functions>
+          </CodeCoverage>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

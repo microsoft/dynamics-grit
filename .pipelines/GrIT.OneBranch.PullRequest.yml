@@ -30,7 +30,7 @@ variables:
   - template: ./variables.yml
 
   - name: BuildTemplate
-    value: NonOfficial
+    value: pr
 
   ### Specify other global variables in this section! ###
   # https://aka.ms/obpipelines/variables

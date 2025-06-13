@@ -6,12 +6,14 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-    <UseCommonOutputDirectory>true</UseCommonOutputDirectory>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <GenerateRuntimeConfigDevFile>true</GenerateRuntimeConfigDevFile>
   </PropertyGroup>
 
 
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.Testing" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />    
     <PackageReference Include="coverlet.collector">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -23,7 +25,6 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
- 	  <PackageReference Include="Google.Protobuf" />  
   </ItemGroup>
 
   <ItemGroup>

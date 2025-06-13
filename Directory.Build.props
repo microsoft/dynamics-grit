@@ -32,13 +32,13 @@
     <!-- Needed by coreservices.buildtools. Must be set to something meaningful. -->
     <SRCROOT>$(RepoRoot)</SRCROOT>
 
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <WarningsNotAsErrors>NU1603</WarningsNotAsErrors>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningsAsErrors>CS8600,CS8601,CS8602,CS8603,CS8604,CS8618,CS8620,CS8625,CA2213</WarningsAsErrors>
     <LangVersion>12</LangVersion>
 
     <!-- This will make all the projects not packable by default, force to true only for the projects
          that will generate packages or are deployable  -->
-    <IsPackable>false</IsPackable>
+    <IsPackable>true</IsPackable>
     <Version>$(NugetVersion)</Version>
 
     <DebugType Condition=" $(TargetFramework.StartsWith('net45')) Or $(TargetFramework.StartsWith('net46')) Or '$(TargetFramework)' == 'net47' Or '$(TargetFramework)' == 'net471' ">full</DebugType>

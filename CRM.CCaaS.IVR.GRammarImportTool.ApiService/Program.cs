@@ -58,7 +58,7 @@ app.MapPost("/grit", async (
     {
         return Results.BadRequest("ConnectionId is required.");
     }
-
+      
     if (string.IsNullOrWhiteSpace(connectionId))
     {
         return Results.BadRequest("ConnectionId is required.");
