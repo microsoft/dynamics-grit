@@ -15,9 +15,31 @@ builder.AddServiceDefaults();
 builder.Services.AddProblemDetails();
 builder.Services.AddAntiforgery();
 builder.Services.AddSingleton<GPTPrompter>();
-builder.Services.AddSignalR();
+builder.Services.AddSignalR(options =>
+{
+    options.EnableDetailedErrors = true;
+})
+.AddHubOptions<GritHub>(hubOptions =>
+{
+    hubOptions.MaximumReceiveMessageSize = 1 * 1024 * 1024; // 1 MB
+});
+
+// Add CORS policy for SignalR/WebSockets
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .SetIsOriginAllowed(_ => true) // Allow all origins for testing; restrict in production
+            .AllowCredentials();
+    });
+});
 
 var app = builder.Build();
+
+app.UseCors(); // Enable CORS
 
 app.UseAntiforgery();
 
@@ -58,7 +80,7 @@ app.MapPost("/grit", async (
     {
         return Results.BadRequest("ConnectionId is required.");
     }
-      
+
     if (string.IsNullOrWhiteSpace(connectionId))
     {
         return Results.BadRequest("ConnectionId is required.");
