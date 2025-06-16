@@ -2,11 +2,12 @@ variables:
   # other variables
   system.debug: ${{ parameters.debug }}
 
-  DefaultPlatform: "Any CPU"
-  BuildPlatform: $(DefaultPlatform)
+  DefaultPlatform: "AnyCPU"
+  DefaultPlatformTarget: "Any CPU"
+  BuildPlatform: $(DefaultPlatformTarget)
   Platform: $(BuildPlatform)
 
-  BuildConfiguration: Release
+  BuildConfiguration: Debug
 
   # Docker image which is used to build the project. More options and info at https://aka.ms/obpipelines/containers
   WindowsContainerImage: 'onebranch.azurecr.io/windows/ltsc2022/vse2022:latest'

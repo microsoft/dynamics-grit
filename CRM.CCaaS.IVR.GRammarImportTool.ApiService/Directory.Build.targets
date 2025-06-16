@@ -1,0 +1,10 @@
+<Project>
+    <Target Name="CustomClean" BeforeTargets="Clean">
+      <Message Text="Clean CRM.CCaaS.IVR.GRammarImportTool.ApiService" Importance="high"/>
+        <ItemGroup>
+         <_CustomFilesToDelete Include="$(RepoRoot)\out\CRM.CCaaS.IVR.GRammarImportTool.ApiService"/>
+        </ItemGroup>
+        <RemoveDir Directories='@(_CustomFilesToDelete)'/>
+        <!--<RemoveDir Directories="$(RepoRoot)\out" />-->
+    </Target>
+</Project>

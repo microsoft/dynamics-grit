@@ -1,5 +1,0 @@
-<Project>
-    <Target Name="CustomClean" BeforeTargets="Clean">
-        <RemoveDir Directories="$(RepoRoot)\out" />
-    </Target>
-</Project>

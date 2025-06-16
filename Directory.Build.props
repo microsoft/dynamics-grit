@@ -6,7 +6,7 @@
     <Product Condition=" '$(Product)' == '' ">$(SolutionName)</Product>
     <Description Condition=" '$(Description)' == '' ">$(SolutionName)</Description>
     <NeutralLanguage Condition=" '$(NeutralLanguage)' == '' ">en-US</NeutralLanguage>
-    <DefaultPlatform>AnyCPU</DefaultPlatform>
+    <DefaultPlatform>Any CPU</DefaultPlatform>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -21,7 +21,7 @@
   <PropertyGroup>
     <_PlatformWithoutConfigurationInference>$(Platform)</_PlatformWithoutConfigurationInference>
     <!-- Restricting the PlatformTarget to Default -->
-    <PlatformTarget Condition=" '$(_PlatformWithoutConfigurationInference)' != 'AnyCPU' ">$(DefaultPlatform)</PlatformTarget>
+    <PlatformTarget Condition=" '$(_PlatformWithoutConfigurationInference)' != 'AnyCPU' ">$(DefaultPlatformTarget)</PlatformTarget>
   </PropertyGroup>
   <!-- Section PlatformTarget End -->
 
@@ -53,8 +53,8 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <BinariesBuildTypeArchDirectory Condition="'$(BinariesBuildTypeArchDirectory)' == ''">$(RepoRoot)out\$(Configuration)-$(Platform)\</BinariesBuildTypeArchDirectory>
-    <OutputPath Condition=" '$(OutputPath)' == '' ">$(BinariesBuildTypeArchDirectory)\$(OutputSubPath)\$(MSBuildProjectName)\</OutputPath>
+    <BinariesBuildTypeArchDirectory Condition="'$(BinariesBuildTypeArchDirectory)' == ''">$(RepoRoot)out\$(Configuration)-$(DefaultPlatform)\</BinariesBuildTypeArchDirectory>
+    <OutputPath Condition=" '$(OutputPath)' == '' ">$(BinariesBuildTypeArchDirectory)\$(MSBuildProjectName)\</OutputPath>
 
     <!-- Default to place all our ev2 deployment packages in a separate 'Deploy' folder -->
     <ServiceGroupRootOutputPath Condition=" '$(ServiceGroupRootOutputPath)' == '' ">$(BinariesBuildTypeArchDirectory)Deploy\$(MSBuildProjectName)</ServiceGroupRootOutputPath>

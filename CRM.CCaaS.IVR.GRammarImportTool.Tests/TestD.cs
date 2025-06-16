@@ -6,7 +6,7 @@ public class TestD : IDisposable
 {
     private bool _disposedValue;
     private readonly HttpClient _httpClient;
-    private Aspire.Hosting.DistributedApplication _app;
+    private readonly Aspire.Hosting.DistributedApplication _app;
     public TestD()
     {
         // Arrange
