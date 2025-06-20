@@ -1,40 +1,41 @@
 ﻿using System.Collections.Concurrent;
 using System.IO.Compression;
+using System.Text;
 using Azure;
 using Azure.AI.OpenAI;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Options;
 
-namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Utilities;
+namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain;
 
 public class GPTPrompter
 {
     private readonly IChatClient _chatClient;
     private readonly List<ChatMessage> _initialChatHistory;
     private readonly ILogger<GPTPrompter> _logger;
-    private readonly int _degreeParallelism;
+    private readonly GPTPrompterConfiguration _gptPrompterConfiguration;
 
-    public GPTPrompter(IConfiguration configuration, ILogger<GPTPrompter> logger)
+    public GPTPrompter(ILogger<GPTPrompter> logger, IOptions<GPTPrompterConfiguration> gptPrompterConfiguration)
     {
-        ArgumentNullException.ThrowIfNull(configuration);
         ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull(gptPrompterConfiguration);
 
         _logger = logger;
-        var (endpoint, deployment, key) = GetOpenAiConfiguration(configuration);
+        _gptPrompterConfiguration = gptPrompterConfiguration.Value;
 
-        _chatClient = CreateChatClient(endpoint, deployment, key);
-        _initialChatHistory = LoadInitialChatHistory(configuration);
-        _degreeParallelism = GetDegreeParallelismFromConfig(configuration);
-        _logger.LogInformation("GPTPrompter initialized successfully at {Timestamp}.", DateTime.UtcNow);
-    }
-
-    private int GetDegreeParallelismFromConfig(IConfiguration configuration)
-    {
-        var degreeParallelismValue = configuration["GPTPrompter:DegreeParallelism"];
-        if (int.TryParse(degreeParallelismValue, out int degreeParallelism) && degreeParallelism > 0)
+        if (string.IsNullOrEmpty(_gptPrompterConfiguration.AzureOpenAIEndpoint)
+            || string.IsNullOrEmpty(_gptPrompterConfiguration.AzureOpenAIDeploymentName)
+            || string.IsNullOrEmpty(_gptPrompterConfiguration.AzureOpenAIKey))
         {
-            return degreeParallelism;
+            _logger.LogError("Azure OpenAI configuration is missing.");
+            throw new InvalidOperationException("Azure OpenAI configuration is missing.");
         }
-        return 7; // Default value
+
+        _chatClient = CreateChatClient(_gptPrompterConfiguration.AzureOpenAIEndpoint,
+            _gptPrompterConfiguration.AzureOpenAIDeploymentName, _gptPrompterConfiguration.AzureOpenAIKey);
+        _initialChatHistory = LoadInitialChatHistory(_gptPrompterConfiguration);
+        _logger.LogInformation("GPTPrompter initialized successfully at {Timestamp}.", DateTime.UtcNow);
     }
 
     /// <summary>
@@ -45,57 +46,80 @@ public class GPTPrompter
     /// <param name="completedCallback">Callback when processing is complete.</param>
     /// <returns>A stream containing a zip file with one text file per entry.</returns>
     public async Task<Stream> GetFileEntityTypeZipAsync(
-    Stream zipStream,
-    Func<int, string, Task> progressCallback,
-    Func<byte[], Task> completedCallback)
+        Stream zipStream,
+        Func<int, string, Task> progressCallback,
+        Func<byte[], Task> completedCallback)
     {
         ArgumentNullException.ThrowIfNull(zipStream);
         ArgumentNullException.ThrowIfNull(progressCallback);
         ArgumentNullException.ThrowIfNull(completedCallback);
 
         var results = new ConcurrentDictionary<string, string>();
-        using var archive = new ZipArchive(zipStream, ZipArchiveMode.Read, leaveOpen: true);
 
-        var entries = archive.Entries.Where(e => !string.IsNullOrEmpty(e.Name)).ToList();
+        var entries = LoadZipToDictionary(zipStream);
 
         await progressCallback(0, "Starting processing...");
 
         int processedCount = 0;
         int totalCount = entries.Count;
 
-        var parallelLoopResult = Parallel.ForEach(entries, new ParallelOptions { MaxDegreeOfParallelism = _degreeParallelism }, entry =>
+        var parallelLoopResult = Parallel.ForEach(entries, new ParallelOptions { MaxDegreeOfParallelism = _gptPrompterConfiguration.DegreeParallelism }, async entry =>
         {
             string content;
             if (!TryReadXmlContent(entry, out content))
             {
-                results[entry.Name] = content;
+                results[entry.Key] = entry.Value;
             }
             else
             {
                 try
                 {
                     // Synchronously wait for async method (not ideal, but required for Parallel.ForEach)
-                    string response = ProcessSingleFileAsync(entry.Name, content).GetAwaiter().GetResult();
-                    results[entry.Name] = response;
+                    string response = ProcessSingleFileAsync(entry.Key, content).Result;
+                    results[entry.Key] = response;
                 }
                 catch (Exception ex)
                 {
-                    results[entry.Name] = $"Error: {ex.Message}";
+                    results[entry.Key] = $"Error: {ex.Message}";
                 }
             }
 
             int current = Interlocked.Increment(ref processedCount);
             int progress = (int)(current / (double)totalCount * 100);
             // Fire and forget progress callback (do not await inside Parallel.ForEach)
-            _ = progressCallback(progress, $"Processed {current} of {totalCount} files...");
+            await progressCallback(progress, $"Processed {current} of {totalCount} files...");
         });
 
+        while (!parallelLoopResult.IsCompleted)
+        {
+            // Wait for all tasks to complete
+            await Task.Delay(100);
+        }
         _logger.LogInformation("Completed processing files in the zip archive at {Timestamp}.", DateTime.UtcNow);
 
         var outputStream = CreateResultZipStream(results);
         await completedCallback(outputStream.ToArray());
         outputStream.Position = 0;
         return outputStream;
+    }
+
+    private Dictionary<string, string> LoadZipToDictionary(Stream zipStream)
+    {
+        Dictionary<string, string> entries = new Dictionary<string, string>();
+
+        using (var a = new ZipArchive(zipStream, ZipArchiveMode.Read))
+        {
+            foreach (var entry in a.Entries)
+            {
+                using (var entryStream = entry.Open())
+                using (var reader = new StreamReader(entryStream, Encoding.UTF8))
+                {
+                    string content = reader.ReadToEnd();
+                    entries.Add(entry.Name, content);
+                }
+            }
+        }
+        return entries;
     }
 
     /// <summary>
@@ -146,12 +170,11 @@ public class GPTPrompter
     /// <summary>
     /// Reads and cleans XML content from a ZipArchiveEntry.
     /// </summary>
-    private bool TryReadXmlContent(ZipArchiveEntry entry, out string content)
+    private bool TryReadXmlContent(KeyValuePair<string, string> entry, out string content)
     {
         try
         {
-            using var entryStream = entry.Open();
-            var xmlDoc = System.Xml.Linq.XDocument.Load(entryStream);
+            var xmlDoc = System.Xml.Linq.XDocument.Parse(entry.Value);
             if (xmlDoc.Root is not null)
             {
                 RemoveCommentsAndWhitespace(xmlDoc.Root);
@@ -161,7 +184,7 @@ public class GPTPrompter
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to parse {FileName} as XML at {Timestamp}.", entry.Name, DateTime.UtcNow);
+            _logger.LogError(ex, "Failed to parse {FileName} as XML at {Timestamp}.", entry.Key, DateTime.UtcNow);
             content = $"Error: Failed to parse as XML. {ex.Message}";
             return false;
         }
@@ -190,14 +213,13 @@ public class GPTPrompter
     /// <summary>
     /// Loads the initial chat history from configuration.
     /// </summary>
-    private static List<ChatMessage> LoadInitialChatHistory(IConfiguration config)
+    private static List<ChatMessage> LoadInitialChatHistory(GPTPrompterConfiguration config)
     {
-        var chatHistorySection = config.GetSection("GPTPrompter:InitialChatHistory").GetChildren();
         var initialChatHistory = new List<ChatMessage>();
-        foreach (var item in chatHistorySection)
+        foreach (var item in config.InitialChatHistory!)
         {
-            var role = item["Role"];
-            var content = item["Content"];
+            var role = item.Role;
+            var content = item.Content;
             if (!string.IsNullOrEmpty(role) && !string.IsNullOrEmpty(content))
             {
                 ChatRole chatRole = role.ToLower() switch
@@ -211,23 +233,6 @@ public class GPTPrompter
             }
         }
         return initialChatHistory;
-    }
-
-    /// <summary>
-    /// Retrieves OpenAI configuration values and validates them.
-    /// </summary>
-    private (string Endpoint, string Deployment, string Key) GetOpenAiConfiguration(IConfiguration config)
-    {
-        string? endpoint = config["AZURE_OPENAI_ENDPOINT"];
-        string? deployment = config["AZURE_OPENAI_GPT_NAME"];
-        string? key = config["AZURE_OPENAI_GPT_KEY"];
-
-        if (string.IsNullOrEmpty(endpoint) || string.IsNullOrEmpty(deployment) || string.IsNullOrEmpty(key))
-        {
-            _logger.LogError("Azure OpenAI configuration is missing.");
-            throw new InvalidOperationException("Azure OpenAI configuration is missing.");
-        }
-        return (endpoint, deployment, key);
     }
 
     /// <summary>

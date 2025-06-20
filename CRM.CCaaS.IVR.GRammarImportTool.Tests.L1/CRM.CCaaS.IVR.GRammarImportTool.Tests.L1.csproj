@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.Testing" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />    
     <PackageReference Include="coverlet.collector">
       <PrivateAssets>all</PrivateAssets>
@@ -37,6 +38,19 @@
     <Using Include="Aspire.Hosting.ApplicationModel" />
     <Using Include="Aspire.Hosting.Testing" />
     <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Data\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Data\grit-test-data-1.zip">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Data\grit-test-data-2.zip">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

@@ -1,16 +1,17 @@
 using Microsoft.AspNetCore.SignalR;
-using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Utilities;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain;
 using System.IO;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Hubs;
 
-public class GritHub(GPTPrompter gptPrompter) : Hub
+internal class GritHub(ILogger<GPTPrompter> logger, GPTPrompter gptPrompter) : Hub
 {
     private readonly GPTPrompter _gptPrompter = gptPrompter;
+    private readonly ILogger<GPTPrompter> _logger = logger;
 
     public override async Task OnConnectedAsync()
     {
-        Console.WriteLine($"Client connected: {Context.ConnectionId}");
+        _logger.LogInformation("Client connected: {ConnectionId}", Context.ConnectionId);
         await Clients.Caller.SendAsync("ConnectionId", Context.ConnectionId);
         await base.OnConnectedAsync();
     }
@@ -21,7 +22,8 @@ public class GritHub(GPTPrompter gptPrompter) : Hub
     /// <param name="zipBytes">The zip file as a byte array.</param>
     public async Task UploadZipFile(byte[] zipBytes)
     {
-        Console.WriteLine($"UploadZipFile called by {Context.ConnectionId}, bytes: {zipBytes?.Length}");
+        string resultBase64 = string.Empty;
+        _logger.LogInformation("UploadZipFile called by {ConnectionId}, bytes: {zipBytes}", Context.ConnectionId, zipBytes?.Length);
         if (zipBytes == null)
         {
             await Clients.Caller.SendAsync("Error", "Uploaded file is null.");
@@ -40,14 +42,14 @@ public class GritHub(GPTPrompter gptPrompter) : Hub
                 },
                 async (resultBytes) =>
                 {
-                    var resultBase64 = Convert.ToBase64String(resultBytes);
+                    resultBase64 = Convert.ToBase64String(resultBytes);
                     await Clients.Caller.SendAsync("Completed", resultBase64);
                 }
             );
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error in UploadZipFile: {ex}");
+            _logger.LogInformation("Error in UploadZipFile: {Exception}", ex);
             await Clients.Caller.SendAsync("Error", ex.Message);
         }
     }

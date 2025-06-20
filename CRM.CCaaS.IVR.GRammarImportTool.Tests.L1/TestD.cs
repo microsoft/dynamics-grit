@@ -1,12 +1,17 @@
-﻿using Microsoft.AspNetCore.SignalR;
+﻿using System.IO.Compression;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.AI;
+using Xunit.Abstractions;
 
-namespace CRM.CCaaS.IVR.GRammarImportTool.Tests;
+namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L1;
 
 public class TestD : IDisposable
 {
     private bool _disposedValue;
     private readonly HttpClient _httpClient;
     private readonly Aspire.Hosting.DistributedApplication _app;
+    private readonly List<string> _events = new List<string>();
+
     public TestD()
     {
         // Arrange
@@ -29,6 +34,16 @@ public class TestD : IDisposable
     public HttpClient GetHttpClient()
     {
         return _httpClient;
+    }
+
+    public void AddEvent(string eventName)
+    {
+        _events.Add(eventName);
+    }
+
+    public IReadOnlyList<string> GetEvents()
+    {
+        return _events.AsReadOnly();
     }
 
     protected virtual void Dispose(bool disposing)

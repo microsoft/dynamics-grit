@@ -8,7 +8,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CRM.CCaaS.IVR.GRammarImport
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CRM.CCaaS.IVR.GRammarImportTool.ApiService", "CRM.CCaaS.IVR.GRammarImportTool.ApiService\CRM.CCaaS.IVR.GRammarImportTool.ApiService.csproj", "{CD1BBD1C-E1BB-4BCB-A21B-AD3A6F2C0A71}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CRM.CCaaS.IVR.GRammarImportTool.Tests", "CRM.CCaaS.IVR.GRammarImportTool.Tests\CRM.CCaaS.IVR.GRammarImportTool.Tests.csproj", "{11128C71-F5ED-4535-8DF6-F689D310102A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CRM.CCaaS.IVR.GRammarImportTool.Tests.L1", "CRM.CCaaS.IVR.GRammarImportTool.Tests.L1\CRM.CCaaS.IVR.GRammarImportTool.Tests.L1.csproj", "{11128C71-F5ED-4535-8DF6-F689D310102A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
