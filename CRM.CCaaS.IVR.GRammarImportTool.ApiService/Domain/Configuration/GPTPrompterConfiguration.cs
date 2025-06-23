@@ -9,6 +9,12 @@ public class GPTPrompterConfiguration
     [Range(1, 100, ErrorMessage = "Degree of parallelism for processing")]
     public int DegreeParallelism { get; set; } = 7; // Degree of parallelism for processing
 
+    [Range(1, 10, ErrorMessage = "Maximum number of retries for processing of single file")]
+    public int MaxRetries { get; set; } = 3; // Maximum number of retries for processing
+
+    [Range(1, 300, ErrorMessage = "Retry delay in seconds")]
+    public int RetryDelaySec { get; set; } = 10; // Delay between retries in seconds
+
     [Required(ErrorMessage = "Initial Chat history is required")]
     public List<GPTMessage>? InitialChatHistory { get; set; } = new List<GPTMessage>();
 

@@ -60,12 +60,15 @@ public class GPTPrompter
 
         await progressCallback(0, "Starting processing...");
 
+        _logger.LogInformation("Starting processing files at {Timestamp} with {_gptPrompterConfiguration.DegreeParallelism} parallel tasks", DateTime.UtcNow, _gptPrompterConfiguration.DegreeParallelism);
+
         int processedCount = 0;
         int totalCount = entries.Count;
 
         var parallelLoopResult = Parallel.ForEach(entries, new ParallelOptions { MaxDegreeOfParallelism = _gptPrompterConfiguration.DegreeParallelism }, async entry =>
         {
             string content;
+            var stopWatch = new System.Diagnostics.Stopwatch();
             if (!TryReadXmlContent(entry, out content))
             {
                 results[entry.Key] = entry.Value;
@@ -74,9 +77,12 @@ public class GPTPrompter
             {
                 try
                 {
+                    stopWatch.Start();
                     // Synchronously wait for async method (not ideal, but required for Parallel.ForEach)
                     string response = ProcessSingleFileAsync(entry.Key, content).Result;
                     results[entry.Key] = response;
+                    _logger.LogInformation("Processed file {FileName} in {ElapsedMilliseconds} ms at {Timestamp}.", entry.Key, stopWatch.ElapsedMilliseconds, DateTime.UtcNow);
+                    stopWatch.Stop();
                 }
                 catch (Exception ex)
                 {
@@ -128,26 +134,40 @@ public class GPTPrompter
     private async Task<string> ProcessSingleFileAsync(string fileName, string fileContent)
     {
         _logger.LogInformation("Processing file content for entity type classification at {Timestamp}.", DateTime.UtcNow);
+        var retries = _gptPrompterConfiguration.MaxRetries;
+
         var chatHistory = new List<ChatMessage>(_initialChatHistory)
         {
             new ChatMessage(ChatRole.User, $"Convert the file {fileName} to Microsoft Copilot Studio Yaml: {fileContent}")
         };
 
         var response = string.Empty;
-        try
+        while (retries > 0)
         {
-            await foreach (var item in _chatClient.GetStreamingResponseAsync(chatHistory))
+            try
             {
-                response += item.Text;
+                await foreach (var item in _chatClient.GetStreamingResponseAsync(chatHistory))
+                {
+                    response += item.Text;
+                }
+                _logger.LogInformation("File content processed successfully at {Timestamp}.", DateTime.UtcNow);
+                return response;
             }
-            _logger.LogInformation("File content processed successfully at {Timestamp}.", DateTime.UtcNow);
+            catch (System.ClientModel.ClientResultException ex)
+            {
+                _logger.LogWarning("Client error {Error} occurred while processing file content at {Timestamp}. \n Will retry", ex, DateTime.UtcNow);
+                response = string.Empty;
+                retries--;
+                await Task.Delay(TimeSpan.FromSeconds(_gptPrompterConfiguration.RetryDelaySec));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error occurred while processing file content at {Timestamp}.", DateTime.UtcNow);
+                throw;
+            }
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error occurred while processing file content at {Timestamp}.", DateTime.UtcNow);
-            throw;
-        }
-
+        _logger.LogError("Failed to process file {FileName} after {Retries} retries at {Timestamp}.", fileName, _gptPrompterConfiguration.MaxRetries, DateTime.UtcNow);
+        response += $"Error: Failed to process {fileName} after {_gptPrompterConfiguration.MaxRetries} retries.";
         return response;
     }
 
