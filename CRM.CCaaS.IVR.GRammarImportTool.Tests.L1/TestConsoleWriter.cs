@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.VisualStudio.TestPlatform.CommunicationUtilities;
 using Xunit.Abstractions;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L1;
@@ -10,6 +11,7 @@ internal class TestConsoleWriter(ITestOutputHelper output) : TextWriter
 {
     private readonly ITestOutputHelper _output = output;
     private string _buffer = string.Empty;
+    private readonly List<string> _lines = new List<string>();
 
     public override Encoding Encoding
     {
@@ -18,10 +20,12 @@ internal class TestConsoleWriter(ITestOutputHelper output) : TextWriter
     public override void WriteLine(string message)
     {
         _output.WriteLine(message);
+        _lines.Add(message);
     }
     public override void WriteLine(string format, params object[] args)
     {
         _output.WriteLine(format, args);
+        _lines.Add(string.Format(format, args));
     }
 
     public override void Write(char value)
@@ -31,6 +35,7 @@ internal class TestConsoleWriter(ITestOutputHelper output) : TextWriter
         if (value == '\n')
         {
             _output.WriteLine(_buffer);
+            _lines.Add(_buffer);
             _buffer = string.Empty;
         }
         else
@@ -41,14 +46,30 @@ internal class TestConsoleWriter(ITestOutputHelper output) : TextWriter
     public override void Write(string? value)
     {
         _output.WriteLine(value);
+        _lines.Add(value ?? string.Empty);
     }
 
     public override void Write(string format, params object[] args)
     {
         _output.WriteLine(format, args);
+        _lines.Add(string.Format(format, args));
     }
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);
+    }
+    public IEnumerable<string> GetLines()
+    {
+        return _lines;
+    }
+
+    public void ClearLines()
+    {
+        _lines.Clear();
+    }
+
+    public void AddLine(string line)
+    {
+        _lines.Add(line);
     }
 }

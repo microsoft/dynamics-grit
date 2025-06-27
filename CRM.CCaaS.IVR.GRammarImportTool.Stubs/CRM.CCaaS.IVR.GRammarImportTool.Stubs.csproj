@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>a6440d9f-a2ce-41b6-bdfc-3eb20999906a</UserSecretsId>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <_CustomFilesToDelete Include="$(OutputPath)"/>
+  </ItemGroup>
+  <Target Name="CustomClean" AfterTargets="Clean">
+    <Message Text="Clean CRM.CCaaS.IVR.GRammarImportTool.Stubs" Importance="high"/>
+    <RemoveDir Directories='@(_CustomFilesToDelete)'/>
+  </Target>
+</Project>

@@ -11,11 +11,22 @@ public class TestD : IDisposable
     private readonly HttpClient _httpClient;
     private readonly Aspire.Hosting.DistributedApplication _app;
     private readonly List<string> _events = new List<string>();
+    private readonly Task _stub;
+    private readonly CancellationTokenSource _stubCancelationTokenSource = new CancellationTokenSource();
+    private static readonly string[] Args = ["--environment=Test"];
 
     public TestD()
     {
+        _stub = Task.Run(() =>
+        {
+            Stubs.Program.Main([""]);
+
+        }, _stubCancelationTokenSource.Token);
+
+        Console.WriteLine($"Stub application started. {_stub.Id}");
+
         // Arrange
-        var appHost = DistributedApplicationTestingBuilder.CreateAsync<Projects.CRM_CCaaS_IVR_GRammarImportTool_AppHost>().Result;
+        var appHost = DistributedApplicationTestingBuilder.CreateAsync<Projects.CRM_CCaaS_IVR_GRammarImportTool_AppHost>(Args).Result;
         appHost.Services.ConfigureHttpClientDefaults(clientBuilder =>
         {
             clientBuilder.AddStandardResilienceHandler();
@@ -54,6 +65,10 @@ public class TestD : IDisposable
             {
                 _httpClient.Dispose();
                 _app.Dispose();
+                _stubCancelationTokenSource.Cancel();
+                Stubs.Program.Stop();
+                _stub.Wait(TimeSpan.FromSeconds(10));
+                _stubCancelationTokenSource.Dispose();
                 // TODO: dispose managed state (managed objects)
             }
 

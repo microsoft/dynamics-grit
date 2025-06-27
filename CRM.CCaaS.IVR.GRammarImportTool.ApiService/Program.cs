@@ -19,9 +19,9 @@ builder.AddServiceDefaults();
 builder.Configuration
     .SetBasePath(AppContext.BaseDirectory)
     .AddJsonFile("AppSettings.json", optional: false, reloadOnChange: true)
-    .AddJsonFile($"AppSettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
-    .AddEnvironmentVariables(prefix: "GRIT_")
     .AddUserSecrets(Assembly.GetExecutingAssembly())
+    .AddJsonFile($"AppSettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
+    .AddEnvironmentVariables(prefix: "GPTPrompter")
     .AddCommandLine(args);
 
 builder.Logging.AddConsole()

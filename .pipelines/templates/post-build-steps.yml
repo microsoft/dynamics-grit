@@ -14,7 +14,8 @@ steps:
   # Test selection
     testSelector: 'testAssemblies'
     testAssemblyVer2: |
-      **\*.Tests.dll
+      **\*.Tests.L1.dll
+      **\*.Tests.L0.dll
       !**\*TestAdapter.dll
       !**\obj\**
       !**\*FunctionalTests*.dll
@@ -23,7 +24,7 @@ steps:
     searchFolder: '$(Build.SourcesDirectory)/out'
   # Execution options
     resultsFolder: '$(Build.SourcesDirectory)/TestResults'
-    runInParallel: true
+    runInParallel: false
     codeCoverageEnabled: true
     platform: '$(DefaultPlatform)'
     configuration: '$(BuildConfiguration)'

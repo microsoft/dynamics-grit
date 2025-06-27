@@ -25,4 +25,11 @@
 	<PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" />
   </ItemGroup>
 
+  <ItemGroup>
+    <_CustomFilesToDelete Include="$(OutputPath)"/>
+  </ItemGroup>
+  <Target Name="CustomClean" AfterTargets="Clean">
+    <Message Text="Clean CRM.CCaaS.IVR.GRammarImportTool.ServiceDefaults" Importance="high"/>
+    <RemoveDir Directories='@(_CustomFilesToDelete)'/>
+  </Target>
 </Project>

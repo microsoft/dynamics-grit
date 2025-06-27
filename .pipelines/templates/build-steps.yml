@@ -20,7 +20,7 @@ steps:
     solution: '$(Build.SourcesDirectory)\CRM.CCaaS.IVR.GRammarImportTool.sln' # This could be a .sln or .csproj file as well
     platform: $(BuildPlatform)
     configuration: $(BuildConfiguration)
-    msbuildArguments: '-t:build $(AdditionalBuildArguments)'
+    msbuildArguments: '-v:n -t:build $(AdditionalBuildArguments)'
     maximumCpuCount: true
     logProjectEvents: true
  

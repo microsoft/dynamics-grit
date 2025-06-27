@@ -1,5 +1,5 @@
 <Project>
-  <Sdk Name="DotNet.ReproducibleBuilds.Isolated" />
+  <Sdk Name="DotNet.ReproducibleBuilds.Isolated" />  
   <PropertyGroup>
     <Company Condition=" '$(Company)' == '' ">Microsoft Corporation</Company>
     <Copyright Condition=" '$(Copyright)' == '' ">Copyright © $([System.DateTime]::UtcNow.Year) $(Company). All rights reserved.</Copyright>
@@ -28,6 +28,8 @@
   <PropertyGroup>
     <!-- Provide repo root variable: -->
     <RepoRoot>$(MSBuildThisFileDirectory)</RepoRoot>
+     <!-- Define a common output path for all projects -->
+    <OutputRoot>$(MSBuildThisFileDirectory)out\</OutputRoot>
 
     <!-- Needed by coreservices.buildtools. Must be set to something meaningful. -->
     <SRCROOT>$(RepoRoot)</SRCROOT>
@@ -54,8 +56,8 @@
 
   <PropertyGroup>
     <BinariesBuildTypeArchDirectory Condition="'$(BinariesBuildTypeArchDirectory)' == ''">$(RepoRoot)out\$(Configuration)-$(DefaultPlatform)\</BinariesBuildTypeArchDirectory>
-    <OutputPath Condition=" '$(OutputPath)' == '' ">$(BinariesBuildTypeArchDirectory)\$(MSBuildProjectName)\</OutputPath>
-
+    <OutputPath>$(RepoRoot)out\$(Configuration)-$(DefaultPlatform)\$(MSBuildProjectName)\</OutputPath>
+    <BaseIntermediateOutputPath>$(RepoRoot)obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
     <!-- Default to place all our ev2 deployment packages in a separate 'Deploy' folder -->
     <ServiceGroupRootOutputPath Condition=" '$(ServiceGroupRootOutputPath)' == '' ">$(BinariesBuildTypeArchDirectory)Deploy\$(MSBuildProjectName)</ServiceGroupRootOutputPath>
 

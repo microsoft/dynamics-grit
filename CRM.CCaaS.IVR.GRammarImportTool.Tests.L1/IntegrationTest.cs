@@ -5,10 +5,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Xunit.Abstractions;
 using Xunit;
+using Stubs = CRM.CCaaS.IVR.GRammarImportTool.Stubs;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L1;
 
-public class WebTests : IClassFixture<TestD>, IDisposable
+public class IntegrationTest : IClassFixture<TestD>, IDisposable
 {
     private bool _disposedValue;
     private readonly TestD _testD;
@@ -16,7 +17,7 @@ public class WebTests : IClassFixture<TestD>, IDisposable
     private readonly TestConsoleWriter _converter;
     private const string SIGNALR_GRIT_HUB = "grithub";
 
-    public WebTests(TestD testD, ITestOutputHelper output)
+    public IntegrationTest(TestD testD, ITestOutputHelper output)
     {
         _testD = testD;
         _output = output;
@@ -55,7 +56,7 @@ public class WebTests : IClassFixture<TestD>, IDisposable
         {
             if (disposing)
             {
-//                _httpClient.Dispose();
+                // _httpClient.Dispose();
                 _converter.Dispose();
             }
 
@@ -71,6 +72,7 @@ public class WebTests : IClassFixture<TestD>, IDisposable
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task When_app_started_Then_healthcheck_success()
     {
         var response = await _testD.GetHttpClient().GetAsync("/health");
@@ -79,8 +81,8 @@ public class WebTests : IClassFixture<TestD>, IDisposable
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
-    [Theory (Skip = "Can't yet run on pipeline")]
-    //[Theory]
+    [Theory]
+    [Trait("Category", "Integration")]
     [InlineData("grit-test-data-1.zip")]
     [InlineData("grit-test-data-2.zip")]
     public async Task When_upload_zip_file_to_hub_Then_conversion_success(string zipFileName)
@@ -117,11 +119,16 @@ public class WebTests : IClassFixture<TestD>, IDisposable
         await connection.StartAsync();
         _output.WriteLine("Connection started.");
 
+        Assert.True(connection.State == HubConnectionState.Connected, "Connection should be disconnected after the test.");
+
         byte[] zipFileBytes = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Data", zipFileName));
         await connection.InvokeAsync("UploadZipFile", zipFileBytes);
         _output.WriteLine("File upload initiated.");
 
         await connection.StopAsync();
         _output.WriteLine("Connection stopped.");
+
+        Assert.True(connection.State == HubConnectionState.Disconnected, "Connection should be disconnected after the test.");
+        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("Error:", StringComparison.Ordinal)));
     }
 }

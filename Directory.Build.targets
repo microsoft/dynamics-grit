@@ -1,0 +1,5 @@
+<Project>
+  <Target Name="EchoTarget" Condition="'$(Configuration)' == 'Debug'" BeforeTargets="Build">
+    	<Message Text="CRM.CCaaS.IVR.GRammarImportTool next target" Importance="high"/>
+  </Target>
+</Project>

@@ -10,8 +10,7 @@
     <IsAspireHost>true</IsAspireHost>
     <UserSecretsId>4106147c-6fd3-46a2-9483-7763f5bdec5c</UserSecretsId>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <RestoreProjectStyle>PackageReference</RestoreProjectStyle>    
-    <IntermediateOutputPath>../out</IntermediateOutputPath>
+    <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
   </PropertyGroup>
 
   <ItemGroup>
@@ -22,4 +21,11 @@
     <PackageReference Include="Aspire.Hosting.AppHost" />
   </ItemGroup>
 
+  <ItemGroup>
+    <_CustomFilesToDelete Include="$(OutputPath)"/>
+  </ItemGroup>
+  <Target Name="CustomClean" AfterTargets="Clean">
+    <Message Text="Clean CRM.CCaaS.IVR.GRammarImportTool.AppHost" Importance="high"/>
+    <RemoveDir Directories='@(_CustomFilesToDelete)'/>
+  </Target>
 </Project>

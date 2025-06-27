@@ -30,6 +30,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CRM.CCaaS.IVR.GRammarImportTool.AppHost\CRM.CCaaS.IVR.GRammarImportTool.AppHost.csproj" />
+    <ProjectReference Include="..\CRM.CCaaS.IVR.GRammarImportTool.Stubs\CRM.CCaaS.IVR.GRammarImportTool.Stubs.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -53,4 +54,26 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <TestDataFiles Include="$(RepoRoot)\$(MSBuildProjectName)\Data\grit-test-data-1.zip;$(RepoRoot)\$(MSBuildProjectName)\Data\grit-test-data-1.zip"/>
+  </ItemGroup>
+
+  <Target Name="CreateDirectories" AfterTargets="Build">
+      <MakeDir Directories="$(OutputPath)\Data"/>    
+  </Target>
+  <Target Name="CopyFiles" AfterTargets="Build">
+    <Message Text="Copy Data Files CRM.CCaaS.IVR.GRammarImportTool.Tests.L1" Importance="high"/>
+      <Copy
+          SourceFiles="@(TestDataFiles)"
+          DestinationFolder="$(OutputPath)\Data"
+      />
+  </Target>
+
+  <ItemGroup>
+    <_CustomFilesToDelete Include="$(OutputPath)"/>
+  </ItemGroup>
+  <Target Name="CustomClean" AfterTargets="Clean">
+    <Message Text="Clean CRM.CCaaS.IVR.GRammarImportTool.Tests.L1" Importance="high"/>
+    <RemoveDir Directories='@(_CustomFilesToDelete)'/>
+  </Target>
 </Project>

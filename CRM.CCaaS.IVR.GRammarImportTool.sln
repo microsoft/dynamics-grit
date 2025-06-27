@@ -10,6 +10,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CRM.CCaaS.IVR.GRammarImport
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CRM.CCaaS.IVR.GRammarImportTool.Tests.L1", "CRM.CCaaS.IVR.GRammarImportTool.Tests.L1\CRM.CCaaS.IVR.GRammarImportTool.Tests.L1.csproj", "{11128C71-F5ED-4535-8DF6-F689D310102A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CRM.CCaaS.IVR.GRammarImportTool.Stubs", "CRM.CCaaS.IVR.GRammarImportTool.Stubs\CRM.CCaaS.IVR.GRammarImportTool.Stubs.csproj", "{EEEF7E87-58CF-4BE9-81F0-BB3CA16F01B9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -32,6 +34,10 @@ Global
 		{11128C71-F5ED-4535-8DF6-F689D310102A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{11128C71-F5ED-4535-8DF6-F689D310102A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{11128C71-F5ED-4535-8DF6-F689D310102A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EEEF7E87-58CF-4BE9-81F0-BB3CA16F01B9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EEEF7E87-58CF-4BE9-81F0-BB3CA16F01B9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EEEF7E87-58CF-4BE9-81F0-BB3CA16F01B9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EEEF7E87-58CF-4BE9-81F0-BB3CA16F01B9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
