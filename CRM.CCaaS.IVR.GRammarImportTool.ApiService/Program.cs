@@ -1,7 +1,9 @@
 using System.Reflection;
 using System.Runtime;
-using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.DebugServices;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Endpoints;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Hubs;
 using Microsoft.AspNetCore.Antiforgery;
@@ -28,11 +30,11 @@ builder.Logging.AddConsole()
     .AddConfiguration(builder.Configuration.GetSection("Logging"));
 
 // Add services to the container.
-builder.Services.Configure<GPTPrompterConfiguration>(builder.Configuration.GetSection(GPTPrompterConfiguration.SectionName));
+builder.Services.Configure<GptChatConfiguration>(builder.Configuration.GetSection(GptChatConfiguration.SectionName));
 
 builder.Services.AddProblemDetails();
 builder.Services.AddAntiforgery();
-builder.Services.AddSingleton<GPTPrompter>();
+builder.Services.AddKeyedTransient<IGptChat, GptChatGrxmlToMcsConverter>(GptChatGrxmlToMcsConverter.SERVICE_KEY);
 builder.Services.AddTransient<DebugServices>();
 
 builder.Services.AddSignalR(options =>

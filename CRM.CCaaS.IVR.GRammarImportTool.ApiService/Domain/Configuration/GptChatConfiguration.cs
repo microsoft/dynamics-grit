@@ -2,7 +2,7 @@
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
 
-public class GPTPrompterConfiguration
+public class GptChatConfiguration
 {
     public const string SectionName = "GPTPrompter";
 
@@ -16,7 +16,7 @@ public class GPTPrompterConfiguration
     public int RetryDelaySec { get; set; } = 10; // Delay between retries in seconds
 
     [Required(ErrorMessage = "Initial Chat history is required")]
-    public List<GPTMessage>? InitialChatHistory { get; set; } = new List<GPTMessage>();
+    public List<GPTMessage>? GrxmlInitialChatHistory { get; set; } = new List<GPTMessage>();
 
     [Required(ErrorMessage = "Azure OpenAI endpoint is required")]
     public string AzureOpenAIEndpoint { get; set; } = string.Empty;

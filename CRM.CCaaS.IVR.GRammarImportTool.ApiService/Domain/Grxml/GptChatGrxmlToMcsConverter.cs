@@ -1,22 +1,27 @@
 ﻿using System.Collections.Concurrent;
 using System.IO.Compression;
+using System.IO.Pipes;
 using System.Text;
 using Azure;
 using Azure.AI.OpenAI;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
+using YamlDotNet.Core;
+using YamlDotNet.Serialization;
+using YamlDotNet.Serialization.NamingConventions;
 
-namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain;
+namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
 
-public class GPTPrompter
+public class GptChatGrxmlToMcsConverter : GptChatBase
 {
+    public const string SERVICE_KEY = "chat-grit";
     private readonly IChatClient _chatClient;
     private readonly List<ChatMessage> _initialChatHistory;
-    private readonly ILogger<GPTPrompter> _logger;
-    private readonly GPTPrompterConfiguration _gptPrompterConfiguration;
+    private readonly ILogger<GptChatGrxmlToMcsConverter> _logger;
+    private readonly GptChatConfiguration _gptPrompterConfiguration;
 
-    public GPTPrompter(ILogger<GPTPrompter> logger, IOptions<GPTPrompterConfiguration> gptPrompterConfiguration)
+    public GptChatGrxmlToMcsConverter(ILogger<GptChatGrxmlToMcsConverter> logger, IOptions<GptChatConfiguration> gptPrompterConfiguration) : base(logger)
     {
         ArgumentNullException.ThrowIfNull(logger);
         ArgumentNullException.ThrowIfNull(gptPrompterConfiguration);
@@ -45,7 +50,7 @@ public class GPTPrompter
     /// <param name="progressCallback">Callback for progress updates.</param>
     /// <param name="completedCallback">Callback when processing is complete.</param>
     /// <returns>A stream containing a zip file with one text file per entry.</returns>
-    public async Task<Stream> GetFileEntityTypeZipAsync(
+    public override async Task<Stream> ConvertZipAsync(
         Stream zipStream,
         Func<int, string, Task> progressCallback,
         Func<byte[], Task> completedCallback)
@@ -62,36 +67,35 @@ public class GPTPrompter
 
         _logger.LogInformation("Starting processing files at {Timestamp} with {_gptPrompterConfiguration.DegreeParallelism} parallel tasks", DateTime.UtcNow, _gptPrompterConfiguration.DegreeParallelism);
 
-        int processedCount = 0;
-        int totalCount = entries.Count;
+        var processedCount = 0;
+        var totalCount = entries.Count;
 
         var parallelLoopResult = Parallel.ForEach(entries, new ParallelOptions { MaxDegreeOfParallelism = _gptPrompterConfiguration.DegreeParallelism }, async entry =>
         {
             string content;
             var stopWatch = new System.Diagnostics.Stopwatch();
             if (!TryReadXmlContent(entry, out content))
-            {
                 results[entry.Key] = entry.Value;
-            }
             else
             {
                 try
                 {
                     stopWatch.Start();
                     // Synchronously wait for async method (not ideal, but required for Parallel.ForEach)
-                    string response = ProcessSingleFileAsync(entry.Key, content).Result;
+                    var response = ProcessSingleFileAsync(entry.Key, content).Result;
                     results[entry.Key] = response;
                     _logger.LogInformation("Processed file {FileName} in {ElapsedMilliseconds} ms at {Timestamp}.", entry.Key, stopWatch.ElapsedMilliseconds, DateTime.UtcNow);
                     stopWatch.Stop();
                 }
                 catch (Exception ex)
                 {
+                    _logger.LogError(ex, "Unexpected error occurred while processing file content at {Timestamp}.", DateTime.UtcNow);
                     results[entry.Key] = $"Error: {ex.Message}";
                 }
             }
 
-            int current = Interlocked.Increment(ref processedCount);
-            int progress = (int)(current / (double)totalCount * 100);
+            var current = Interlocked.Increment(ref processedCount);
+            var progress = (int)(current / (double)totalCount * 100);
             // Fire and forget progress callback (do not await inside Parallel.ForEach)
             await progressCallback(progress, $"Processed {current} of {totalCount} files...");
         });
@@ -103,29 +107,32 @@ public class GPTPrompter
         }
         _logger.LogInformation("Completed processing files in the zip archive at {Timestamp}.", DateTime.UtcNow);
 
-        var outputStream = CreateResultZipStream(results);
+        var outputStream = CreateResultZipStream(results, ".yaml");
         await completedCallback(outputStream.ToArray());
         outputStream.Position = 0;
         return outputStream;
     }
 
-    private Dictionary<string, string> LoadZipToDictionary(Stream zipStream)
+    /// <summary>
+    /// Processes a single GRXML file by sending its content to the model, tracks progress, and returns the converted YAML as a string.
+    /// </summary>
+    /// <param name="stringFile">The GRXML file content as a string.</param>
+    /// <param name="progressCallback">Callback for reporting progress updates.</param>
+    /// <param name="completedCallback">Callback invoked when processing is complete, with the result.</param>
+    /// <returns>The converted YAML content as a string.</returns>
+    public override async Task<string> ConvertFileAsync(string stringFile, Func<int, string, Task> progressCallback, Func<string, Task> completedCallback)
     {
-        Dictionary<string, string> entries = new Dictionary<string, string>();
+        ArgumentException.ThrowIfNullOrEmpty(stringFile);
+        ArgumentNullException.ThrowIfNull(progressCallback);
+        ArgumentNullException.ThrowIfNull(completedCallback);
 
-        using (var a = new ZipArchive(zipStream, ZipArchiveMode.Read))
-        {
-            foreach (var entry in a.Entries)
-            {
-                using (var entryStream = entry.Open())
-                using (var reader = new StreamReader(entryStream, Encoding.UTF8))
-                {
-                    string content = reader.ReadToEnd();
-                    entries.Add(entry.Name, content);
-                }
-            }
-        }
-        return entries;
+        await progressCallback(0, "Starting processing...");
+        _logger.LogInformation("Starting processing files at {Timestamp} with {_gptPrompterConfiguration.DegreeParallelism} parallel tasks", DateTime.UtcNow, _gptPrompterConfiguration.DegreeParallelism);
+
+        var processedResult = await ProcessSingleFileAsync("ConvertedFile.yaml", stringFile);
+        await completedCallback(processedResult);
+
+        return processedResult;
     }
 
     /// <summary>
@@ -151,20 +158,20 @@ public class GPTPrompter
                     response += item.Text;
                 }
                 _logger.LogInformation("File content processed successfully at {Timestamp}.", DateTime.UtcNow);
+                ValidateYamlContent(response);
                 return response;
             }
             catch (System.ClientModel.ClientResultException ex)
             {
                 _logger.LogWarning("Client error {Error} occurred while processing file content at {Timestamp}. \n Will retry", ex, DateTime.UtcNow);
-                response = string.Empty;
-                retries--;
-                await Task.Delay(TimeSpan.FromSeconds(_gptPrompterConfiguration.RetryDelaySec));
             }
-            catch (Exception ex)
+            catch (YamlException ex)
             {
-                _logger.LogError(ex, "Unexpected error occurred while processing file content at {Timestamp}.", DateTime.UtcNow);
-                throw;
+                _logger.LogWarning("Yaml validation failed: {Message}", ex.Message);
             }
+            response = string.Empty;
+            retries--;
+            await Task.Delay(TimeSpan.FromSeconds(_gptPrompterConfiguration.RetryDelaySec));
         }
         _logger.LogError("Failed to process file {FileName} after {Retries} retries at {Timestamp}.", fileName, _gptPrompterConfiguration.MaxRetries, DateTime.UtcNow);
         response += $"Error: Failed to process {fileName} after {_gptPrompterConfiguration.MaxRetries} retries.";
@@ -172,77 +179,18 @@ public class GPTPrompter
     }
 
     /// <summary>
-    /// Removes comments and whitespace from an XML element and its descendants.
-    /// </summary>
-    private static void RemoveCommentsAndWhitespace(System.Xml.Linq.XElement element)
-    {
-        if (element == null) return;
-        foreach (var node in element.DescendantNodes().OfType<System.Xml.Linq.XComment>().ToList())
-        {
-            node.Remove();
-        }
-        foreach (var node in element.DescendantNodes().OfType<System.Xml.Linq.XText>().Where(t => string.IsNullOrWhiteSpace(t.Value)).ToList())
-        {
-            node.Remove();
-        }
-    }
-
-    /// <summary>
-    /// Reads and cleans XML content from a ZipArchiveEntry.
-    /// </summary>
-    private bool TryReadXmlContent(KeyValuePair<string, string> entry, out string content)
-    {
-        try
-        {
-            var xmlDoc = System.Xml.Linq.XDocument.Parse(entry.Value);
-            if (xmlDoc.Root is not null)
-            {
-                RemoveCommentsAndWhitespace(xmlDoc.Root);
-            }
-            content = xmlDoc.ToString();
-            return true;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to parse {FileName} as XML at {Timestamp}.", entry.Key, DateTime.UtcNow);
-            content = $"Error: Failed to parse as XML. {ex.Message}";
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// Creates a MemoryStream containing a zip archive with one text file per result.
-    /// </summary>
-    private static MemoryStream CreateResultZipStream(ConcurrentDictionary<string, string> results)
-    {
-        var outputStream = new MemoryStream();
-        using (var outputArchive = new ZipArchive(outputStream, ZipArchiveMode.Create, leaveOpen: true))
-        {
-            foreach (var kvp in results)
-            {
-                var entry = outputArchive.CreateEntry(Path.GetFileNameWithoutExtension(kvp.Key) + ".yaml");
-                using var entryStream = entry.Open();
-                using var writer = new StreamWriter(entryStream);
-                writer.Write(kvp.Value);
-            }
-        }
-        outputStream.Position = 0;
-        return outputStream;
-    }
-
-    /// <summary>
     /// Loads the initial chat history from configuration.
     /// </summary>
-    private static List<ChatMessage> LoadInitialChatHistory(GPTPrompterConfiguration config)
+    private List<ChatMessage> LoadInitialChatHistory(GptChatConfiguration config)
     {
         var initialChatHistory = new List<ChatMessage>();
-        foreach (var item in config.InitialChatHistory!)
+        foreach (var item in config.GrxmlInitialChatHistory!)
         {
             var role = item.Role;
             var content = item.Content;
             if (!string.IsNullOrEmpty(role) && !string.IsNullOrEmpty(content))
             {
-                ChatRole chatRole = role.ToLower() switch
+                var chatRole = role.ToLower() switch
                 {
                     "system" => ChatRole.System,
                     "user" => ChatRole.User,
@@ -256,11 +204,14 @@ public class GPTPrompter
     }
 
     /// <summary>
-    /// Creates the chat client for OpenAI.
+    /// Validates the provided YAML content by attempting to deserialize it.
+    /// Throws a YamlException if the content is invalid.
     /// </summary>
-    private static IChatClient CreateChatClient(string endpoint, string deployment, string key)
+    private void ValidateYamlContent(string yamlContent)
     {
-        return new AzureOpenAIClient(new Uri(endpoint), new AzureKeyCredential(key))
-            .AsChatClient(deployment);
+        var deserializer = new DeserializerBuilder()
+         .WithNamingConvention(CamelCaseNamingConvention.Instance)
+         .Build();
+        _ = deserializer.Deserialize<object>(yamlContent);
     }
 }

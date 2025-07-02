@@ -8,10 +8,10 @@ public static class ChatData
 reason: although the GRXML input represents a Boolean, you should make it a CustomListEntity to enable multiple synonyms for the answers 'yes' and 'no'.
 copilot_studio_code: |
   - kind: CustomEntityComponent
-      displayName: auth7561_IDVConfPhNum_QA
+      displayName: auth7561_STUB_QA
       state: Active
       status: Active
-      schemaName: auth7561_IDVConfPhNum_QA
+      schemaName: auth7561_STUB_QA
       entity:
           kind: ClosedListEntity
           items:
@@ -39,10 +39,10 @@ copilot_studio_code: |
 reason: although the GRXML input represents a Boolean, you should make it a CustomListEntity to enable multiple synonyms for the answers 'yes' and 'no'.
 copilot_studio_code: |
   - kind: CustomEntityComponent
-      displayName: auth2344_IDVConfPhNum_QA
+      displayName: auth2344_STUB_QA
       state: Active
       status: Active
-      schemaName: auth23444_IDVConfPhNum_QA
+      schemaName: auth23444_STUB_QA
       entity:
           kind: ClosedListEntity
           items:
@@ -63,52 +63,52 @@ copilot_studio_code: |
 reason: although the GRXML input represents a Boolean, you should make it a CustomListEntity to enable multiple synonyms for the answers 'yes' and 'no'.
 copilot_studio_code: |
   - kind: CustomEntityComponent
-      displayName: auth2355_IDVConfPhNum_QA
+      displayName: auth2356_STUB_QA
       state: Active
       status: Active
-      schemaName: auth2355_IDVConfPhNum_QA
+      schemaName: auth2356_STUB_QA
       entity:
-        kind: ClosedListEntity
-        items:
-            - id: OUTDOOR
-            displayName: Outdoor Gear
-            synonyms:
-                - tent
-                - backpack
-                - hiking boots",
+          kind: ClosedListEntity
+          items:
+              - id: OUTDOOR
+              displayName: OUTDOOR
+              synonyms:
+                  - tent
+                  - backpack
+                  - hiking boots",
 @"entity_type: CustomListEntity
 reason: although the GRXML input represents a Boolean, you should make it a CustomListEntity to enable multiple synonyms for the answers 'yes' and 'no'.
 copilot_studio_code: |
   - kind: CustomEntityComponent
-      displayName: auth2355_IDVConfPhNum_QA
+      displayName: auth2355_STUB_QA
       state: Active
       status: Active
-      schemaName: auth2355_IDVConfPhNum_QA
+      schemaName: auth2355_STUB_QA
       entity:
-        kind: ClosedListEntity
-        items:
-            - id: SUPPORT
-            displayName: Support
-            synonyms:
-                - help
-                - assistance
-                - customer service",
+          kind: ClosedListEntity
+          items:
+              - id: SUPPORT
+              displayName: SUPPORT
+              synonyms:
+                  - help
+                  - assistance
+                  - customer service",
 @"entity_type: CustomListEntity
 reason: although the GRXML input represents a Boolean, you should make it a CustomListEntity to enable multiple synonyms for the answers 'yes' and 'no'.
 copilot_studio_code: |
-  - kind: CustomEntityComponent
-    displayName: Location_Entity
-    state: Active
-    status: Active
-    schemaName: Location_Entity
-    entity:
-      kind: ClosedListEntity
-      items:
-        - id: MONTREAL
-          displayName: Montreal
-          synonyms:
-            - MTL
-            - Montréal
-            - Ville-Marie"
+  - kind: CustomEntityComponent
+      displayName: Location_Entity_STUB
+      state: Active
+      status: Active
+      schemaName: Location_Entity_STUB
+      entity:
+          kind: ClosedListEntity
+          items:
+              - id: MONTREAL
+              displayName: MONTREAL
+              synonyms:
+                  - MTL
+                  - Montréal
+                  - Ville-Marie"
     ];
 }

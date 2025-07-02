@@ -1,4 +1,4 @@
-﻿using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain;
+﻿using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.DebugServices;
 namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Endpoints;
 
 internal static class DebugServicesEndpoints

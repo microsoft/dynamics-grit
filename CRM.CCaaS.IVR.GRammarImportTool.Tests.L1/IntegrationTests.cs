@@ -9,7 +9,7 @@ using Stubs = CRM.CCaaS.IVR.GRammarImportTool.Stubs;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L1;
 
-public class IntegrationTest : IClassFixture<TestD>, IDisposable
+public class IntegrationTests : IClassFixture<TestD>, IDisposable
 {
     private bool _disposedValue;
     private readonly TestD _testD;
@@ -17,7 +17,7 @@ public class IntegrationTest : IClassFixture<TestD>, IDisposable
     private readonly TestConsoleWriter _converter;
     private const string SIGNALR_GRIT_HUB = "grithub";
 
-    public IntegrationTest(TestD testD, ITestOutputHelper output)
+    public IntegrationTests(TestD testD, ITestOutputHelper output)
     {
         _testD = testD;
         _output = output;
@@ -85,6 +85,7 @@ public class IntegrationTest : IClassFixture<TestD>, IDisposable
     [Trait("Category", "Integration")]
     [InlineData("grit-test-data-1.zip")]
     [InlineData("grit-test-data-2.zip")]
+    [InlineData("grit-test-data-3.zip")] //includes subfolders with duplicate file names
     public async Task When_upload_zip_file_to_hub_Then_conversion_success(string zipFileName)
     {
         var connection = new HubConnectionBuilder()
@@ -122,7 +123,7 @@ public class IntegrationTest : IClassFixture<TestD>, IDisposable
         Assert.True(connection.State == HubConnectionState.Connected, "Connection should be disconnected after the test.");
 
         byte[] zipFileBytes = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Data", zipFileName));
-        await connection.InvokeAsync("UploadZipFile", zipFileBytes);
+        await connection.InvokeAsync("GrxmlZipConvert", zipFileBytes);
         _output.WriteLine("File upload initiated.");
 
         await connection.StopAsync();
@@ -130,5 +131,57 @@ public class IntegrationTest : IClassFixture<TestD>, IDisposable
 
         Assert.True(connection.State == HubConnectionState.Disconnected, "Connection should be disconnected after the test.");
         Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("Error:", StringComparison.Ordinal)));
+        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("fail:", StringComparison.Ordinal)));
+    }
+
+    [Theory]
+    [Trait("Category", "Integration")]
+    [InlineData("grit-test-data-1.grxml")]
+    [InlineData("grit-test-data-2.grxml")]
+    public async Task When_upload_grxml_file_to_hub_Then_conversion_success(string fileName)
+    {
+        var connection = new HubConnectionBuilder()
+                    .WithUrl($"{_testD.GetHttpClient().BaseAddress}{SIGNALR_GRIT_HUB}")
+                    .ConfigureLogging(logging =>
+                    {
+                        logging.SetMinimumLevel(LogLevel.Debug);
+                        logging.AddConsole();
+                    })
+                    .Build();
+        connection.On<string>("ConnectionId", connectionId =>
+        {
+            _output.WriteLine($"ConnectionId received: {connectionId}");
+        });
+
+        connection.On<int, string>("Progress", (progress, message) =>
+        {
+            _output.WriteLine($"Progress: {progress}% - Message: {message}");
+        });
+
+        connection.On<string>("Completed", (result) =>
+        {
+            _output.WriteLine($"Upload completed with result: {result}");
+        });
+
+        connection.On<string>("Error", error =>
+        {
+            _output.WriteLine($"Error: {error}");
+        });
+
+        await connection.StartAsync();
+        _output.WriteLine("Connection started.");
+
+        Assert.True(connection.State == HubConnectionState.Connected, "Connection should be disconnected after the test.");
+
+        byte[] fileBytes = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Data", fileName));
+        await connection.InvokeAsync("GrxmlConvert", fileBytes);
+        _output.WriteLine("File upload initiated.");
+
+        await connection.StopAsync();
+        _output.WriteLine("Connection stopped.");
+
+        Assert.True(connection.State == HubConnectionState.Disconnected, "Connection should be disconnected after the test.");
+        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("Error:", StringComparison.Ordinal)));
+        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("fail:", StringComparison.Ordinal)));
     }
 }

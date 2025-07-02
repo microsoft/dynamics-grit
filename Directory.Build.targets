@@ -1,4 +1,10 @@
 <Project>
+  <Target Name="PrintPaths" BeforeTargets="Build">
+    <Message Text="OutputPath = $(OutputPath)" Importance="high" />
+    <Message Text="BaseIntermediateOutputPath = $(BaseIntermediateOutputPath)" Importance="high" />
+    <Message Text="Configuration = $(Configuration)" Importance="high" />
+    <Message Text="Platform = $(Platform)" Importance="high" />
+  </Target>
   <Target Name="EchoTarget" Condition="'$(Configuration)' == 'Debug'" BeforeTargets="Build">
     	<Message Text="CRM.CCaaS.IVR.GRammarImportTool next target" Importance="high"/>
   </Target>

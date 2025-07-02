@@ -1,0 +1,110 @@
+<grammar version="1.0"
+xml:lang="en-US"
+mode="voice"
+xmlns="http://www.w3.org/2001/06/grammar"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:schemaLocation="http://www.w3.org/2001/06/grammar
+http://www.w3.org/TR/speech-grammar/grammar.xsd"
+root="MAIN"
+tag-format="semantics/1.0">
+
+<meta name="swirec_simple_result_key" content="SWI_literal"/>
+
+<tag> function assignSlots(out, rules) {
+        for (var nu_RULENAME in rules) {
+          var nu_SLOTS = rules[nu_RULENAME].nu_SLOTS;
+          for (var nu_PROPERTY in nu_SLOTS) { 
+            out.nu_SLOTS[nu_PROPERTY] = nu_SLOTS[nu_PROPERTY];
+          }
+        }
+      }
+</tag>
+
+
+<rule id="MAIN" scope="public">
+<tag> out.nu_SLOTS = {};</tag>
+<one-of>
+<item>
+  aries
+<tag>out.nu_SLOTS.sign = "aries";
+</tag>
+</item>
+<item>
+  taurus
+<tag>out.nu_SLOTS.sign = "taurus";
+</tag>
+</item>
+<item>
+  gemini
+<tag>out.nu_SLOTS.sign = "gemini";
+</tag>
+</item>
+<item>
+  cancer
+<tag>out.nu_SLOTS.sign = "cancer";
+</tag>
+</item>
+<item>
+  leo
+<tag>out.nu_SLOTS.sign = "leo";
+</tag>
+</item>
+<item>
+  virgo
+<tag>out.nu_SLOTS.sign = "virgo";
+</tag>
+</item>
+<item>
+  libra
+<tag>out.nu_SLOTS.sign = "libra";
+</tag>
+</item>
+<item>
+  scorpio
+<tag>out.nu_SLOTS.sign = "scorpio";
+</tag>
+</item>
+<item>
+  sagittarius
+<tag>out.nu_SLOTS.sign = "sagittarius";
+</tag>
+</item>
+<item>
+  capricorn
+<tag>out.nu_SLOTS.sign = "capricorn";
+</tag>
+</item>
+<item>
+  aquarius
+<tag>out.nu_SLOTS.sign = "aquarius";
+</tag>
+</item>
+<item>
+  pisces
+<tag>out.nu_SLOTS.sign = "pisces";
+</tag>
+</item>
+<item>
+  stop
+<tag>out.nu_SLOTS.sign = "stop";
+</tag>
+</item>
+<item>
+  what_are_my_choices
+<tag>out.nu_SLOTS.sign = "choices";
+</tag>
+</item>
+<item>
+  what
+  are
+  my
+  choices
+  <tag>
+  out.nu_SLOTS.sign = "choices";
+  </tag>
+</item>
+</one-of>
+<tag> assignSlots(out, rules) </tag>
+</rule>
+</grammar>
+

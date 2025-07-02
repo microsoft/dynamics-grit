@@ -56,8 +56,9 @@
 
   <PropertyGroup>
     <BinariesBuildTypeArchDirectory Condition="'$(BinariesBuildTypeArchDirectory)' == ''">$(RepoRoot)out\$(Configuration)-$(DefaultPlatform)\</BinariesBuildTypeArchDirectory>
-    <OutputPath>$(RepoRoot)out\$(Configuration)-$(DefaultPlatform)\$(MSBuildProjectName)\</OutputPath>
-    <BaseIntermediateOutputPath>$(RepoRoot)obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <OutputPath>$(RepoRoot)out\$(MSBuildProjectName)\$(Configuration)\$(DefaultPlatform)\</OutputPath>
+    <BaseIntermediateOutputPath>$(RepoRoot)obj\$(MSBuildProjectName)</BaseIntermediateOutputPath>
+    <IntermediateOutputPath>$(RepoRoot)obj\$(MSBuildProjectName)\$(Configuration)\$(DefaultPlatform)\</IntermediateOutputPath>
     <!-- Default to place all our ev2 deployment packages in a separate 'Deploy' folder -->
     <ServiceGroupRootOutputPath Condition=" '$(ServiceGroupRootOutputPath)' == '' ">$(BinariesBuildTypeArchDirectory)Deploy\$(MSBuildProjectName)</ServiceGroupRootOutputPath>
 

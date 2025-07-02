@@ -46,34 +46,40 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="Data\grit-test-data-1.grxml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="Data\grit-test-data-1.zip">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Data\grit-test-data-2.grxml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="Data\grit-test-data-2.zip">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="Data\grit-test-data-3.zip">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>
-    <TestDataFiles Include="$(RepoRoot)\$(MSBuildProjectName)\Data\grit-test-data-1.zip;$(RepoRoot)\$(MSBuildProjectName)\Data\grit-test-data-1.zip"/>
+    <TestDataFiles Include="$(RepoRoot)\$(MSBuildProjectName)\Data\grit-test-data-1.zip;$(RepoRoot)\$(MSBuildProjectName)\Data\grit-test-data-2.zip;$(RepoRoot)\$(MSBuildProjectName)\Data\grit-test-data-3.zip" />
   </ItemGroup>
 
   <Target Name="CreateDirectories" AfterTargets="Build">
-      <MakeDir Directories="$(OutputPath)\Data"/>    
+      <MakeDir Directories="$(OutputPath)\Data" />    
   </Target>
   <Target Name="CopyFiles" AfterTargets="Build">
-    <Message Text="Copy Data Files CRM.CCaaS.IVR.GRammarImportTool.Tests.L1" Importance="high"/>
-      <Copy
-          SourceFiles="@(TestDataFiles)"
-          DestinationFolder="$(OutputPath)\Data"
-      />
+    <Message Text="Copy Data Files CRM.CCaaS.IVR.GRammarImportTool.Tests.L1" Importance="high" />
+      <Copy SourceFiles="@(TestDataFiles)" DestinationFolder="$(OutputPath)\Data" />
   </Target>
 
   <ItemGroup>
-    <_CustomFilesToDelete Include="$(OutputPath)"/>
+    <_CustomFilesToDelete Include="$(OutputPath)" />
   </ItemGroup>
   <Target Name="CustomClean" AfterTargets="Clean">
-    <Message Text="Clean CRM.CCaaS.IVR.GRammarImportTool.Tests.L1" Importance="high"/>
-    <RemoveDir Directories='@(_CustomFilesToDelete)'/>
+    <Message Text="Clean CRM.CCaaS.IVR.GRammarImportTool.Tests.L1" Importance="high" />
+    <RemoveDir Directories="@(_CustomFilesToDelete)" />
   </Target>
 </Project>

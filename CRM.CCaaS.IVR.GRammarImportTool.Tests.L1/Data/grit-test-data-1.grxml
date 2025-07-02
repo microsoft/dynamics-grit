@@ -1,0 +1,18 @@
+<grammar version="1.0"
+xml:lang="en-US"
+mode="voice"
+xmlns="http://www.w3.org/2001/06/grammar"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:schemaLocation="http://www.w3.org/2001/06/grammar
+http://www.w3.org/TR/speech-grammar/grammar.xsd"
+root="MAIN"
+tag-format="semantics/1.0">
+
+<meta name="swirec_simple_result_key" content="SWI_literal"/>
+
+<rule id="MAIN" scope="public">
+<ruleref special="GARBAGE"/> correct 
+
+</rule>
+</grammar>
+

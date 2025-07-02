@@ -1,5 +1,6 @@
-﻿using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain;
+﻿using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Hubs;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
@@ -49,7 +50,7 @@ internal static class GritEndpoints
         [FromForm] IFormFile file,
         [FromForm] string connectionId,
         [FromServices] IHubContext<GritHub> hubContext,
-        [FromServices] GPTPrompter gptPrompter,
+        [FromKeyedServices(GptChatGrxmlToMcsConverter.SERVICE_KEY)] IGptChat gptPrompter,
         [FromServices] Logger<GritHub> logger,
         HttpContext httpContext)
     {
@@ -75,7 +76,7 @@ internal static class GritEndpoints
             try
             {
                 // Do NOT dispose memoryStream here; let it be GC'd after task completes
-                await gptPrompter.GetFileEntityTypeZipAsync(
+                await gptPrompter.ConvertZipAsync(
                     memoryStream,
                     async (progress, message) =>
                     {
