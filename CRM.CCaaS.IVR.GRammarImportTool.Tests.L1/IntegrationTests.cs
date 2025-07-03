@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Xunit.Abstractions;
 using Xunit;
 using Stubs = CRM.CCaaS.IVR.GRammarImportTool.Stubs;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Main;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L1;
 

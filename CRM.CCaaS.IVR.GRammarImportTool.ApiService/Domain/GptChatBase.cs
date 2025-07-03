@@ -87,6 +87,7 @@ public abstract class GptChatBase(ILogger<GptChatGrxmlToMcsConverter> logger) : 
     /// </summary>
     protected MemoryStream CreateResultZipStream(ConcurrentDictionary<string, string> results, string newFileExtension)
     {
+        ArgumentNullException.ThrowIfNull(results, nameof(results));
         var outputStream = new MemoryStream();
         using (var outputArchive = new ZipArchive(outputStream, ZipArchiveMode.Create, leaveOpen: true))
         {
@@ -125,5 +126,4 @@ public abstract class GptChatBase(ILogger<GptChatGrxmlToMcsConverter> logger) : 
             return reader.ReadToEnd();
         }
     }
-
 }

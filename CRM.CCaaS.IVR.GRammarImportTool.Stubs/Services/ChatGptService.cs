@@ -10,12 +10,14 @@ public class ChatGptService(IConfiguration config, ILogger<ChatGptService> logge
 {
     private readonly IConfiguration _config = config;
     private readonly ILogger _logger = logger;
-    private static readonly char[] _separator = new char[] { '\n' };
+    private static readonly char[] Separator = ['\n'];
 
     public IEnumerable<string> StreamChatAsyncStub(string yamlInput)
     {
         ArgumentException.ThrowIfNullOrEmpty(yamlInput, nameof(yamlInput));
-        var listNodes = yamlInput.Split(_separator);
+        var listNodes = yamlInput.Split(Separator);
+
+        _logger.LogInformation("Streaming chat with {Count} nodes", listNodes.Length);
 
         yield return /*lang=json,strict*/ "{\"choices\":[{\"delta\":{\"role\":\"assistant\"}}]}"; //header
 

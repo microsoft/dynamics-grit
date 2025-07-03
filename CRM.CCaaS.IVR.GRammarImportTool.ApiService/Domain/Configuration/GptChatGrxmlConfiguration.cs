@@ -2,9 +2,9 @@
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
 
-public class GptChatConfiguration
+public class GptChatGrxmlConfiguration
 {
-    public const string SectionName = "GPTPrompter";
+    public const string SectionName = "GptChat:Grxml";
 
     [Range(1, 100, ErrorMessage = "Degree of parallelism for processing")]
     public int DegreeParallelism { get; set; } = 7; // Degree of parallelism for processing
@@ -16,7 +16,7 @@ public class GptChatConfiguration
     public int RetryDelaySec { get; set; } = 10; // Delay between retries in seconds
 
     [Required(ErrorMessage = "Initial Chat history is required")]
-    public List<GPTMessage>? GrxmlInitialChatHistory { get; set; } = new List<GPTMessage>();
+    public List<GPTMessage>? InitialChatHistory { get; set; } = new List<GPTMessage>();
 
     [Required(ErrorMessage = "Azure OpenAI endpoint is required")]
     public string AzureOpenAIEndpoint { get; set; } = string.Empty;

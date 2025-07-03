@@ -1,18 +1,24 @@
 ﻿using System.IO.Compression;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Main;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.AI;
 using Xunit.Abstractions;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L1;
 
 public class TestD : IDisposable
 {
     private bool _disposedValue;
+    private readonly HttpClientHandler _handler;
     private readonly HttpClient _httpClient;
-    private readonly Aspire.Hosting.DistributedApplication _app;
     private readonly List<string> _events = new List<string>();
     private readonly Task _stub;
-    private readonly CancellationTokenSource _stubCancelationTokenSource = new CancellationTokenSource();
+    private readonly Task _main;
+    private readonly WebApplication _app;
+    private readonly CancellationTokenSource _testCancelationTokenSource = new CancellationTokenSource();
     private static readonly string[] Args = ["--environment=Test"];
 
     public TestD()
@@ -21,25 +27,31 @@ public class TestD : IDisposable
         {
             Stubs.Program.Main([""]);
 
-        }, _stubCancelationTokenSource.Token);
+        }, _testCancelationTokenSource.Token);
 
         Console.WriteLine($"Stub application started. {_stub.Id}");
 
-        // Arrange
-        var appHost = DistributedApplicationTestingBuilder.CreateAsync<Projects.CRM_CCaaS_IVR_GRammarImportTool_AppHost>(Args).Result;
-        appHost.Services.ConfigureHttpClientDefaults(clientBuilder =>
+        _app = Program.CreateApp(Args);
+
+        _main = Task.Run(async () =>
         {
-            clientBuilder.AddStandardResilienceHandler();
-        });
-        // To output logs to the xUnit.net ITestOutputHelper, consider adding a package from https://www.nuget.org/packages?q=xunit+logging
+            await _app.RunAsync();
+        }, _testCancelationTokenSource.Token);
 
-        _app = appHost.Build();
-        var resourceNotificationService = _app.Services.GetRequiredService<ResourceNotificationService>();
-        _app.StartAsync().Wait();
+        _handler = new HttpClientHandler();
+        _handler.ClientCertificateOptions = ClientCertificateOption.Manual;
+        _handler.ServerCertificateCustomValidationCallback =
+            (httpRequestMessage, cert, cetChain, policyErrors) =>
+            {
+                Console.WriteLine("Trust test certificate");
+                return true;
+            };
+        _httpClient = new HttpClient(_handler)
+        {
+            BaseAddress = new Uri("http://localhost:5003/")
+        };
 
-        // Act
-        _httpClient = _app.CreateHttpClient("apiservice");
-        resourceNotificationService.WaitForResourceAsync("apiservice", KnownResourceStates.Running).Wait(TimeSpan.FromSeconds(30));
+        Console.WriteLine($"Main application started. {_main.Id}");
     }
 
     public HttpClient GetHttpClient()
@@ -64,11 +76,12 @@ public class TestD : IDisposable
             if (disposing)
             {
                 _httpClient.Dispose();
-                _app.Dispose();
-                _stubCancelationTokenSource.Cancel();
+                _handler.Dispose();
+                _app.DisposeAsync().AsTask().Wait();
+                _testCancelationTokenSource.Cancel();
                 Stubs.Program.Stop();
                 _stub.Wait(TimeSpan.FromSeconds(10));
-                _stubCancelationTokenSource.Dispose();
+                _testCancelationTokenSource.Dispose();
                 // TODO: dispose managed state (managed objects)
             }
 

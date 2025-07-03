@@ -12,7 +12,7 @@
 
 
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting.Testing" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />    
     <PackageReference Include="coverlet.collector">
@@ -29,15 +29,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\CRM.CCaaS.IVR.GRammarImportTool.AppHost\CRM.CCaaS.IVR.GRammarImportTool.AppHost.csproj" />
+    <ProjectReference Include="..\CRM.CCaaS.IVR.GRammarImportTool.ApiService\CRM.CCaaS.IVR.GRammarImportTool.ApiService.csproj" />
     <ProjectReference Include="..\CRM.CCaaS.IVR.GRammarImportTool.Stubs\CRM.CCaaS.IVR.GRammarImportTool.Stubs.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Using Include="System.Net" />
     <Using Include="Microsoft.Extensions.DependencyInjection" />
-    <Using Include="Aspire.Hosting.ApplicationModel" />
-    <Using Include="Aspire.Hosting.Testing" />
     <Using Include="Xunit" />
   </ItemGroup>
 

@@ -2,10 +2,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.12.35707.178
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CRM.CCaaS.IVR.GRammarImportTool.AppHost", "CRM.CCaaS.IVR.GRammarImportTool.AppHost\CRM.CCaaS.IVR.GRammarImportTool.AppHost.csproj", "{439F23BE-1EDA-4E47-8E64-EB2FB80A61DB}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CRM.CCaaS.IVR.GRammarImportTool.ServiceDefaults", "CRM.CCaaS.IVR.GRammarImportTool.ServiceDefaults\CRM.CCaaS.IVR.GRammarImportTool.ServiceDefaults.csproj", "{4D5DFBB9-5B73-4F63-97ED-838C9D9B7F4C}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CRM.CCaaS.IVR.GRammarImportTool.ApiService", "CRM.CCaaS.IVR.GRammarImportTool.ApiService\CRM.CCaaS.IVR.GRammarImportTool.ApiService.csproj", "{CD1BBD1C-E1BB-4BCB-A21B-AD3A6F2C0A71}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CRM.CCaaS.IVR.GRammarImportTool.Tests.L1", "CRM.CCaaS.IVR.GRammarImportTool.Tests.L1\CRM.CCaaS.IVR.GRammarImportTool.Tests.L1.csproj", "{11128C71-F5ED-4535-8DF6-F689D310102A}"
@@ -18,14 +14,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{439F23BE-1EDA-4E47-8E64-EB2FB80A61DB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{439F23BE-1EDA-4E47-8E64-EB2FB80A61DB}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{439F23BE-1EDA-4E47-8E64-EB2FB80A61DB}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{439F23BE-1EDA-4E47-8E64-EB2FB80A61DB}.Release|Any CPU.Build.0 = Release|Any CPU
-		{4D5DFBB9-5B73-4F63-97ED-838C9D9B7F4C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{4D5DFBB9-5B73-4F63-97ED-838C9D9B7F4C}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{4D5DFBB9-5B73-4F63-97ED-838C9D9B7F4C}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{4D5DFBB9-5B73-4F63-97ED-838C9D9B7F4C}.Release|Any CPU.Build.0 = Release|Any CPU
 		{CD1BBD1C-E1BB-4BCB-A21B-AD3A6F2C0A71}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{CD1BBD1C-E1BB-4BCB-A21B-AD3A6F2C0A71}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CD1BBD1C-E1BB-4BCB-A21B-AD3A6F2C0A71}.Release|Any CPU.ActiveCfg = Release|Any CPU

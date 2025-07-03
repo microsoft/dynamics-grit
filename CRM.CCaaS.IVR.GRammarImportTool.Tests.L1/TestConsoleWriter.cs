@@ -17,12 +17,12 @@ internal class TestConsoleWriter(ITestOutputHelper output) : TextWriter
     {
         get { return Encoding.UTF8; }
     }
-    public override void WriteLine(string message)
+    public override void WriteLine(string? message)
     {
         _output.WriteLine(message);
-        _lines.Add(message);
+        _lines.Add(message ?? string.Empty);
     }
-    public override void WriteLine(string format, params object[] args)
+    public override void WriteLine(string format, params object?[] args)
     {
         _output.WriteLine(format, args);
         _lines.Add(string.Format(format, args));
@@ -49,7 +49,7 @@ internal class TestConsoleWriter(ITestOutputHelper output) : TextWriter
         _lines.Add(value ?? string.Empty);
     }
 
-    public override void Write(string format, params object[] args)
+    public override void Write(string format, params object?[] args)
     {
         _output.WriteLine(format, args);
         _lines.Add(string.Format(format, args));

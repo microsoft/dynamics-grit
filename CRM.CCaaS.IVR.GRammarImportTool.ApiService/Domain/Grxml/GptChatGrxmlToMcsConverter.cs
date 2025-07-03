@@ -19,9 +19,9 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
     private readonly IChatClient _chatClient;
     private readonly List<ChatMessage> _initialChatHistory;
     private readonly ILogger<GptChatGrxmlToMcsConverter> _logger;
-    private readonly GptChatConfiguration _gptPrompterConfiguration;
+    private readonly GptChatGrxmlConfiguration _gptPrompterConfiguration;
 
-    public GptChatGrxmlToMcsConverter(ILogger<GptChatGrxmlToMcsConverter> logger, IOptions<GptChatConfiguration> gptPrompterConfiguration) : base(logger)
+    public GptChatGrxmlToMcsConverter(ILogger<GptChatGrxmlToMcsConverter> logger, IOptions<GptChatGrxmlConfiguration> gptPrompterConfiguration) : base(logger)
     {
         ArgumentNullException.ThrowIfNull(logger);
         ArgumentNullException.ThrowIfNull(gptPrompterConfiguration);
@@ -40,7 +40,7 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
         _chatClient = CreateChatClient(_gptPrompterConfiguration.AzureOpenAIEndpoint,
             _gptPrompterConfiguration.AzureOpenAIDeploymentName, _gptPrompterConfiguration.AzureOpenAIKey);
         _initialChatHistory = LoadInitialChatHistory(_gptPrompterConfiguration);
-        _logger.LogInformation("GPTPrompter initialized successfully at {Timestamp}.", DateTime.UtcNow);
+        _logger.LogInformation("GptChatGrxmlToMcsConverter initialized successfully at {Timestamp}.", DateTime.UtcNow);
     }
 
     /// <summary>
@@ -181,10 +181,10 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
     /// <summary>
     /// Loads the initial chat history from configuration.
     /// </summary>
-    private List<ChatMessage> LoadInitialChatHistory(GptChatConfiguration config)
+    private List<ChatMessage> LoadInitialChatHistory(GptChatGrxmlConfiguration config)
     {
         var initialChatHistory = new List<ChatMessage>();
-        foreach (var item in config.GrxmlInitialChatHistory!)
+        foreach (var item in config.InitialChatHistory!)
         {
             var role = item.Role;
             var content = item.Content;
