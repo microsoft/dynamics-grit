@@ -59,10 +59,16 @@
     <None Update="Data\grit-test-data-3.zip">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="Data\grit-test-data-bad-1.grxml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Data\grit-test-data-bad-1.zip">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>
-    <TestDataFiles Include="$(RepoRoot)\$(MSBuildProjectName)\Data\grit-test-data-1.zip;$(RepoRoot)\$(MSBuildProjectName)\Data\grit-test-data-2.zip;$(RepoRoot)\$(MSBuildProjectName)\Data\grit-test-data-3.zip" />
+    <TestDataFiles Include="$(RepoRoot)\$(MSBuildProjectName)\Data\grit-test-data-1.zip;$(RepoRoot)\$(MSBuildProjectName)\Data\grit-test-data-2.zip;&#xD;&#xA;$(RepoRoot)\$(MSBuildProjectName)\Data\grit-test-data-3.zip;$(RepoRoot)\$(MSBuildProjectName)\Data\grit-test-data-bad-1.grxml;$(RepoRoot)\$(MSBuildProjectName)\Data\grit-test-data-1.grxml;&#xD;&#xA;$(RepoRoot)\$(MSBuildProjectName)\Data\grit-test-data-2.grxml" />
   </ItemGroup>
 
   <Target Name="CreateDirectories" AfterTargets="Build">

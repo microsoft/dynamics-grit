@@ -1,12 +1,15 @@
+using System;
 using System.IO.Compression;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Main;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Xunit.Abstractions;
 using Xunit;
+using Xunit.Abstractions;
 using Stubs = CRM.CCaaS.IVR.GRammarImportTool.Stubs;
-using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Main;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L1;
 
@@ -35,16 +38,16 @@ public class IntegrationTests : IClassFixture<TestD>, IDisposable
         {
             using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Read))
             {
-                _output.WriteLine("Files in ZIP archive:");
+                _converter.WriteLine("Files in ZIP archive:");
                 foreach (var entry in archive.Entries)
                 {
-                    _output.WriteLine($"- {entry.FullName}");
+                    _converter.WriteLine($"- {entry.FullName}");
 
                     using (var entryStream = entry.Open())
                     using (var reader = new StreamReader(entryStream, Encoding.UTF8))
                     {
                         string content = reader.ReadToEnd();
-                        _output.WriteLine(content);
+                        _converter.WriteLine(content);
                     }
                 }
             }
@@ -99,23 +102,23 @@ public class IntegrationTests : IClassFixture<TestD>, IDisposable
                     .Build();
         connection.On<string>("ConnectionId", connectionId =>
         {
-            _output.WriteLine($"ConnectionId received: {connectionId}");
+            _converter.WriteLine($"ConnectionId received: {connectionId}");
         });
 
         connection.On<int, string>("Progress", (progress, message) =>
         {
-            _output.WriteLine($"Progress: {progress}% - Message: {message}");
+            _converter.WriteLine($"Progress: {progress}% - Message: {message}");
         });
 
         connection.On<string>("Completed", (resultBase64) =>
         {
-            _output.WriteLine($"Upload completed with result: {resultBase64}");
+            _converter.WriteLine($"Upload completed with result: {resultBase64}");
             PrintFilesInBase64Zip(resultBase64);
         });
 
         connection.On<string>("Error", error =>
         {
-            _output.WriteLine($"Error: {error}");
+            _converter.WriteLine($"Error: {error}");
         });
 
         await connection.StartAsync();
@@ -125,14 +128,15 @@ public class IntegrationTests : IClassFixture<TestD>, IDisposable
 
         byte[] zipFileBytes = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Data", zipFileName));
         await connection.InvokeAsync("GrxmlZipConvert", zipFileBytes);
-        _output.WriteLine("File upload initiated.");
+        _converter.WriteLine("File upload initiated.");
 
         await connection.StopAsync();
-        _output.WriteLine("Connection stopped.");
+        _converter.WriteLine("Connection stopped.");
 
         Assert.True(connection.State == HubConnectionState.Disconnected, "Connection should be disconnected after the test.");
         Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("Error:", StringComparison.Ordinal)));
-        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("fail:", StringComparison.Ordinal)));
+        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("fail", StringComparison.Ordinal)));
+        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("Failed", StringComparison.Ordinal)));
     }
 
     [Theory]
@@ -151,38 +155,263 @@ public class IntegrationTests : IClassFixture<TestD>, IDisposable
                     .Build();
         connection.On<string>("ConnectionId", connectionId =>
         {
-            _output.WriteLine($"ConnectionId received: {connectionId}");
+            _converter.WriteLine($"ConnectionId received: {connectionId}");
         });
 
         connection.On<int, string>("Progress", (progress, message) =>
         {
-            _output.WriteLine($"Progress: {progress}% - Message: {message}");
+            _converter.WriteLine($"Progress: {progress}% - Message: {message}");
         });
 
         connection.On<string>("Completed", (result) =>
         {
-            _output.WriteLine($"Upload completed with result: {result}");
+            _converter.WriteLine($"Upload completed with result: {result}");
         });
 
         connection.On<string>("Error", error =>
         {
-            _output.WriteLine($"Error: {error}");
+            _converter.WriteLine($"Error: {error}");
         });
 
         await connection.StartAsync();
-        _output.WriteLine("Connection started.");
+        _converter.WriteLine("Connection started.");
 
         Assert.True(connection.State == HubConnectionState.Connected, "Connection should be disconnected after the test.");
 
         byte[] fileBytes = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Data", fileName));
         await connection.InvokeAsync("GrxmlConvert", fileBytes);
-        _output.WriteLine("File upload initiated.");
+        _converter.WriteLine("File upload initiated.");
 
         await connection.StopAsync();
-        _output.WriteLine("Connection stopped.");
+        _converter.WriteLine("Connection stopped.");
 
         Assert.True(connection.State == HubConnectionState.Disconnected, "Connection should be disconnected after the test.");
         Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("Error:", StringComparison.Ordinal)));
-        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("fail:", StringComparison.Ordinal)));
+        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("fail", StringComparison.Ordinal)));
+        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("Failed", StringComparison.Ordinal)));
+    }
+
+    [Theory]
+    [Trait("Category", "Integration")]
+    [InlineData("grit-test-data-1.zip")]
+    [InlineData("grit-test-data-2.zip")]
+    [InlineData("grit-test-data-3.zip")] //includes subfolders with duplicate file names
+    public async Task When_upload_zip_file_to_post_Then_conversion_success(string zipFileName)
+    {
+        var httpClient = _testD.GetHttpClient();
+        using var form = new MultipartFormDataContent();
+
+        var fileStream = File.OpenRead(Path.Combine(AppContext.BaseDirectory, "Data", zipFileName));
+        using var fileContent = new StreamContent(fileStream);
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/zip");
+
+        form.Add(fileContent, "file", Path.GetFileName(zipFileName));
+
+        var response = await httpClient.PostAsync("grit/zip", form);
+
+        using var stream = await response.Content.ReadAsStreamAsync();
+        using var reader = new StreamReader(stream);
+
+        while (!reader.EndOfStream)
+        {
+            var line = await reader.ReadLineAsync();
+            _converter.WriteLine(line);
+        }
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("Error:", StringComparison.Ordinal)));
+        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("fail", StringComparison.Ordinal)));
+        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("Failed", StringComparison.Ordinal)));
+    }
+
+    [Theory]
+    [Trait("Category", "Integration")]
+    [InlineData("grit-test-data-1.grxml")]
+    [InlineData("grit-test-data-2.grxml")]
+    public async Task When_upload_grxml_file_to_post_Then_conversion_success(string grxmlFileName)
+    {
+        var httpClient = _testD.GetHttpClient();
+        using var form = new MultipartFormDataContent();
+
+        var fileStream = File.OpenRead(Path.Combine(AppContext.BaseDirectory, "Data", grxmlFileName));
+        using var fileContent = new StreamContent(fileStream);
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/srgs+xml");
+
+        form.Add(fileContent, "file", Path.GetFileName(grxmlFileName));
+
+        var response = await httpClient.PostAsync("grit/grxml", form);
+
+        using var stream = await response.Content.ReadAsStreamAsync();
+        using var reader = new StreamReader(stream);
+
+        while (!reader.EndOfStream)
+        {
+            var line = await reader.ReadLineAsync();
+            _converter.WriteLine(line);
+        }
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("Error:", StringComparison.Ordinal)));
+        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("fail", StringComparison.Ordinal)));
+        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("Failed", StringComparison.Ordinal)));
+    }
+
+    [Theory]
+    [Trait("Category", "ErrorHandling")]
+    [InlineData("grit-test-data-bad-1.grxml")]
+    public async Task When_upload_bad_grxml_file_to_post_Then_conversion_fails(string grxmlFileName)
+    {
+        var httpClient = _testD.GetHttpClient();
+        using var form = new MultipartFormDataContent();
+
+        var fileStream = File.OpenRead(Path.Combine(AppContext.BaseDirectory, "Data", grxmlFileName));
+        using var fileContent = new StreamContent(fileStream);
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/srgs+xml");
+
+        form.Add(fileContent, "file", Path.GetFileName(grxmlFileName));
+
+        var response = await httpClient.PostAsync("grit/grxml", form);
+
+        using var stream = await response.Content.ReadAsStreamAsync();
+        using var reader = new StreamReader(stream);
+
+        while (!reader.EndOfStream)
+        {
+            var line = await reader.ReadLineAsync();
+            _converter.WriteLine(line);
+        }
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal(1, _converter.GetLines().Count(x => x.Contains("Error:", StringComparison.Ordinal)));
+    }
+
+    [Theory]
+    [Trait("Category", "ErrorHandling")]
+    [InlineData("grit-test-data-bad-1.zip")]
+    public async Task When_upload_bad_zip_file_to_post_Then_conversion_fails_for_bad_grxml_only(string zipFileName)
+    {
+        var httpClient = _testD.GetHttpClient();
+        using var form = new MultipartFormDataContent();
+
+        var fileStream = File.OpenRead(Path.Combine(AppContext.BaseDirectory, "Data", zipFileName));
+        using var fileContent = new StreamContent(fileStream);
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/zip");
+
+        form.Add(fileContent, "file", Path.GetFileName(zipFileName));
+
+        var response = await httpClient.PostAsync("grit/zip", form);
+
+        using var stream = await response.Content.ReadAsStreamAsync();
+        using var reader = new StreamReader(stream);
+
+        while (!reader.EndOfStream)
+        {
+            var line = await reader.ReadLineAsync();
+            _converter.WriteLine(line);
+        }
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1, _converter.GetLines().Count(x => x.Contains("bad string to fail xml parsing", StringComparison.Ordinal)));
+    }
+
+    [Theory]
+    [Trait("Category", "Load")]
+    [InlineData("grit-test-data-1.grxml", 25, 25)]
+    public async Task When_mutiple_uploads_grxml_file_to_post_Then_conversion_success(string grxmlFileName,
+        int parallelRequests,
+        int loops)
+    {
+        var tasks = new List<Task>();
+        var httpClient = _testD.GetHttpClient();
+
+        for (int j = 0; j < loops; j++)
+        {
+            _converter.WriteLine($"Loop {j + 1} of {loops}");
+            for (int i = 0; i < parallelRequests; i++)
+            {
+                tasks.Add(Task.Run(async () =>
+                {
+                    string collectedLines = string.Empty;
+                    using var form = new MultipartFormDataContent();
+
+                    var fileStream = File.OpenRead(Path.Combine(AppContext.BaseDirectory, "Data", grxmlFileName));
+                    using var fileContent = new StreamContent(fileStream);
+                    fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/srgs+xml");
+
+                    form.Add(fileContent, "file", Path.GetFileName(grxmlFileName));
+
+                    var response = await httpClient.PostAsync("grit/grxml", form);
+                    using var stream = await response.Content.ReadAsStreamAsync();
+                    using var reader = new StreamReader(stream);
+                    while (!reader.EndOfStream)
+                    {
+                        var line = await reader.ReadLineAsync();
+                        collectedLines += line + Environment.NewLine;
+                    }
+                    _converter.WriteLine(collectedLines);
+                    Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+                }));
+            }
+            await Task.WhenAll(tasks);
+            tasks.Clear();
+            _converter.WriteLine($"Completed loop {j + 1} of {loops}");
+            await Task.Delay(1000);
+        }
+
+        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("Error:", StringComparison.Ordinal)));
+        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("fail", StringComparison.Ordinal)));
+        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("Failed", StringComparison.Ordinal)));
+    }
+
+    [Theory]
+    [Trait("Category", "Load")]
+    [InlineData("grit-test-data-1.zip", 20, 2)]
+    public async Task When_mutiple_uploads_zip_file_to_post_Then_conversion_success(string zipFileName,
+        int parallelRequests,
+        int loops)
+    {
+        var tasks = new List<Task>();
+        var httpClient = _testD.GetHttpClient();
+
+        for (int j = 0; j < loops; j++)
+        {
+            _converter.WriteLine($"Loop {j + 1} of {loops}");
+            for (int i = 0; i < parallelRequests; i++)
+            {
+                tasks.Add(Task.Run(async () =>
+                {
+                    string collectedLines = string.Empty;
+                    using var form = new MultipartFormDataContent();
+
+                    var fileStream = File.OpenRead(Path.Combine(AppContext.BaseDirectory, "Data", zipFileName));
+                    using var fileContent = new StreamContent(fileStream);
+                    fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/zip");
+
+                    form.Add(fileContent, "file", Path.GetFileName(zipFileName));
+
+                    var response = await httpClient.PostAsync("grit/zip", form);
+
+                    using var stream = await response.Content.ReadAsStreamAsync();
+                    using var reader = new StreamReader(stream);
+
+                    while (!reader.EndOfStream)
+                    {
+                        var line = await reader.ReadLineAsync();
+                        collectedLines += line + Environment.NewLine;
+                    }
+                    _converter.WriteLine(collectedLines);
+                    Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+                }));
+            }
+
+            await Task.WhenAll(tasks);
+            tasks.Clear();
+            _converter.WriteLine($"Completed loop {j + 1} of {loops}");
+            await Task.Delay(1000);
+        }
+
+        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("Error:", StringComparison.Ordinal)));
+        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("fail", StringComparison.Ordinal)));
+        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("Failed", StringComparison.Ordinal)));
     }
 }

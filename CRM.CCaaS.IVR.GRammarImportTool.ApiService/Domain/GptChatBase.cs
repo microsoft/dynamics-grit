@@ -1,4 +1,4 @@
-﻿
+﻿using System.Threading.Channels;
 using System.Collections.Concurrent;
 using System.IO.Compression;
 using System.Text;
@@ -15,6 +15,8 @@ public abstract class GptChatBase(ILogger<GptChatGrxmlToMcsConverter> logger) : 
 {
     public abstract Task<Stream> ConvertZipAsync(Stream zipStream, Func<int, string, Task> progressCallback, Func<byte[], Task> completedCallback);
     public abstract Task<string> ConvertFileAsync(string stringFile, Func<int, string, Task> progressCallback, Func<string, Task> completedCallback);
+    public abstract Task<string> ConvertZipAsync(Stream zipStream, Channel<KeyValuePair<string, string>> results);
+    public abstract Task<string> ConvertFileAsync(string stringFile);
 
     protected Dictionary<string, string> LoadZipToDictionary(Stream zipStream)
     {
@@ -62,22 +64,22 @@ public abstract class GptChatBase(ILogger<GptChatGrxmlToMcsConverter> logger) : 
     /// <summary>
     /// Reads and cleans XML content from a ZipArchiveEntry.
     /// </summary>
-    protected bool TryReadXmlContent(KeyValuePair<string, string> entry, out string content)
+    protected bool TryReadXmlContent(string fileName, string xmlContent, out string strippedContent)
     {
         try
         {
-            var xmlDoc = System.Xml.Linq.XDocument.Parse(entry.Value);
+            var xmlDoc = System.Xml.Linq.XDocument.Parse(xmlContent);
             if (xmlDoc.Root is not null)
             {
                 RemoveCommentsAndWhitespace(xmlDoc.Root);
             }
-            content = xmlDoc.ToString();
+            strippedContent = xmlDoc.ToString();
             return true;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to parse {FileName} as XML at {Timestamp}.", entry.Key, DateTime.UtcNow);
-            content = $"Error: Failed to parse as XML.";
+            logger.LogError(ex, "Failed to parse {FileName} as XML at {Timestamp}.", fileName, DateTime.UtcNow);
+            strippedContent = $"Error: Failed to parse as XML.";
             return false;
         }
     }

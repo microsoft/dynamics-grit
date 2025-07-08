@@ -1,5 +1,5 @@
 ﻿using System.IO.Compression;
-using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Main;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.AI;
@@ -17,7 +17,6 @@ public class TestD : IDisposable
     private readonly List<string> _events = new List<string>();
     private readonly Task _stub;
     private readonly Task _main;
-    private readonly WebApplication _app;
     private readonly CancellationTokenSource _testCancelationTokenSource = new CancellationTokenSource();
     private static readonly string[] Args = ["--environment=Test"];
 
@@ -31,13 +30,15 @@ public class TestD : IDisposable
 
         Console.WriteLine($"Stub application started. {_stub.Id}");
 
-        _app = Program.CreateApp(Args);
-
-        _main = Task.Run(async () =>
+        _main = Task.Run(() =>
         {
-            await _app.RunAsync();
-        }, _testCancelationTokenSource.Token);
+            ApiService.Main.Program.Main(Args);
+        });
 
+        while (ApiService.Main.Program.MainApp == null)
+        {
+            Task.Delay(1000).Wait();
+        }
         _handler = new HttpClientHandler();
         _handler.ClientCertificateOptions = ClientCertificateOption.Manual;
         _handler.ServerCertificateCustomValidationCallback =
@@ -48,8 +49,9 @@ public class TestD : IDisposable
             };
         _httpClient = new HttpClient(_handler)
         {
-            BaseAddress = new Uri("http://localhost:5003/")
+            BaseAddress = new Uri("http://localhost:5003")
         };
+        _httpClient.Timeout = TimeSpan.FromMinutes(30);
 
         Console.WriteLine($"Main application started. {_main.Id}");
     }
@@ -77,7 +79,6 @@ public class TestD : IDisposable
             {
                 _httpClient.Dispose();
                 _handler.Dispose();
-                _app.DisposeAsync().AsTask().Wait();
                 _testCancelationTokenSource.Cancel();
                 Stubs.Program.Stop();
                 _stub.Wait(TimeSpan.FromSeconds(10));

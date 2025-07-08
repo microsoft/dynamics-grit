@@ -2,6 +2,16 @@
 
 public static class ChatData
 {
+    public static string[] GRXML_PROMPTS =
+    [
+        @"Convert the file .*?\.grxml to Microsoft Copilot Studio Yaml.\s*?",
+    ];
+
+    public static readonly string YAML_ERROR_DATA =
+        @"entity_type: ErrorEntity
+        message: Conversion failed. The request contains invalid data.
+        details: Ensure that the XML format is correct and adheres to the expected schema.";
+
     public static readonly string[] YAML_REPLY_DATA =
     [
 @"entity_type: CustomListEntity

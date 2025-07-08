@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Runtime;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Controllers;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
@@ -7,6 +8,7 @@ using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Endpoints;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Hubs;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Configuration;
@@ -15,16 +17,10 @@ using Microsoft.Extensions.Logging;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Main;
 
-public static partial class Program
+public static class Program
 {
+    public static WebApplication? MainApp;
     public static void Main(string[] args)
-    {
-        var app = CreateApp(args);
-        app.Run(); // only blocks in real run
-        app.DisposeAsync().AsTask().Wait(); // Dispose the app gracefully
-    }
-
-    public static WebApplication CreateApp(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
 
@@ -43,11 +39,13 @@ public static partial class Program
         var httpsPort = builder.Configuration.GetValue<int>("Main:HttpSslPort");
         ConfigureListeningPortsProtocolsCertsAndLimits(builder, httpPort, httpsPort);
 
+        builder.Services.AddControllers().AddApplicationPart(typeof(HealthController).Assembly);
+        builder.Services.AddControllers().AddApplicationPart(typeof(GrITController).Assembly);
+
         // Add services to the container.
         builder.Services.Configure<GptChatGrxmlConfiguration>(builder.Configuration.GetSection(GptChatGrxmlConfiguration.SectionName));
 
         builder.Services.AddProblemDetails();
-        builder.Services.AddAntiforgery();
         builder.Services.AddKeyedTransient<IGptChat, GptChatGrxmlToMcsConverter>(GptChatGrxmlToMcsConverter.SERVICE_KEY);
 
         builder.Services.AddSignalR(options =>
@@ -71,14 +69,11 @@ public static partial class Program
                     .AllowCredentials();
             });
         });
-
         var corsOrigins = builder.Configuration.GetSection("Main:Cors:AllowedOrigins").Get<string[]>();
-
         if (corsOrigins == null || corsOrigins.Length == 0)
         {
             corsOrigins = ["https://localhost:8443"];
         }
-
         builder.Services.AddCors(options =>
         {
             options.AddPolicy("Production", builder =>
@@ -93,6 +88,8 @@ public static partial class Program
         });
 
         var app = builder.Build();
+        app.UseRouting();
+        app.MapControllers();
 
         var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Main");
 
@@ -106,8 +103,6 @@ public static partial class Program
             logger.LogInformation("Application started in production environment at {Timestamp}.", DateTime.UtcNow);
             app.UseCors("Production"); // Use CORS policy for production
         }
-
-        app.UseAntiforgery();
 
         // Configure the HTTP request pipeline.
         app.UseExceptionHandler();
@@ -123,10 +118,11 @@ public static partial class Program
 
         app.MapGritEndpoints();
 
-        app.MapDefaultEndpoints();
-
         logger.LogInformation("Application about to start at {Timestamp}.", DateTime.UtcNow);
-        return app;
+
+        MainApp = app;
+        MainApp.Run(); // only blocks in real run
+        MainApp.DisposeAsync().AsTask().Wait(); // Dispose the app gracefully
     }
 
     private static void ConfigureListeningPortsProtocolsCertsAndLimits(WebApplicationBuilder builder, int httpPort, int httpsPort)

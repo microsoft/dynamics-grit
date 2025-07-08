@@ -15,6 +15,15 @@ public class GptChatGrxmlConfiguration
     [Range(1, 300, ErrorMessage = "Retry delay in seconds")]
     public int RetryDelaySec { get; set; } = 10; // Delay between retries in seconds
 
+    [Range(1, 120, ErrorMessage = "Maximum allowed conversion time in minutes")]
+    public int MaxAllowedConvresionTimeMinutes { get; set; } = 60;
+
+    [Range(10, 20 * 1025 * 1024, ErrorMessage = "Allowed upload file size range in bytes")]
+    public int AllowedUploadFileSizeRangeBytes { get; set; } = 10 + 1024 * 1024;
+
+    [Range(1, 1000, ErrorMessage = "Channel depth for result stream")]
+    public int ResultStreamChannelCapacity { get; set; } = 100;
+
     [Required(ErrorMessage = "Initial Chat history is required")]
     public List<GPTMessage>? InitialChatHistory { get; set; } = new List<GPTMessage>();
 

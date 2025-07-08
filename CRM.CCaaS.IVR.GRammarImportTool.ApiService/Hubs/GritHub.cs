@@ -1,13 +1,21 @@
 using System.IO;
 using System.Text;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Options;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Hubs;
 
-internal class GritHub(ILogger<GptChatGrxmlToMcsConverter> logger,
-    [FromKeyedServices(GptChatGrxmlToMcsConverter.SERVICE_KEY)] IGptChat grxmlConverter) : Hub
+/// <summary>
+/// SignalR hub for real-time GRXML and ZIP file conversion.
+/// Handles client connections and provides methods for uploading files,
+/// reporting progress, and sending conversion results or errors back to the client.
+/// </summary>
+public class GritHub(ILogger<GptChatGrxmlToMcsConverter> logger,
+    [FromKeyedServices(GptChatGrxmlToMcsConverter.SERVICE_KEY)] IGptChat grxmlConverter,
+    IOptions<GptChatGrxmlConfiguration> gptPrompterConfiguration) : Hub
 {
     private readonly IGptChat _grxmlConverter = grxmlConverter;
     private readonly ILogger<GptChatGrxmlToMcsConverter> _logger = logger;
@@ -37,7 +45,8 @@ internal class GritHub(ILogger<GptChatGrxmlToMcsConverter> logger,
         {
             using var zipStream = new MemoryStream(zipBytes);
 
-            await _grxmlConverter.ConvertZipAsync(
+            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(gptPrompterConfiguration.Value.MaxAllowedConvresionTimeMinutes));
+            await Task.Run(() => _grxmlConverter.ConvertZipAsync(
                 zipStream,
                 async (progress, message) =>
                 {
@@ -48,7 +57,7 @@ internal class GritHub(ILogger<GptChatGrxmlToMcsConverter> logger,
                     resultBase64 = Convert.ToBase64String(resultBytes);
                     await Clients.Caller.SendAsync("Completed", resultBase64);
                 }
-            );
+            ), cts.Token);
         }
         catch (Exception ex)
         {
@@ -57,6 +66,10 @@ internal class GritHub(ILogger<GptChatGrxmlToMcsConverter> logger,
         }
     }
 
+    /// <summary>
+    /// Receives a GRXML file as a byte array from the client, processes it, and sends progress and result events back.
+    /// </summary>
+    /// <param name="bytes">The GRXML file as a byte array.</param>
     public async Task GrxmlConvert(byte[] bytes)
     {
         _logger.LogInformation("GrxmlConvert called by {ConnectionId}, bytes: {bytes}", Context.ConnectionId, bytes?.Length);

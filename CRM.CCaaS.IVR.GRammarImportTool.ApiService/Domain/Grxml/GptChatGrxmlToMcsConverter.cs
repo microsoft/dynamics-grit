@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Threading.Channels;
 using System.IO.Compression;
 using System.IO.Pipes;
 using System.Text;
@@ -74,7 +75,7 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
         {
             string content;
             var stopWatch = new System.Diagnostics.Stopwatch();
-            if (!TryReadXmlContent(entry, out content))
+            if (!TryReadXmlContent(entry.Key, entry.Value, out content))
                 results[entry.Key] = entry.Value;
             else
             {
@@ -126,10 +127,16 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
         ArgumentNullException.ThrowIfNull(progressCallback);
         ArgumentNullException.ThrowIfNull(completedCallback);
 
+        if (!TryReadXmlContent("ConvertedFile.grxml", stringFile, out var stringStrippedFile))
+        {
+            _logger.LogError("Failed to read XML content from the provided string file at {Timestamp}.", DateTime.UtcNow);
+            return stringStrippedFile;
+        }
+
         await progressCallback(0, "Starting processing...");
         _logger.LogInformation("Starting processing files at {Timestamp} with {_gptPrompterConfiguration.DegreeParallelism} parallel tasks", DateTime.UtcNow, _gptPrompterConfiguration.DegreeParallelism);
 
-        var processedResult = await ProcessSingleFileAsync("ConvertedFile.yaml", stringFile);
+        var processedResult = await ProcessSingleFileAsync("ConvertedFile.grxml", stringStrippedFile);
         await completedCallback(processedResult);
 
         return processedResult;
@@ -149,11 +156,12 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
         };
 
         var response = string.Empty;
+        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(_gptPrompterConfiguration.MaxAllowedConvresionTimeMinutes));
         while (retries > 0)
         {
             try
             {
-                await foreach (var item in _chatClient.GetStreamingResponseAsync(chatHistory))
+                await foreach (var item in _chatClient.GetStreamingResponseAsync(chatHistory, null, cts.Token))
                 {
                     response += item.Text;
                 }
@@ -213,5 +221,80 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
          .WithNamingConvention(CamelCaseNamingConvention.Instance)
          .Build();
         _ = deserializer.Deserialize<object>(yamlContent);
+    }
+
+    public override async Task<string> ConvertZipAsync(Stream zipStream, Channel<KeyValuePair<string, string>> results)
+    {
+        ArgumentNullException.ThrowIfNull(zipStream);
+        ArgumentNullException.ThrowIfNull(results);
+
+        var entries = LoadZipToDictionary(zipStream);
+
+        _logger.LogInformation("Starting processing files at {Timestamp} with {_gptPrompterConfiguration.DegreeParallelism} parallel tasks", DateTime.UtcNow, _gptPrompterConfiguration.DegreeParallelism);
+
+        var processedCount = 0;
+        var totalCount = entries.Count;
+
+        try
+        {
+            var parallelLoopResult = Parallel.ForEach(entries, new ParallelOptions { MaxDegreeOfParallelism = _gptPrompterConfiguration.DegreeParallelism }, async entry =>
+            {
+                string content;
+                var stopWatch = new System.Diagnostics.Stopwatch();
+                if (!TryReadXmlContent(entry.Key, entry.Value, out content))
+                    await results.Writer.WriteAsync(new KeyValuePair<string, string>(entry.Key, entry.Value));
+                else
+                {
+                    try
+                    {
+                        stopWatch.Start();
+                        // Synchronously wait for async method (not ideal, but required for Parallel.ForEach)
+                        var response = ProcessSingleFileAsync(entry.Key, content).Result;
+                        await results.Writer.WriteAsync(new KeyValuePair<string, string>(entry.Key, response));
+                        _logger.LogInformation("Processed file {FileName} in {ElapsedMilliseconds} ms at {Timestamp}.", entry.Key, stopWatch.ElapsedMilliseconds, DateTime.UtcNow);
+                        stopWatch.Stop();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Unexpected error occurred while processing file content at {Timestamp}.", DateTime.UtcNow);
+                        await results.Writer.WriteAsync(new KeyValuePair<string, string>(entry.Key, $"Error: {ex.Message}"));
+                    }
+                }
+
+                var current = Interlocked.Increment(ref processedCount);
+                var progress = (int)(current / (double)totalCount * 100);
+                _logger.LogInformation("Processed {Current} of {Total} files. Progress: {Progress}%", current, totalCount, progress);
+            });
+
+            while (!parallelLoopResult.IsCompleted)
+            {
+                // Wait for all tasks to complete
+                await Task.Delay(100);
+            }
+        }
+        finally
+        {
+            results.Writer.Complete();
+        }
+        _logger.LogInformation("Processed {ProcessedCount} of {TotalCount} files at {Timestamp}.", processedCount, totalCount, DateTime.UtcNow);
+        _logger.LogInformation("Completed processing files in the zip archive at {Timestamp}.", DateTime.UtcNow);
+        return "Conversion complete";
+    }
+
+    public override async Task<string> ConvertFileAsync(string stringFile)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(stringFile);
+
+        if (!TryReadXmlContent("ConvertedFile.grxml", stringFile, out var stringStrippedFile))
+        {
+            _logger.LogError("Failed to read XML content from the provided string file at {Timestamp}.", DateTime.UtcNow);
+            return stringStrippedFile;
+        }
+
+        _logger.LogInformation("Starting processing file at {Timestamp}", DateTime.UtcNow);
+        var processedResult = await ProcessSingleFileAsync("ConvertedFile.grxml", stringStrippedFile);
+        _logger.LogInformation("File processed successfully at {Timestamp}", DateTime.UtcNow);
+
+        return processedResult;
     }
 }

@@ -1,9 +1,17 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
+using System.Xml;
 using CRM.CCaaS.IVR.GRammarImportTool.Stubs.Models.Chat;
 using CRM.CCaaS.IVR.GRammarImportTool.Stubs.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.Stubs.Controllers;
+
+/// <summary>
+/// Controller for handling chat completion requests in the stub environment.
+/// Accepts chat messages, logs incoming requests, and streams simulated responses
+/// to the client using the text/event-stream format.
+/// </summary>
 [ApiController]
 [Route("openai/deployments/test/[controller]/completions")]
 public class ChatController(ChatGptService chatGptService, ILogger<ChatGptService> logger) : ControllerBase
@@ -24,9 +32,23 @@ public class ChatController(ChatGptService chatGptService, ILogger<ChatGptServic
                 return;
             }
 
-            foreach (var message in request.Messages)
+            foreach (var (message, index) in request.Messages.Select((msg, idx) => (msg, idx)))
             {
-                _logger.LogInformation("Received request with message: {Message}", message.Content);
+                _logger.LogInformation("Received request {Index} with message: {Message}", index, message.Content);
+                if (index == request.Messages.Count - 1)
+                {
+                    if (!IsValidXml(message.Content))
+                    {
+                        _logger.LogWarning("Invalid XML in message: {Message}", message.Content);
+                        foreach (var chunk in _chatGptService.StreamChatAsyncStub(ChatData.YAML_ERROR_DATA))
+                        {
+                            await Response.WriteAsync($"data: {chunk}\n\n");
+                            await Response.Body.FlushAsync();
+                            await Task.Delay(100); // Simulate streaming
+                        }
+                        return;
+                    }
+                }
             }
 
             foreach (var chunk in _chatGptService.StreamChatAsyncStub(ChatData.YAML_REPLY_DATA[Random.Shared.Next(ChatData.YAML_REPLY_DATA.Length)]))
@@ -35,6 +57,26 @@ public class ChatController(ChatGptService chatGptService, ILogger<ChatGptServic
                 await Response.Body.FlushAsync();
                 await Task.Delay(100); // Simulate streaming
             }
+        }
+    }
+    private bool IsValidXml(string xml)
+    {
+        foreach (string prompt in ChatData.GRXML_PROMPTS)
+        {
+            xml = Regex.Replace(xml, prompt, string.Empty, RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        }
+
+        try
+        {
+            using var stringReader = new StringReader(xml);
+            using var xmlReader = XmlReader.Create(stringReader);
+            while (xmlReader.Read()) { }
+            return true;
+        }
+        catch (XmlException)
+        {
+            _logger.LogWarning("Invalid XML format detected.");
+            return false;
         }
     }
 }

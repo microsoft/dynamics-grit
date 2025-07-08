@@ -140,14 +140,12 @@ This document provides a comprehensive overview of the HTTP and SignalR endpoint
 
 ## Summary Table
 
-| Endpoint                       | Method | Description                                      | Auth/CSRF | Notes                        |
-|------------------------------- |--------|--------------------------------------------------|-----------|------------------------------|
-| `/get-antiforgery-token`       | GET    | Get anti-forgery token                           | None      | Returns token in header/body |
-| `/grit`                        | POST   | Upload ZIP for background processing via SignalR  | No CSRF   | Requires SignalR connection  |
-| `/debug/dump-configuration`    | GET    | Dump config to logs                              | None      | Debug only                   |
-| `/health`                      | GET    | Health check                                     | None      | Dev/test only                |
-| `/alive`                       | GET    | Liveness probe                                   | None      | Dev/test only                |
-| `/gritHub` (SignalR)           | WS     | Real-time progress/results for file processing    | None      | SignalR hub                  |
+| Endpoint                       | Method | Description                                       | Auth/CSRF | Notes                                   |
+|------------------------------- |--------|---------------------------------------------------|-----------|-----------------------------------------|
+| `/grit/zip`                    | POST   | Upload ZIP for background processing via SignalR  | No CSRF   | Stream of converted YAML asynchronously |  
+| `/grit/grxml`                  | POST   | Upload GRXML for background processing via SignalR| No CSRF   | YAML conversion                         |  
+| `/health`                      | GET    | Health/Liveness check - not yet ipmlemented       | None      | Dev/test only.                          |
+| `/gritHub` (SignalR)           | WS     | Real-time progress/results for file processing    | None      | SignalR WS client                       |
 
 ---
 
