@@ -1,5 +1,6 @@
 using System;
 using System.IO.Compression;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -28,6 +29,7 @@ public class IntegrationTests : IClassFixture<TestD>, IDisposable
 
         _converter = new TestConsoleWriter(_output);
         Console.SetOut(_converter);
+        _converter.ClearLines();
     }
 
     protected void PrintFilesInBase64Zip(string base64Zip)
@@ -52,6 +54,13 @@ public class IntegrationTests : IClassFixture<TestD>, IDisposable
                 }
             }
         }
+    }
+
+    private bool TestForError (IEnumerable<string> lines)
+    {
+        return lines.Any(x => x.Contains("Error:", StringComparison.OrdinalIgnoreCase) ||
+                              x.Contains("fail", StringComparison.OrdinalIgnoreCase) ||
+                              x.Contains("failed", StringComparison.OrdinalIgnoreCase));
     }
 
     protected virtual void Dispose(bool disposing)
@@ -134,9 +143,7 @@ public class IntegrationTests : IClassFixture<TestD>, IDisposable
         _converter.WriteLine("Connection stopped.");
 
         Assert.True(connection.State == HubConnectionState.Disconnected, "Connection should be disconnected after the test.");
-        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("Error:", StringComparison.Ordinal)));
-        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("fail", StringComparison.Ordinal)));
-        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("Failed", StringComparison.Ordinal)));
+        Assert.False(TestForError(_converter.GetLines()));
     }
 
     [Theory]
@@ -186,9 +193,7 @@ public class IntegrationTests : IClassFixture<TestD>, IDisposable
         _converter.WriteLine("Connection stopped.");
 
         Assert.True(connection.State == HubConnectionState.Disconnected, "Connection should be disconnected after the test.");
-        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("Error:", StringComparison.Ordinal)));
-        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("fail", StringComparison.Ordinal)));
-        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("Failed", StringComparison.Ordinal)));
+        Assert.False(TestForError(_converter.GetLines()));
     }
 
     [Theory]
@@ -219,9 +224,7 @@ public class IntegrationTests : IClassFixture<TestD>, IDisposable
         }
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("Error:", StringComparison.Ordinal)));
-        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("fail", StringComparison.Ordinal)));
-        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("Failed", StringComparison.Ordinal)));
+        Assert.False(TestForError(_converter.GetLines()));
     }
 
     [Theory]
@@ -251,9 +254,7 @@ public class IntegrationTests : IClassFixture<TestD>, IDisposable
         }
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("Error:", StringComparison.Ordinal)));
-        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("fail", StringComparison.Ordinal)));
-        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("Failed", StringComparison.Ordinal)));
+        Assert.False(TestForError(_converter.GetLines()));
     }
 
     [Theory]
@@ -358,9 +359,7 @@ public class IntegrationTests : IClassFixture<TestD>, IDisposable
             await Task.Delay(1000);
         }
 
-        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("Error:", StringComparison.Ordinal)));
-        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("fail", StringComparison.Ordinal)));
-        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("Failed", StringComparison.Ordinal)));
+        Assert.False(TestForError(_converter.GetLines()));
     }
 
     [Theory]
@@ -410,8 +409,6 @@ public class IntegrationTests : IClassFixture<TestD>, IDisposable
             await Task.Delay(1000);
         }
 
-        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("Error:", StringComparison.Ordinal)));
-        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("fail", StringComparison.Ordinal)));
-        Assert.Equal(0, _converter.GetLines().Count(x => x.Contains("Failed", StringComparison.Ordinal)));
+        Assert.False(TestForError(_converter.GetLines()));
     }
 }

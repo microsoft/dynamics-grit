@@ -20,8 +20,8 @@
             </ModulePaths>
             <Sources>
               <Exclude>
-                <Source>.*\\obj\\Debug\\net9.0.*</Source>
-                <Source>.*\\obj\\Release\\net9.0.*</Source>
+                <Source>.*\\obj\\Debug\\net8.0.*</Source>
+                <Source>.*\\obj\\Release\\net8.0.*</Source>
               </Exclude>
             </Sources>
             <Functions>

@@ -12,6 +12,7 @@ internal class TestConsoleWriter(ITestOutputHelper output) : TextWriter
     private readonly ITestOutputHelper _output = output;
     private string _buffer = string.Empty;
     private readonly List<string> _lines = new List<string>();
+    private readonly object _lock = new object();
 
     public override Encoding Encoding
     {
@@ -60,16 +61,25 @@ internal class TestConsoleWriter(ITestOutputHelper output) : TextWriter
     }
     public IEnumerable<string> GetLines()
     {
-        return _lines;
+        lock (_lock)
+        {
+            return [.. _lines];
+        }
     }
 
     public void ClearLines()
     {
-        _lines.Clear();
+        lock (_lock)
+        {
+            _lines.Clear();
+        }
     }
 
     public void AddLine(string line)
     {
-        _lines.Add(line);
+        lock (_lock)
+        {
+            _lines.Add(line);
+        }
     }
 }
