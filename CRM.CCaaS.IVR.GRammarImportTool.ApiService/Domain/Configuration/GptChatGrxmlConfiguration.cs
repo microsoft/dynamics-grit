@@ -35,6 +35,9 @@ public class GptChatGrxmlConfiguration
 
     [Required(ErrorMessage = "Azure OpenAI key is required")]
     public string AzureOpenAIKey { get; set; } = string.Empty;
+
+    //AI Disclaimer
+    public string? DisclaimerAI { get; set; } = string.Empty;
 }
 
 public class GPTMessage

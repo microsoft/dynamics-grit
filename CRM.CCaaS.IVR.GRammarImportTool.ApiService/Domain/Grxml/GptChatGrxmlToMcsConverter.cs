@@ -21,8 +21,11 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
     private readonly List<ChatMessage> _initialChatHistory;
     private readonly ILogger<GptChatGrxmlToMcsConverter> _logger;
     private readonly GptChatGrxmlConfiguration _gptPrompterConfiguration;
+    private readonly string _disclaimerAI;
 
-    public GptChatGrxmlToMcsConverter(ILogger<GptChatGrxmlToMcsConverter> logger, IOptions<GptChatGrxmlConfiguration> gptPrompterConfiguration) : base(logger)
+    public GptChatGrxmlToMcsConverter(
+        ILogger<GptChatGrxmlToMcsConverter> logger,
+        IOptions<GptChatGrxmlConfiguration> gptPrompterConfiguration) : base(logger)
     {
         ArgumentNullException.ThrowIfNull(logger);
         ArgumentNullException.ThrowIfNull(gptPrompterConfiguration);
@@ -41,6 +44,7 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
         _chatClient = CreateChatClient(_gptPrompterConfiguration.AzureOpenAIEndpoint,
             _gptPrompterConfiguration.AzureOpenAIDeploymentName, _gptPrompterConfiguration.AzureOpenAIKey);
         _initialChatHistory = LoadInitialChatHistory(_gptPrompterConfiguration);
+        _disclaimerAI = _gptPrompterConfiguration.DisclaimerAI ?? string.Empty;
         _logger.LogInformation("GptChatGrxmlToMcsConverter initialized successfully at {Timestamp}.", DateTime.UtcNow);
     }
 
@@ -83,6 +87,7 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
                 {
                     stopWatch.Start();
                     // Synchronously wait for async method (not ideal, but required for Parallel.ForEach)
+                    _logger.LogInformation("Starting to process file {FileName}.", entry.Key);
                     var response = ProcessSingleFileAsync(entry.Key, content).Result;
                     results[entry.Key] = response;
                     _logger.LogInformation("Processed file {FileName} in {ElapsedMilliseconds} ms at {Timestamp}.", entry.Key, stopWatch.ElapsedMilliseconds, DateTime.UtcNow);
@@ -98,7 +103,7 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
             var current = Interlocked.Increment(ref processedCount);
             var progress = (int)(current / (double)totalCount * 100);
             // Fire and forget progress callback (do not await inside Parallel.ForEach)
-            await progressCallback(progress, $"Processed {current} of {totalCount} files...");
+            await progressCallback(progress, $"{entry.Key}|{stopWatch.ElapsedMilliseconds}|{current} of {totalCount} files...");
         });
 
         while (!parallelLoopResult.IsCompleted)
@@ -155,7 +160,10 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
             new ChatMessage(ChatRole.User, $"Convert the file {fileName} to Microsoft Copilot Studio Yaml: {fileContent}")
         };
 
-        var response = string.Empty;
+        var response = string.IsNullOrWhiteSpace(_disclaimerAI)
+            ? string.Empty
+            : $"\n#{_disclaimerAI}\n\n";
+
         using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(_gptPrompterConfiguration.MaxAllowedConvresionTimeMinutes));
         while (retries > 0)
         {

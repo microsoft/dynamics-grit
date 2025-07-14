@@ -54,7 +54,7 @@ public static class Program
         })
         .AddHubOptions<GritHub>(hubOptions =>
         {
-            hubOptions.MaximumReceiveMessageSize = 1 * 1024 * 1024; // 1 MB
+            hubOptions.MaximumReceiveMessageSize = 5 * 1024 * 1024; // 1 MB
         });
 
         // Add CORS policy for SignalR/WebSockets
