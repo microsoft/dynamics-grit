@@ -23,10 +23,10 @@ This document provides a comprehensive overview of the HTTP and SignalR endpoint
 
 ---
 
-### 2. `POST /grit`
+### 2. `POST /grit/zip`
 
 - **Description:**  
-  Accepts a ZIP file and a SignalR connection ID, processes the file in the background, and notifies the client of progress and completion via SignalR.
+  Accepts a ZIP file, processes the files in ZIP one by one and streams the converted YAML files back to the client.
 - **Request:**  
   - **Content-Type:** `multipart/form-data`
   - **Form Fields:**
@@ -35,49 +35,41 @@ This document provides a comprehensive overview of the HTTP and SignalR endpoint
   - **Example (using JSON for reference, actual request must be multipart/form-data):**
     ```json
     {
-      "file": "<base64-encoded-zip-file-contents>",
-      "connectionId": "12345678-90ab-cdef-1234-567890abcdef"
+      "file": "zip-file-contents>",
     }
     ```
     > **Note:** The above is a conceptual example. The actual request must use `multipart/form-data` with a file upload and a string field.
 - **Response:**  
-  - `202 Accepted`  
-    The request is accepted for background processing. Progress and results are sent via SignalR.
+  - `200 OK`  
+    At least one file from ZIP converted to YAML and streamed back to the client.
   - `400 Bad Request`  
-    If the file is empty or the connectionId is missing.
+    ZIP file is invalid or missing.
 - **Notes:**  
   - This endpoint disables anti-forgery protection.
-  - The client must be connected to the SignalR hub and provide a valid connection ID.
-- **Description:**  
-  Accepts a ZIP file and a SignalR connection ID, processes the file in the background, and notifies the client of progress and completion via SignalR.
-- **Request:**  
-  - **Content-Type:** `multipart/form-data`
-  - **Form Fields:**
-    - `file` (IFormFile): The ZIP file to process. **Required.**
-    - `connectionId` (string): The SignalR connection ID to receive progress and completion events. **Required.**
-- **Response:**  
-  - `202 Accepted`  
-    The request is accepted for background processing. Progress and results are sent via SignalR.
-  - `400 Bad Request`  
-    If the file is empty or the connectionId is missing.
-- **Notes:**  
-  - This endpoint disables anti-forgery protection.
-  - The client must be connected to the SignalR hub and provide a valid connection ID.
 
 ---
-
-### 3. `GET /debug/dump-configuration`
+### 2. `POST /grit/grxml`
 
 - **Description:**  
-  Triggers a dump of the current application configuration to the logs for debugging purposes.
+  Accepts a GRXML file, processes the file outputs the converted YAML files back to the client.
 - **Request:**  
-  No parameters required.
+  - **Content-Type:** `application/x-grxml`
+  - **Form Fields:**
+    - `file` (IFormFile): The GRXML file to process. **Required.**
+  - **Example (using JSON for reference, actual request must be application/x-grxml):**
+    ```json
+    {
+      "file": "grxml-file-contents>",
+    }
+    ```
+    > **Note:** The above is a conceptual example. The actual request must use `multipart/form-data` with a file upload and a string field.
 - **Response:**  
   - `200 OK`  
-    `"Configuration dumped to logs."`
+   GRXML converted to YAML and streamed back to the client.
+  - `400 Bad Request`  
+    GRXML file is invalid or missing.
 - **Notes:**  
-  Intended for debugging and should not be exposed in production environments.
-
+  - This endpoint disables anti-forgery protection.
 ---
 
 ### 4. `GET /health`

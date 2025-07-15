@@ -1,7 +1,8 @@
-﻿using System.Threading.Channels;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.IO.Compression;
+using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading.Channels;
 using Azure;
 using Azure.AI.OpenAI;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
@@ -9,6 +10,7 @@ using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
 
+[assembly: InternalsVisibleTo("CRM.CCaaS.IVR.GRammarImportTool.Tests.L0")]
 namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain;
 
 public abstract class GptChatBase(ILogger<GptChatGrxmlToMcsConverter> logger) : IGptChat
@@ -18,7 +20,7 @@ public abstract class GptChatBase(ILogger<GptChatGrxmlToMcsConverter> logger) : 
     public abstract Task<string> ConvertZipAsync(Stream zipStream, Channel<KeyValuePair<string, string>> results);
     public abstract Task<string> ConvertFileAsync(string stringFile);
 
-    protected Dictionary<string, string> LoadZipToDictionary(Stream zipStream)
+    internal Dictionary<string, string> LoadZipToDictionary(Stream zipStream)
     {
         Dictionary<string, string> entries = new Dictionary<string, string>();
 
@@ -42,13 +44,18 @@ public abstract class GptChatBase(ILogger<GptChatGrxmlToMcsConverter> logger) : 
                 }
             }
         }
+        if (entries.Count == 0)
+        {
+            logger.LogWarning("No entries found in the zip file at {Timestamp}.", DateTime.UtcNow);
+            throw new InvalidDataException("The zip file contains no entries.");
+        }
         return entries;
     }
 
     /// <summary>
     /// Removes comments and whitespace from an XML element and its descendants.
     /// </summary>
-    protected void RemoveCommentsAndWhitespace(System.Xml.Linq.XElement element)
+    internal void RemoveCommentsAndWhitespace(System.Xml.Linq.XElement element)
     {
         if (element == null) return;
         foreach (var node in element.DescendantNodes().OfType<System.Xml.Linq.XComment>().ToList())
@@ -64,7 +71,7 @@ public abstract class GptChatBase(ILogger<GptChatGrxmlToMcsConverter> logger) : 
     /// <summary>
     /// Reads and cleans XML content from a ZipArchiveEntry.
     /// </summary>
-    protected bool TryReadXmlContent(string fileName, string xmlContent, out string strippedContent)
+    internal bool TryReadXmlContent(string fileName, string xmlContent, out string strippedContent)
     {
         try
         {
@@ -87,9 +94,14 @@ public abstract class GptChatBase(ILogger<GptChatGrxmlToMcsConverter> logger) : 
     /// <summary>
     /// Creates a MemoryStream containing a zip archive with one text file per result.
     /// </summary>
-    protected MemoryStream CreateResultZipStream(ConcurrentDictionary<string, string> results, string newFileExtension)
+    internal MemoryStream CreateResultZipStream(ConcurrentDictionary<string, string> results, string newFileExtension)
     {
         ArgumentNullException.ThrowIfNull(results, nameof(results));
+        if (results.IsEmpty)
+        {
+            logger.LogWarning("Attempted to create zip stream with empty results at {Timestamp}.", DateTime.UtcNow);
+            throw new InvalidDataException("Cannot create zip stream with empty results.");
+        }
         var outputStream = new MemoryStream();
         using (var outputArchive = new ZipArchive(outputStream, ZipArchiveMode.Create, leaveOpen: true))
         {
@@ -108,24 +120,18 @@ public abstract class GptChatBase(ILogger<GptChatGrxmlToMcsConverter> logger) : 
     /// <summary>
     /// Creates the chat client for OpenAI.
     /// </summary>
-    protected IChatClient CreateChatClient(string endpoint, string deployment, string key)
+    internal IChatClient CreateChatClient(string? endpoint, string? deployment, string? key)
     {
+
+        if (string.IsNullOrEmpty(endpoint)
+            || string.IsNullOrEmpty(deployment)
+            || string.IsNullOrEmpty(key))
+        {
+            logger.LogError("One of the Azure OpenAI configuration parameters is missing.");
+            throw new ArgumentException("One of the Azure OpenAI configuration parameters is missing.");
+        }
+
         return new AzureOpenAIClient(new Uri(endpoint), new AzureKeyCredential(key))
             .AsChatClient(deployment);
-    }
-
-    protected string ReadStreamToString(Stream stream)
-    {
-        ArgumentNullException.ThrowIfNull(stream, nameof(stream));
-        // Ensure the stream is at the beginning
-        if (stream.CanSeek)
-        {
-            stream.Seek(0, SeekOrigin.Begin);
-        }
-
-        using (var reader = new StreamReader(stream, Encoding.UTF8, leaveOpen: true))
-        {
-            return reader.ReadToEnd();
-        }
     }
 }

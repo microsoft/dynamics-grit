@@ -54,7 +54,7 @@ public static class Program
         })
         .AddHubOptions<GritHub>(hubOptions =>
         {
-            hubOptions.MaximumReceiveMessageSize = 5 * 1024 * 1024; // 1 MB
+            hubOptions.MaximumReceiveMessageSize = builder.Configuration.GetValue("GptChat:Grxml:MaxSignalRMessageSizeBytes", 5 * 1024 * 1024); // Default to 5 MB);
         });
 
         // Add CORS policy for SignalR/WebSockets

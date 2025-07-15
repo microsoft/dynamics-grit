@@ -35,10 +35,11 @@ public class TestD : IDisposable
             ApiService.Main.Program.Main(Args);
         });
 
-        while (ApiService.Main.Program.MainApp == null)
+        do
         {
             Task.Delay(1000).Wait();
-        }
+        } while (ApiService.Main.Program.MainApp == null);
+
         _handler = new HttpClientHandler();
         _handler.ClientCertificateOptions = ClientCertificateOption.Manual;
         _handler.ServerCertificateCustomValidationCallback =

@@ -1,8 +1,9 @@
 ﻿using System.Collections.Concurrent;
-using System.Threading.Channels;
 using System.IO.Compression;
 using System.IO.Pipes;
+using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading.Channels;
 using Azure;
 using Azure.AI.OpenAI;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
@@ -12,6 +13,7 @@ using YamlDotNet.Core;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
+[assembly: InternalsVisibleTo("CRM.CCaaS.IVR.GRammarImportTool.Tests.L0")]
 namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
 
 public class GptChatGrxmlToMcsConverter : GptChatBase
@@ -32,14 +34,6 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
 
         _logger = logger;
         _gptPrompterConfiguration = gptPrompterConfiguration.Value;
-
-        if (string.IsNullOrEmpty(_gptPrompterConfiguration.AzureOpenAIEndpoint)
-            || string.IsNullOrEmpty(_gptPrompterConfiguration.AzureOpenAIDeploymentName)
-            || string.IsNullOrEmpty(_gptPrompterConfiguration.AzureOpenAIKey))
-        {
-            _logger.LogError("Azure OpenAI configuration is missing.");
-            throw new InvalidOperationException("Azure OpenAI configuration is missing.");
-        }
 
         _chatClient = CreateChatClient(_gptPrompterConfiguration.AzureOpenAIEndpoint,
             _gptPrompterConfiguration.AzureOpenAIDeploymentName, _gptPrompterConfiguration.AzureOpenAIKey);
@@ -150,7 +144,7 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
     /// <summary>
     /// Processes a single file by sending its content to the model and returning the response.
     /// </summary>
-    private async Task<string> ProcessSingleFileAsync(string fileName, string fileContent)
+    internal virtual async Task<string> ProcessSingleFileAsync(string fileName, string fileContent)
     {
         _logger.LogInformation("Processing file content for entity type classification at {Timestamp}.", DateTime.UtcNow);
         var retries = _gptPrompterConfiguration.MaxRetries;
@@ -223,7 +217,7 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
     /// Validates the provided YAML content by attempting to deserialize it.
     /// Throws a YamlException if the content is invalid.
     /// </summary>
-    private void ValidateYamlContent(string yamlContent)
+    internal virtual void ValidateYamlContent(string yamlContent)
     {
         var deserializer = new DeserializerBuilder()
          .WithNamingConvention(CamelCaseNamingConvention.Instance)
