@@ -1,16 +1,21 @@
 ﻿using System.IO.Compression;
+using System.Security.Cryptography;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService;
+using CRM.CCaaS.IVR.GRammarImportTool.Tests.L1.Common;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.AI;
-using Xunit.Abstractions;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
+using Xunit.Abstractions;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L1;
 
-public class TestD : IDisposable
+public class BaseTest : IDisposable
 {
+    public TestLoggerProvider LogProvider { get; private set; } = new TestLoggerProvider();
+
     private bool _disposedValue;
     private readonly HttpClientHandler _handler;
     private readonly HttpClient _httpClient;
@@ -20,7 +25,7 @@ public class TestD : IDisposable
     private readonly CancellationTokenSource _testCancelationTokenSource = new CancellationTokenSource();
     private static readonly string[] Args = ["--environment=Test"];
 
-    public TestD()
+    public BaseTest()
     {
         _stub = Task.Run(() =>
         {
@@ -32,6 +37,11 @@ public class TestD : IDisposable
 
         _main = Task.Run(() =>
         {
+            var logger = LoggerFactory.Create(builder =>
+            {
+                builder.AddProvider(LogProvider);
+            });
+            ApiService.Util.Logging.GrITLoggerFactory.Instance = logger;
             ApiService.Main.Program.Main(Args);
         });
 

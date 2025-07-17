@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Main;
+using CRM.CCaaS.IVR.GRammarImportTool.Tests.L1.Util;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -14,17 +15,17 @@ using Stubs = CRM.CCaaS.IVR.GRammarImportTool.Stubs;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L1;
 
-public class IntegrationTests : IClassFixture<TestD>, IDisposable
+public class IntegrationTests : IClassFixture<BaseTest>, IDisposable
 {
     private bool _disposedValue;
-    private readonly TestD _testD;
+    private readonly BaseTest _baseTest;
     private readonly ITestOutputHelper _output;
     private readonly TestConsoleWriter _converter;
     private const string SIGNALR_GRIT_HUB = "grithub";
 
-    public IntegrationTests(TestD testD, ITestOutputHelper output)
+    public IntegrationTests(BaseTest testD, ITestOutputHelper output)
     {
-        _testD = testD;
+        _baseTest = testD;
         _output = output;
 
         _converter = new TestConsoleWriter(_output);
@@ -88,7 +89,7 @@ public class IntegrationTests : IClassFixture<TestD>, IDisposable
     [Trait("Category", "Integration")]
     public async Task When_app_started_Then_healthcheck_success()
     {
-        var response = await _testD.GetHttpClient().GetAsync("/health");
+        var response = await _baseTest.GetHttpClient().GetAsync("/health");
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -102,7 +103,7 @@ public class IntegrationTests : IClassFixture<TestD>, IDisposable
     public async Task When_upload_zip_file_to_hub_Then_conversion_success(string zipFileName)
     {
         var connection = new HubConnectionBuilder()
-                    .WithUrl($"{_testD.GetHttpClient().BaseAddress}{SIGNALR_GRIT_HUB}")
+                    .WithUrl($"{_baseTest.GetHttpClient().BaseAddress}{SIGNALR_GRIT_HUB}")
                     .ConfigureLogging(logging =>
                     {
                         logging.SetMinimumLevel(LogLevel.Debug);
@@ -153,7 +154,7 @@ public class IntegrationTests : IClassFixture<TestD>, IDisposable
     public async Task When_upload_grxml_file_to_hub_Then_conversion_success(string fileName)
     {
         var connection = new HubConnectionBuilder()
-                    .WithUrl($"{_testD.GetHttpClient().BaseAddress}{SIGNALR_GRIT_HUB}")
+                    .WithUrl($"{_baseTest.GetHttpClient().BaseAddress}{SIGNALR_GRIT_HUB}")
                     .ConfigureLogging(logging =>
                     {
                         logging.SetMinimumLevel(LogLevel.Debug);
@@ -203,7 +204,7 @@ public class IntegrationTests : IClassFixture<TestD>, IDisposable
     [InlineData("grit-test-data-3.zip")] //includes subfolders with duplicate file names
     public async Task When_upload_zip_file_to_post_Then_conversion_success(string zipFileName)
     {
-        var httpClient = _testD.GetHttpClient();
+        var httpClient = _baseTest.GetHttpClient();
         using var form = new MultipartFormDataContent();
 
         var fileStream = File.OpenRead(Path.Combine(AppContext.BaseDirectory, "Data", zipFileName));
@@ -233,7 +234,7 @@ public class IntegrationTests : IClassFixture<TestD>, IDisposable
     [InlineData("grit-test-data-2.grxml")]
     public async Task When_upload_grxml_file_to_post_Then_conversion_success(string grxmlFileName)
     {
-        var httpClient = _testD.GetHttpClient();
+        var httpClient = _baseTest.GetHttpClient();
         using var form = new MultipartFormDataContent();
 
         var fileStream = File.OpenRead(Path.Combine(AppContext.BaseDirectory, "Data", grxmlFileName));
@@ -255,6 +256,8 @@ public class IntegrationTests : IClassFixture<TestD>, IDisposable
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.False(TestForError(_converter.GetLines()));
+        var gritLog = _baseTest.LogProvider.Logger.LoggedMessages;
+        _converter.WriteLine($"Logged messages: {gritLog}");
     }
 
     [Theory]
@@ -262,7 +265,7 @@ public class IntegrationTests : IClassFixture<TestD>, IDisposable
     [InlineData("grit-test-data-bad-1.grxml")]
     public async Task When_upload_bad_grxml_file_to_post_Then_conversion_fails(string grxmlFileName)
     {
-        var httpClient = _testD.GetHttpClient();
+        var httpClient = _baseTest.GetHttpClient();
         using var form = new MultipartFormDataContent();
 
         var fileStream = File.OpenRead(Path.Combine(AppContext.BaseDirectory, "Data", grxmlFileName));
@@ -291,7 +294,7 @@ public class IntegrationTests : IClassFixture<TestD>, IDisposable
     [InlineData("grit-test-data-bad-1.zip")]
     public async Task When_upload_bad_zip_file_to_post_Then_conversion_fails_for_bad_grxml_only(string zipFileName)
     {
-        var httpClient = _testD.GetHttpClient();
+        var httpClient = _baseTest.GetHttpClient();
         using var form = new MultipartFormDataContent();
 
         var fileStream = File.OpenRead(Path.Combine(AppContext.BaseDirectory, "Data", zipFileName));
@@ -323,7 +326,7 @@ public class IntegrationTests : IClassFixture<TestD>, IDisposable
         int loops)
     {
         var tasks = new List<Task>();
-        var httpClient = _testD.GetHttpClient();
+        var httpClient = _baseTest.GetHttpClient();
 
         for (int j = 0; j < loops; j++)
         {
@@ -370,7 +373,7 @@ public class IntegrationTests : IClassFixture<TestD>, IDisposable
         int loops)
     {
         var tasks = new List<Task>();
-        var httpClient = _testD.GetHttpClient();
+        var httpClient = _baseTest.GetHttpClient();
 
         for (int j = 0; j < loops; j++)
         {

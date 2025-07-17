@@ -3,6 +3,7 @@ using System.Text;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util.Logging;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Options;
 
@@ -13,12 +14,14 @@ namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Hubs;
 /// Handles client connections and provides methods for uploading files,
 /// reporting progress, and sending conversion results or errors back to the client.
 /// </summary>
-public class GritHub(ILogger<GptChatGrxmlToMcsConverter> logger,
+/// <param name="grxmlConverter">The GRXML converter service.</param>
+/// <param name="gptPrompterConfiguration">Configuration options for the GRXML conversion process.</param>
+public class GritHub(
     [FromKeyedServices(GptChatGrxmlToMcsConverter.SERVICE_KEY)] IGptChat grxmlConverter,
     IOptions<GptChatGrxmlConfiguration> gptPrompterConfiguration) : Hub
 {
     private readonly IGptChat _grxmlConverter = grxmlConverter;
-    private readonly ILogger<GptChatGrxmlToMcsConverter> _logger = logger;
+    private readonly ILogger<GritHub> _logger = GrITLoggerFactory.CreateLogger<GritHub>();
 
     public override async Task OnConnectedAsync()
     {
@@ -31,6 +34,7 @@ public class GritHub(ILogger<GptChatGrxmlToMcsConverter> logger,
     /// Receives a zip file as a byte array from the client, processes it, and sends progress and result events back.
     /// </summary>
     /// <param name="zipBytes">The zip file as a byte array.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     public async Task GrxmlZipConvert(byte[] zipBytes)
     {
         string resultBase64 = string.Empty;
@@ -45,7 +49,7 @@ public class GritHub(ILogger<GptChatGrxmlToMcsConverter> logger,
         {
             using var zipStream = new MemoryStream(zipBytes);
 
-            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(gptPrompterConfiguration.Value.MaxAllowedConvresionTimeMinutes));
+            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(gptPrompterConfiguration.Value.MaxAllowedConversionTimeMinutes));
             await Task.Run(() => _grxmlConverter.ConvertZipAsync(
                 zipStream,
                 async (progress, message) =>
@@ -61,7 +65,7 @@ public class GritHub(ILogger<GptChatGrxmlToMcsConverter> logger,
         }
         catch (Exception ex)
         {
-            _logger.LogInformation("Error in UploadZipFile: {Exception}", ex);
+            _logger.LogError(ex, "Error in UploadZipFile");
             await Clients.Caller.SendAsync("Error", ex.Message);
         }
     }
@@ -97,7 +101,7 @@ public class GritHub(ILogger<GptChatGrxmlToMcsConverter> logger,
         }
         catch (Exception ex)
         {
-            _logger.LogInformation("Error in UploadZipFile: {Exception}", ex);
+            _logger.LogError(ex, "Error in UploadZipFile");
             await Clients.Caller.SendAsync("Error", ex.Message);
         }
     }

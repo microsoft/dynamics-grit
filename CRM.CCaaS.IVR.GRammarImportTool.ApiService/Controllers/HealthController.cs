@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util.Logging;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,9 +9,9 @@ namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Controllers;
 
 [ApiController]
 [Route("[controller]")]
-public class HealthController(ILogger<HealthController> logger) : ControllerBase
+public class HealthController() : ControllerBase
 {
-    private readonly ILogger<HealthController> _logger = logger;
+    private readonly ILogger<HealthController> _logger = GrITLoggerFactory.CreateLogger<HealthController>();
 
     [AllowAnonymous]
     [HttpGet]

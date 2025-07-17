@@ -5,6 +5,7 @@ using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Hubs;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util.Logging;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
@@ -20,9 +21,9 @@ namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Controllers;
 /// </summary>
 [ApiController]
 [Route("/grit")]
-public class GrITController(ILogger<GrITController> logger) : ControllerBase
+public class GrITController() : ControllerBase
 {
-    private readonly ILogger<GrITController> _logger = logger;
+    private readonly ILogger<GrITController> _logger = GrITLoggerFactory.CreateLogger<GrITController>();
 
     [HttpPost]
     [Route("zip")]
@@ -46,7 +47,7 @@ public class GrITController(ILogger<GrITController> logger) : ControllerBase
 
         try
         {
-            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(gptPrompterConfiguration.Value.MaxAllowedConvresionTimeMinutes));
+            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(gptPrompterConfiguration.Value.MaxAllowedConversionTimeMinutes));
             var resultsChannel = Channel.CreateBounded<KeyValuePair<string, string>>(gptPrompterConfiguration.Value.ResultStreamChannelCapacity);
             // Do NOT dispose memoryStream here; let it be GC'd after task completes
             _ = Task.Run(() => gptGrxmlChat.ConvertZipAsync(
@@ -146,7 +147,7 @@ public class GrITController(ILogger<GrITController> logger) : ControllerBase
         }
     }
 
-    private void WriteErrorResponse(string message, HttpStatusCode statusCode )
+    private void WriteErrorResponse(string message, HttpStatusCode statusCode)
     {
         Response.ContentType = "text/plain";
         Response.StatusCode = (int)statusCode;
@@ -159,5 +160,5 @@ public class GrITController(ILogger<GrITController> logger) : ControllerBase
         ArgumentNullException.ThrowIfNull(data, nameof(data));
         var serializer = new YamlDotNet.Serialization.Serializer();
         return serializer.Serialize(data);
-    }    
+    }
 }

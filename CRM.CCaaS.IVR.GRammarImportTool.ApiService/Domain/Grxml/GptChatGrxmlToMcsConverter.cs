@@ -6,7 +6,9 @@ using System.Text;
 using System.Threading.Channels;
 using Azure;
 using Azure.AI.OpenAI;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Controllers;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util.Logging;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
 using YamlDotNet.Core;
@@ -26,13 +28,11 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
     private readonly string _disclaimerAI;
 
     public GptChatGrxmlToMcsConverter(
-        ILogger<GptChatGrxmlToMcsConverter> logger,
-        IOptions<GptChatGrxmlConfiguration> gptPrompterConfiguration) : base(logger)
+        IOptions<GptChatGrxmlConfiguration> gptPrompterConfiguration) : base()
     {
-        ArgumentNullException.ThrowIfNull(logger);
         ArgumentNullException.ThrowIfNull(gptPrompterConfiguration);
 
-        _logger = logger;
+        _logger = GrITLoggerFactory.CreateLogger<GptChatGrxmlToMcsConverter>();
         _gptPrompterConfiguration = gptPrompterConfiguration.Value;
 
         _chatClient = CreateChatClient(_gptPrompterConfiguration.AzureOpenAIEndpoint,
@@ -158,7 +158,7 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
             ? string.Empty
             : $"\n#{_disclaimerAI}\n\n";
 
-        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(_gptPrompterConfiguration.MaxAllowedConvresionTimeMinutes));
+        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(_gptPrompterConfiguration.MaxAllowedConversionTimeMinutes));
         while (retries > 0)
         {
             try

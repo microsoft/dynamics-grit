@@ -32,10 +32,11 @@ public class BaseTest : IDisposable
 
     public BaseTest()
     {
-        using var logger = LoggerFactory.Create(builder =>
+        var logger = LoggerFactory.Create(builder =>
         {
             builder.AddProvider(LogProvider);
         });
+        ApiService.Util.Logging.GrITLoggerFactory.Instance = logger;
 
         SetupMocks();
     }

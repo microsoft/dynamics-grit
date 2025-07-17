@@ -69,7 +69,6 @@ tag-format=""semantics/1.0"">
         }
 
         _converter = new GptChatGrxmlToMcsConverter(
-            _baseTest.ServiceProvider.GetRequiredService<ILogger<GptChatGrxmlToMcsConverter>>(),
             _baseTest.ServiceProvider.GetRequiredService<IOptions<GptChatGrxmlConfiguration>>());
     }
 

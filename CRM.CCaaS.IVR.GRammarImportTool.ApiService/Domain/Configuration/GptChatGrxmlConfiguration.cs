@@ -16,7 +16,7 @@ public class GptChatGrxmlConfiguration
     public int RetryDelaySec { get; set; } = 10; // Delay between retries in seconds
 
     [Range(1, 120, ErrorMessage = "Maximum allowed conversion time in minutes")]
-    public int MaxAllowedConvresionTimeMinutes { get; set; } = 60;
+    public int MaxAllowedConversionTimeMinutes { get; set; } = 60;
 
     [Range(10, 20 * 1025 * 1024, ErrorMessage = "Allowed upload file size range in bytes")]
     public int AllowedUploadFileSizeRangeBytes { get; set; } = 10 + 1024 * 1024;

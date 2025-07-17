@@ -6,6 +6,7 @@ using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Endpoints;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Hubs;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util.Logging;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
@@ -91,7 +92,13 @@ public static class Program
         app.UseRouting();
         app.MapControllers();
 
-        var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Main");
+        if (GrITLoggerFactory.Instance == null)
+        {
+
+            var logFactory = app.Services.GetRequiredService<ILoggerFactory>();
+            GrITLoggerFactory.Instance = logFactory;
+        }
+        var logger = GrITLoggerFactory.Instance.CreateLogger("Main");
 
         if (app.Environment.IsTestOrDev())
         {

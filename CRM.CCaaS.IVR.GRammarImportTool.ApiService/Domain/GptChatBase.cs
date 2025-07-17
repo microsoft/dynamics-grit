@@ -7,18 +7,21 @@ using Azure;
 using Azure.AI.OpenAI;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util.Logging;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
 
 [assembly: InternalsVisibleTo("CRM.CCaaS.IVR.GRammarImportTool.Tests.L0")]
 namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain;
 
-public abstract class GptChatBase(ILogger<GptChatGrxmlToMcsConverter> logger) : IGptChat
+public abstract class GptChatBase() : IGptChat
 {
     public abstract Task<Stream> ConvertZipAsync(Stream zipStream, Func<int, string, Task> progressCallback, Func<byte[], Task> completedCallback);
     public abstract Task<string> ConvertFileAsync(string stringFile, Func<int, string, Task> progressCallback, Func<string, Task> completedCallback);
     public abstract Task<string> ConvertZipAsync(Stream zipStream, Channel<KeyValuePair<string, string>> results);
     public abstract Task<string> ConvertFileAsync(string stringFile);
+
+    private readonly ILogger<GptChatBase> _logger = GrITLoggerFactory.CreateLogger<GptChatBase>();
 
     internal Dictionary<string, string> LoadZipToDictionary(Stream zipStream)
     {
@@ -46,7 +49,7 @@ public abstract class GptChatBase(ILogger<GptChatGrxmlToMcsConverter> logger) : 
         }
         if (entries.Count == 0)
         {
-            logger.LogWarning("No entries found in the zip file at {Timestamp}.", DateTime.UtcNow);
+            _logger.LogWarning("No entries found in the zip file at {Timestamp}.", DateTime.UtcNow);
             throw new InvalidDataException("The zip file contains no entries.");
         }
         return entries;
@@ -85,7 +88,7 @@ public abstract class GptChatBase(ILogger<GptChatGrxmlToMcsConverter> logger) : 
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to parse {FileName} as XML at {Timestamp}.", fileName, DateTime.UtcNow);
+            _logger.LogError(ex, "Failed to parse {FileName} as XML at {Timestamp}.", fileName, DateTime.UtcNow);
             strippedContent = $"Error: Failed to parse as XML.";
             return false;
         }
@@ -99,7 +102,7 @@ public abstract class GptChatBase(ILogger<GptChatGrxmlToMcsConverter> logger) : 
         ArgumentNullException.ThrowIfNull(results, nameof(results));
         if (results.IsEmpty)
         {
-            logger.LogWarning("Attempted to create zip stream with empty results at {Timestamp}.", DateTime.UtcNow);
+            _logger.LogWarning("Attempted to create zip stream with empty results at {Timestamp}.", DateTime.UtcNow);
             throw new InvalidDataException("Cannot create zip stream with empty results.");
         }
         var outputStream = new MemoryStream();
@@ -127,7 +130,7 @@ public abstract class GptChatBase(ILogger<GptChatGrxmlToMcsConverter> logger) : 
             || string.IsNullOrEmpty(deployment)
             || string.IsNullOrEmpty(key))
         {
-            logger.LogError("One of the Azure OpenAI configuration parameters is missing.");
+            _logger.LogError("One of the Azure OpenAI configuration parameters is missing.");
             throw new ArgumentException("One of the Azure OpenAI configuration parameters is missing.");
         }
 

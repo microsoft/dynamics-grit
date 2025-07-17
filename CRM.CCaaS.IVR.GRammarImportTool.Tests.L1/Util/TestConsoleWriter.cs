@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestPlatform.CommunicationUtilities;
 using Xunit.Abstractions;
 
-namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L1;
+namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L1.Util;
 internal class TestConsoleWriter(ITestOutputHelper output) : TextWriter
 {
     private readonly ITestOutputHelper _output = output;

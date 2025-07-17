@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
-namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L0.Common;
+namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L1.Common;
 
 public class TestLoggerProvider : ILoggerProvider
 {
