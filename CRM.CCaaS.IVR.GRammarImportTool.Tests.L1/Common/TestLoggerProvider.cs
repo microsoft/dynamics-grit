@@ -59,7 +59,7 @@ public class TestLoggerProvider : ILoggerProvider
             {
                 lock (_loggedMessages)
                 {
-                    return _loggedMessages.AsReadOnly();
+                    return [.. _loggedMessages];
                 }
             }
         }

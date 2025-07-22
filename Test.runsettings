@@ -15,7 +15,8 @@
           <CodeCoverage>
             <ModulePaths>
               <Exclude>
-                <ModulePath>.*\\*.tests.dll</ModulePath>
+                   <ModulePath>.*Stubs.*</ModulePath>
+                   <ModulePath>.*Tests.L1.*</ModulePath>
               </Exclude>
             </ModulePaths>
             <Sources>

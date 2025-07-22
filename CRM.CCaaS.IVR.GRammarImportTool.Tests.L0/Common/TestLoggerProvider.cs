@@ -59,7 +59,7 @@ public class TestLoggerProvider : ILoggerProvider
             {
                 lock (_loggedMessages)
                 {
-                    return _loggedMessages.AsReadOnly();
+                    return [.. _loggedMessages]; // Return a copy of the logged messages. This is to avoid exception if new message is logged while iteration.
                 }
             }
         }

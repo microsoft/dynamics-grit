@@ -14,12 +14,14 @@ using Microsoft.Extensions.Options;
 [assembly: InternalsVisibleTo("CRM.CCaaS.IVR.GRammarImportTool.Tests.L0")]
 namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain;
 
-public abstract class GptChatBase() : IGptChat
+public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFactory) : IGptChat
 {
     public abstract Task<Stream> ConvertZipAsync(Stream zipStream, Func<int, string, Task> progressCallback, Func<byte[], Task> completedCallback);
     public abstract Task<string> ConvertFileAsync(string stringFile, Func<int, string, Task> progressCallback, Func<string, Task> completedCallback);
     public abstract Task<string> ConvertZipAsync(Stream zipStream, Channel<KeyValuePair<string, string>> results);
     public abstract Task<string> ConvertFileAsync(string stringFile);
+
+    public IAzureOpenAIClientFactory AzureOpenAIClientFactory { get; } = azureOpenAIClientFactory;
 
     private readonly ILogger<GptChatBase> _logger = GrITLoggerFactory.CreateLogger<GptChatBase>();
 
@@ -60,7 +62,6 @@ public abstract class GptChatBase() : IGptChat
     /// </summary>
     internal void RemoveCommentsAndWhitespace(System.Xml.Linq.XElement element)
     {
-        if (element == null) return;
         foreach (var node in element.DescendantNodes().OfType<System.Xml.Linq.XComment>().ToList())
         {
             node.Remove();
@@ -118,23 +119,5 @@ public abstract class GptChatBase() : IGptChat
         }
         outputStream.Position = 0;
         return outputStream;
-    }
-
-    /// <summary>
-    /// Creates the chat client for OpenAI.
-    /// </summary>
-    internal IChatClient CreateChatClient(string? endpoint, string? deployment, string? key)
-    {
-
-        if (string.IsNullOrEmpty(endpoint)
-            || string.IsNullOrEmpty(deployment)
-            || string.IsNullOrEmpty(key))
-        {
-            _logger.LogError("One of the Azure OpenAI configuration parameters is missing.");
-            throw new ArgumentException("One of the Azure OpenAI configuration parameters is missing.");
-        }
-
-        return new AzureOpenAIClient(new Uri(endpoint), new AzureKeyCredential(key))
-            .AsChatClient(deployment);
     }
 }

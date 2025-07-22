@@ -31,8 +31,13 @@ tag-format=""semantics/1.0"">
 
 <meta name=""swirec_simple_result_key"" content=""SWI_literal""/>
 
+<rule id=""test"" xsi:nil=""true"" xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance""/>
+
 <rule id=""MAIN"" scope=""public"">
 <ruleref special=""GARBAGE""/> title     </rule>
+
+<rule id=""MAIN2"" scope=""public"">
+<ruleref special=""GARBAGE""/>      </rule>
 </grammar>";
 
     private const string TestValidXml2 = @"<grammar version=""1.0""
@@ -69,7 +74,8 @@ tag-format=""semantics/1.0"">
         }
 
         _converter = new GptChatGrxmlToMcsConverter(
-            _baseTest.ServiceProvider.GetRequiredService<IOptions<GptChatGrxmlConfiguration>>());
+            _baseTest.ServiceProvider.GetRequiredService<IOptions<GptChatGrxmlConfiguration>>(),
+            _baseTest.ServiceProvider.GetRequiredService<IAzureOpenAIClientFactory>());
     }
 
     private static MemoryStream CreateZipStream(string fileName1, string fileName2)
@@ -98,6 +104,14 @@ tag-format=""semantics/1.0"">
         byte[] textData = Encoding.UTF8.GetBytes(text);
         byte[] hash = System.Security.Cryptography.SHA256.HashData(textData);
         return BitConverter.ToString(hash).Replace("-", string.Empty, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void When_GetIAzureOpenAIClientFactory_Then_ReturnsNotNull()
+    {
+        var factory = _converter.AzureOpenAIClientFactory;
+        Assert.NotNull(factory);
+        Assert.IsType<IAzureOpenAIClientFactory>(factory, exactMatch: false);
     }
 
     [Fact]
@@ -221,29 +235,169 @@ indeed invalid"));
         Assert.Throws<InvalidDataException>(() => _converter.CreateResultZipStream(results, extension));
     }
 
-    [Theory]
-    [InlineData(null, "test-deployment", "test-key")]
-    [InlineData("https://test.openai.azure.com/", null, "test-key")]
-    [InlineData("https://test.openai.azure.com/", "test-deployment", null)]
-    public void When_CreateChatClient_InvalidParameters_Then_ThrowsArgumentNullException(string? endpoint, string? deployment, string? key)
+    [Fact]
+    public async Task When_ProcessSingleFileAsync_WithValidXml_Then_ReturnsExpectedYaml()
     {
-        Assert.Throws<ArgumentException>(() =>
-            _converter.CreateChatClient(endpoint, deployment, key));
+        var result = await _converter.ProcessSingleFileAsync("good.grxml", TestValidXml);
+
+        Assert.NotNull(result);
+        Assert.Contains("hello: result", result, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Error:", result, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void When_CreateChatClient_ValidParameters_Then_ReturnsChatClient()
+    public async Task When_ProcessSingleFileAsync_WithInvalidXml_Then_ReturnsErrorMessage()
     {
-        string endpoint = "https://test.openai.azure.com/";
-        string deployment = "test-deployment";
-        string key = "test-key";
+        var invalidXml = "</root><child></root>";
 
-        var chatClient = _converter.CreateChatClient(endpoint, deployment, key);
+        var result = await _converter.ProcessSingleFileAsync("clientException.grxml", invalidXml);
 
-        Assert.NotNull(chatClient);
-        Assert.IsAssignableFrom<IChatClient>(chatClient);
+        Assert.NotNull(result);
+        Assert.Contains("Error:", result, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Failed to process clientException.grxml", result, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task When_ProcessSingleFileAsync_ReturnsBadYaml_Then_ExceptionThrown()
+    {
+        var emptyContent = "";
+
+        var result = await _converter.ProcessSingleFileAsync("badYaml.grxml", emptyContent);
+
+        Assert.NotNull(result);
+        Assert.Contains("Error:", result, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Failed to process badYaml.grxml", result, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task When_ConvertZipAsyncR_ValidZip_Then_ReturnsZipStreamWithYamlFiles()
+    {
+        using var zipStream = CreateZipStream("file1.grxml", "file2.grxml");
+        var progressUpdates = new List<(int, string)>();
+        byte[]? completedBytes = null;
+
+        Task ProgressCallback(int progress, string message)
+        {
+            progressUpdates.Add((progress, message));
+            return Task.CompletedTask;
+        }
+
+        Task CompletedCallback(byte[] bytes)
+        {
+            completedBytes = bytes;
+            return Task.CompletedTask;
+        }
+
+        var resultStream = await _converter.ConvertZipAsync(zipStream, ProgressCallback, CompletedCallback);
+
+        Assert.NotNull(resultStream);
+        Assert.NotNull(completedBytes);
+        using var archive = new ZipArchive(resultStream, ZipArchiveMode.Read);
+        Assert.Equal(2, archive.Entries.Count);
+        Assert.Contains(archive.Entries, e => e.Name == "file1.yaml");
+        Assert.Contains(archive.Entries, e => e.Name == "file2.yaml");
+        Assert.True(progressUpdates.Count > 0);
+    }
+
+    [Fact]
+    public async Task When_ConvertZipAsyncR_EmptyZip_Then_ThrowsInvalidDataException()
+    {
+        using var ms = new MemoryStream();
+        using (var archive = new ZipArchive(ms, ZipArchiveMode.Create, true)) { }
+        ms.Position = 0;
+
+        Task ProgressCallback(int progress, string message) => Task.CompletedTask;
+        Task CompletedCallback(byte[] bytes) => Task.CompletedTask;
+
+        await Assert.ThrowsAsync<InvalidDataException>(async () =>
+            await _converter.ConvertZipAsync(ms, ProgressCallback, CompletedCallback));
+    }
+
+    [Fact]
+    public async Task When_ConvertZipAsyncR_InvalidXml_Then_ErrorIsReturnedInZip()
+    {
+        // Arrange
+        var zipStream = new MemoryStream();
+        using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, true))
+        {
+            var entry = archive.CreateEntry("bad.grxml");
+            using (var writer = new StreamWriter(entry.Open(), Encoding.UTF8))
+            {
+                writer.Write("</root><child></root>");
+            }
+        }
+        zipStream.Position = 0;
+
+        Task ProgressCallback(int progress, string message) => Task.CompletedTask;
+        byte[]? completedBytes = null;
+        Task CompletedCallback(byte[] bytes)
+        {
+            completedBytes = bytes;
+            return Task.CompletedTask;
+        }
+
+        var resultStream = await _converter.ConvertZipAsync(zipStream, ProgressCallback, CompletedCallback);
+
+        Assert.NotNull(resultStream);
+        using var archiveResult = new ZipArchive(resultStream, ZipArchiveMode.Read);
+        var entryResult = archiveResult.GetEntry("bad.yaml");
+        Assert.NotNull(entryResult);
+        using var reader = new StreamReader(entryResult.Open());
+        var content = reader.ReadToEnd();
+        Assert.Contains("Can't parse this XML", content, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task When_ConvertZipAsync_UnknownException_Then_ErrorIsReturnedInZip()
+    {
+        // Arrange
+        var zipStream = new MemoryStream();
+        using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, true))
+        {
+            var entry = archive.CreateEntry("unKnownException.grxml");
+            using (var writer = new StreamWriter(entry.Open(), Encoding.UTF8))
+            {
+                writer.Write("<root>test</root>");
+            }
+        }
+        zipStream.Position = 0;
+
+        Task ProgressCallback(int progress, string message) => Task.CompletedTask;
+        byte[]? completedBytes = null;
+        Task CompletedCallback(byte[] bytes)
+        {
+            completedBytes = bytes;
+            return Task.CompletedTask;
+        }
+
+        var resultStream = await _converter.ConvertZipAsync(zipStream, ProgressCallback, CompletedCallback);
+
+        Assert.NotNull(resultStream);
+        using var archiveResult = new ZipArchive(resultStream, ZipArchiveMode.Read);
+        var entryResult = archiveResult.GetEntry("unKnownException.yaml");
+        Assert.NotNull(entryResult);
+        using var reader = new StreamReader(entryResult.Open());
+        var content = reader.ReadToEnd();
+        Assert.Contains("Error: Unexpected error occured", content, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task When_ConvertValidFileAsync_Then_GoodResult()
+    {
+        var result = await _converter.ConvertFileAsync(TestValidXml);
+
+        Assert.NotNull(result);
+        Assert.Contains("hello: result", result, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task When_ConvertInvalidFileAsync_Then_Error()
+    {
+        var result = await _converter.ConvertFileAsync("</root><child></root>");
+
+        Assert.NotNull(result);
+        Assert.Contains("Error: Failed to parse as XML", result, StringComparison.OrdinalIgnoreCase);
+    }
     protected virtual void Dispose(bool disposing)
     {
         if (!_disposedValue)

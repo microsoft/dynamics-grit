@@ -28,14 +28,16 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
     private readonly string _disclaimerAI;
 
     public GptChatGrxmlToMcsConverter(
-        IOptions<GptChatGrxmlConfiguration> gptPrompterConfiguration) : base()
+        IOptions<GptChatGrxmlConfiguration> gptPrompterConfiguration,
+        IAzureOpenAIClientFactory azureOpenAIClientFactory) : base(azureOpenAIClientFactory)
     {
         ArgumentNullException.ThrowIfNull(gptPrompterConfiguration);
+        ArgumentNullException.ThrowIfNull(azureOpenAIClientFactory);
 
         _logger = GrITLoggerFactory.CreateLogger<GptChatGrxmlToMcsConverter>();
         _gptPrompterConfiguration = gptPrompterConfiguration.Value;
 
-        _chatClient = CreateChatClient(_gptPrompterConfiguration.AzureOpenAIEndpoint,
+        _chatClient = azureOpenAIClientFactory.CreateChatClient(_gptPrompterConfiguration.AzureOpenAIEndpoint,
             _gptPrompterConfiguration.AzureOpenAIDeploymentName, _gptPrompterConfiguration.AzureOpenAIKey);
         _initialChatHistory = LoadInitialChatHistory(_gptPrompterConfiguration);
         _disclaimerAI = _gptPrompterConfiguration.DisclaimerAI ?? string.Empty;
@@ -69,28 +71,41 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
         var processedCount = 0;
         var totalCount = entries.Count;
 
-        var parallelLoopResult = Parallel.ForEach(entries, new ParallelOptions { MaxDegreeOfParallelism = _gptPrompterConfiguration.DegreeParallelism }, async entry =>
+        using var cts = new CancellationTokenSource();
+        cts.CancelAfter(TimeSpan.FromMinutes(_gptPrompterConfiguration.MaxAllowedConversionTimeMinutes));
+        var options = new ParallelOptions
+        {
+            MaxDegreeOfParallelism = _gptPrompterConfiguration.DegreeParallelism,
+            CancellationToken = cts.Token
+        };
+
+        await Parallel.ForEachAsync(entries, options, async (entry, token) =>
         {
             string content;
             var stopWatch = new System.Diagnostics.Stopwatch();
+
+            _logger.LogInformation("Starting to process file {FileName}.", entry.Key);
             if (!TryReadXmlContent(entry.Key, entry.Value, out content))
-                results[entry.Key] = entry.Value;
+                results[entry.Key] = $"<!-- Can't parse this XML -->\n{entry.Value}";
             else
             {
                 try
                 {
                     stopWatch.Start();
-                    // Synchronously wait for async method (not ideal, but required for Parallel.ForEach)
-                    _logger.LogInformation("Starting to process file {FileName}.", entry.Key);
                     var response = ProcessSingleFileAsync(entry.Key, content).Result;
                     results[entry.Key] = response;
                     _logger.LogInformation("Processed file {FileName} in {ElapsedMilliseconds} ms at {Timestamp}.", entry.Key, stopWatch.ElapsedMilliseconds, DateTime.UtcNow);
                     stopWatch.Stop();
                 }
+                catch (OperationCanceledException ex)
+                {
+                    _logger.LogError(ex, "Processing was cancelled for file {FileName} at {Timestamp}.", entry.Key, DateTime.UtcNow);
+                    results[entry.Key] = $"Error: Processing cancelled for {entry.Key}";
+                }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Unexpected error occurred while processing file content at {Timestamp}.", DateTime.UtcNow);
-                    results[entry.Key] = $"Error: {ex.Message}";
+                    results[entry.Key] = $"Error: Unexpected error occured";
                 }
             }
 
@@ -100,11 +115,6 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
             await progressCallback(progress, $"{entry.Key}|{stopWatch.ElapsedMilliseconds}|{current} of {totalCount} files...");
         });
 
-        while (!parallelLoopResult.IsCompleted)
-        {
-            // Wait for all tasks to complete
-            await Task.Delay(100);
-        }
         _logger.LogInformation("Completed processing files in the zip archive at {Timestamp}.", DateTime.UtcNow);
 
         var outputStream = CreateResultZipStream(results, ".yaml");
@@ -126,6 +136,7 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
         ArgumentNullException.ThrowIfNull(progressCallback);
         ArgumentNullException.ThrowIfNull(completedCallback);
 
+        _logger.LogInformation("Starting to process single file");
         if (!TryReadXmlContent("ConvertedFile.grxml", stringFile, out var stringStrippedFile))
         {
             _logger.LogError("Failed to read XML content from the provided string file at {Timestamp}.", DateTime.UtcNow);
@@ -133,7 +144,6 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
         }
 
         await progressCallback(0, "Starting processing...");
-        _logger.LogInformation("Starting processing files at {Timestamp} with {_gptPrompterConfiguration.DegreeParallelism} parallel tasks", DateTime.UtcNow, _gptPrompterConfiguration.DegreeParallelism);
 
         var processedResult = await ProcessSingleFileAsync("ConvertedFile.grxml", stringStrippedFile);
         await completedCallback(processedResult);
@@ -147,7 +157,6 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
     internal virtual async Task<string> ProcessSingleFileAsync(string fileName, string fileContent)
     {
         _logger.LogInformation("Processing file content for entity type classification at {Timestamp}.", DateTime.UtcNow);
-        var retries = _gptPrompterConfiguration.MaxRetries;
 
         var chatHistory = new List<ChatMessage>(_initialChatHistory)
         {
@@ -159,7 +168,8 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
             : $"\n#{_disclaimerAI}\n\n";
 
         using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(_gptPrompterConfiguration.MaxAllowedConversionTimeMinutes));
-        while (retries > 0)
+        var retries = 0;
+        while (retries < _gptPrompterConfiguration.MaxRetries)
         {
             try
             {
@@ -180,8 +190,8 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
                 _logger.LogWarning("Yaml validation failed: {Message}", ex.Message);
             }
             response = string.Empty;
-            retries--;
-            await Task.Delay(TimeSpan.FromSeconds(_gptPrompterConfiguration.RetryDelaySec));
+            retries++;
+            await Task.Delay(TimeSpan.FromSeconds(_gptPrompterConfiguration.RetryDelaySec * retries));
         }
         _logger.LogError("Failed to process file {FileName} after {Retries} retries at {Timestamp}.", fileName, _gptPrompterConfiguration.MaxRetries, DateTime.UtcNow);
         response += $"Error: Failed to process {fileName} after {_gptPrompterConfiguration.MaxRetries} retries.";
@@ -237,14 +247,22 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
         var processedCount = 0;
         var totalCount = entries.Count;
 
+        using var cts = new CancellationTokenSource();
+        cts.CancelAfter(TimeSpan.FromMinutes(_gptPrompterConfiguration.MaxAllowedConversionTimeMinutes));
+        var options = new ParallelOptions
+        {
+            MaxDegreeOfParallelism = _gptPrompterConfiguration.DegreeParallelism,
+            CancellationToken = cts.Token
+        };
+
         try
         {
-            var parallelLoopResult = Parallel.ForEach(entries, new ParallelOptions { MaxDegreeOfParallelism = _gptPrompterConfiguration.DegreeParallelism }, async entry =>
+            await Parallel.ForEachAsync(entries, options, async (entry, token) =>
             {
                 string content;
                 var stopWatch = new System.Diagnostics.Stopwatch();
                 if (!TryReadXmlContent(entry.Key, entry.Value, out content))
-                    await results.Writer.WriteAsync(new KeyValuePair<string, string>(entry.Key, entry.Value));
+                    await results.Writer.WriteAsync(new KeyValuePair<string, string>(entry.Key, entry.Value), token);
                 else
                 {
                     try
@@ -252,14 +270,19 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
                         stopWatch.Start();
                         // Synchronously wait for async method (not ideal, but required for Parallel.ForEach)
                         var response = ProcessSingleFileAsync(entry.Key, content).Result;
-                        await results.Writer.WriteAsync(new KeyValuePair<string, string>(entry.Key, response));
+                        await results.Writer.WriteAsync(new KeyValuePair<string, string>(entry.Key, response), token);
                         _logger.LogInformation("Processed file {FileName} in {ElapsedMilliseconds} ms at {Timestamp}.", entry.Key, stopWatch.ElapsedMilliseconds, DateTime.UtcNow);
                         stopWatch.Stop();
+                    }
+                    catch (OperationCanceledException ex)
+                    {
+                        _logger.LogError(ex, "Processing was cancelled for file {FileName} at {Timestamp}.", entry.Key, DateTime.UtcNow);
+                        await results.Writer.WriteAsync(new KeyValuePair<string, string>(entry.Key, $"Error: Processing cancelled for {entry.Key}"), token);
                     }
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "Unexpected error occurred while processing file content at {Timestamp}.", DateTime.UtcNow);
-                        await results.Writer.WriteAsync(new KeyValuePair<string, string>(entry.Key, $"Error: {ex.Message}"));
+                        await results.Writer.WriteAsync(new KeyValuePair<string, string>(entry.Key, $"Error: {ex.Message}"), token);
                     }
                 }
 
@@ -267,12 +290,6 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
                 var progress = (int)(current / (double)totalCount * 100);
                 _logger.LogInformation("Processed {Current} of {Total} files. Progress: {Progress}%", current, totalCount, progress);
             });
-
-            while (!parallelLoopResult.IsCompleted)
-            {
-                // Wait for all tasks to complete
-                await Task.Delay(100);
-            }
         }
         finally
         {

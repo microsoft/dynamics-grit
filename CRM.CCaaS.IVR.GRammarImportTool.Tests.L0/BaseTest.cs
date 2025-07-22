@@ -11,6 +11,7 @@ using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
 using CRM.CCaaS.IVR.GRammarImportTool.Tests.L0.Common;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Hosting.Internal;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -27,6 +28,7 @@ public class BaseTest : IDisposable
     public GptChatGrxmlConfiguration GptChatGrxmlTestConfiguration { get; private set; } = new GptChatGrxmlConfiguration();
 
     public Mock<IChatClient> ChatClientMock { get; private set; } = new Mock<IChatClient>();
+    public Mock<IAzureOpenAIClientFactory> AzureOpenAIClientFactoryMock { get; private set; } = new Mock<IAzureOpenAIClientFactory>();
 
     private bool _disposedValue;
 
@@ -44,11 +46,81 @@ public class BaseTest : IDisposable
     protected virtual void SetupMocks()
     {
         var services = BuildMocks();
+        SetupChatClientMock();
         BuildServiceProvider(services);
+    }
 
+    public void SetupChatClientMock()
+    {
         ChatClientMock
             .Setup(x => x.GetStreamingResponseAsync(It.IsAny<List<ChatMessage>>(), It.IsAny<ChatOptions>(), It.IsAny<CancellationToken>()))
+            .Returns((IEnumerable<ChatMessage> chatHistory, ChatOptions? options, CancellationToken token) =>
+            {
+                if (chatHistory.Any(y => y.Text.Contains("clientException.grxml", StringComparison.OrdinalIgnoreCase)))
+                {
+                    return CreateErrorGptResult("clientException.grxml");
+                }
+
+                if (chatHistory.Any(y => y.Text.Contains("badYaml.grxml", StringComparison.OrdinalIgnoreCase)))
+                {
+                    return CreateBadGptResult();
+                }
+
+                if (chatHistory.Any(y => y.Text.Contains("unKnownException.grxml", StringComparison.OrdinalIgnoreCase)))
+                {
+                    throw new Exception("Unknown exception occurred during processing.");
+                }
+
+                return CreateGptResult();
+            });
+
+        /*
+         * ChatClientMock
+            .Setup(x => x.GetStreamingResponseAsync(It.Is<List<ChatMessage>>(x => x.Any(y => y.Text.Contains("good.grxml", StringComparison.OrdinalIgnoreCase))),
+            It.IsAny<ChatOptions>(), It.IsAny<CancellationToken>()))
             .Returns(CreateGptResult);
+         */
+        AzureOpenAIClientFactoryMock
+            .Setup(x => x.CreateChatClient(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .Returns(ChatClientMock.Object);
+    }
+
+    protected void BuildServiceProvider(ServiceCollection services)
+    {
+        ServiceProvider = services.BuildServiceProvider();
+    }
+
+    protected ServiceCollection BuildMocks()
+    {
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new UnitTestHostEnvironment { EnvironmentName = "Development" });
+        services.AddKeyedTransient<IGptChat, GptChatGrxmlToMcsConverter>(GptChatGrxmlToMcsConverter.SERVICE_KEY);
+        services.AddTransient(provider => AzureOpenAIClientFactoryMock.Object);
+        services.AddControllers().AddApplicationPart(typeof(HealthController).Assembly);
+        services.AddControllers().AddApplicationPart(typeof(GrITController).Assembly);
+
+        var testConfiguration = new GptChatGrxmlConfiguration();
+        testConfiguration.AzureOpenAIEndpoint = "https://test.openai.azure.com/";
+        testConfiguration.AzureOpenAIDeploymentName = "test-deployment";
+        testConfiguration.AzureOpenAIKey = "test-key";
+        testConfiguration.InitialChatHistory = new List<GPTMessage>
+        {
+            new GPTMessage
+            {
+                Role = ChatRole.User.ToString(),
+                Content = "You are a helpful assistant that converts GRXML files to MCS format."
+            }
+        };
+        testConfiguration.RetryDelaySec = 1;
+        services.AddSingleton(Options.Create(testConfiguration));
+
+        services.AddLogging(builder =>
+        {
+            builder.AddProvider(LogProvider);
+        });
+
+        return services;
     }
 
     protected async IAsyncEnumerable<ChatResponseUpdate> CreateGptResult()
@@ -60,36 +132,31 @@ public class BaseTest : IDisposable
         }
     }
 
-    protected void BuildServiceProvider(ServiceCollection services)
+    protected async IAsyncEnumerable<ChatResponseUpdate> CreateBadGptResult()
     {
-        ServiceProvider = services.BuildServiceProvider();
+        var enumerable = new List<ChatResponseUpdate> { new ChatResponseUpdate(ChatRole.Assistant,
+            @"   hello:
+this: is bad yaml") };
+        foreach (var item in enumerable)
+        {
+            yield return await Task.FromResult(item);
+        }
     }
 
-    protected ServiceCollection BuildMocks()
+    protected async IAsyncEnumerable<ChatResponseUpdate> CreateErrorGptResult(string fileName)
     {
-        var hostingEnvironment = new HostingEnvironment
+        ArgumentException.ThrowIfNullOrEmpty(fileName, nameof(fileName));
+
+        if (fileName.Equals("clientException.grxml", StringComparison.OrdinalIgnoreCase))
         {
-            ContentRootPath = AppContext.BaseDirectory,
-            EnvironmentName = "Development"
-        };
+            throw new System.ClientModel.ClientResultException("Bad GPT response");
+        }
 
-        var services = new ServiceCollection();
-        services.AddKeyedTransient<IGptChat, GptChatGrxmlToMcsConverter>(GptChatGrxmlToMcsConverter.SERVICE_KEY);
-        services.AddControllers().AddApplicationPart(typeof(HealthController).Assembly);
-        services.AddControllers().AddApplicationPart(typeof(GrITController).Assembly);
-
-        var testConfiguration = new GptChatGrxmlConfiguration();
-        testConfiguration.AzureOpenAIEndpoint = "https://test.openai.azure.com/";
-        testConfiguration.AzureOpenAIDeploymentName = "test-deployment";
-        testConfiguration.AzureOpenAIKey = "test-key";
-        services.AddSingleton(Options.Create(testConfiguration));
-
-        services.AddLogging(builder =>
+        var enumerable = new List<ChatResponseUpdate> { new ChatResponseUpdate(ChatRole.Assistant, "") };
+        foreach (var item in enumerable)
         {
-            builder.AddProvider(LogProvider);
-        });
-
-        return services;
+            yield return await Task.FromResult(item);
+        }
     }
     protected virtual void Dispose(bool disposing)
     {
@@ -98,6 +165,11 @@ public class BaseTest : IDisposable
             if (disposing)
             {
                 LogProvider.Dispose(); // Dispose the LogProvider
+
+                if (ServiceProvider is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
             }
 
             // TODO: free unmanaged resources (unmanaged objects) and override finalizer

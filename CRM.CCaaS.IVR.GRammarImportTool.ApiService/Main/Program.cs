@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Controllers;
@@ -18,6 +19,7 @@ using Microsoft.Extensions.Logging;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Main;
 
+[ExcludeFromCodeCoverage]
 public static class Program
 {
     public static WebApplication? MainApp;
@@ -47,6 +49,7 @@ public static class Program
         builder.Services.Configure<GptChatGrxmlConfiguration>(builder.Configuration.GetSection(GptChatGrxmlConfiguration.SectionName));
 
         builder.Services.AddProblemDetails();
+        builder.Services.AddTransient<IAzureOpenAIClientFactory, AzureOpenAIClientFactory>();
         builder.Services.AddKeyedTransient<IGptChat, GptChatGrxmlToMcsConverter>(GptChatGrxmlToMcsConverter.SERVICE_KEY);
 
         builder.Services.AddSignalR(options =>
@@ -125,7 +128,15 @@ public static class Program
 
         app.MapGritEndpoints();
 
-        logger.LogInformation("Application about to start at {Timestamp}.", DateTime.UtcNow);
+
+        logger.LogInformation(@" ________      ._____________");
+        logger.LogInformation(@"/  _____/______|__\__    ___/");
+        logger.LogInformation(@"/   \  __\_  __ \  | |    |  ");
+        logger.LogInformation(@"\    \_\  \  | \/  | |    |  ");
+        logger.LogInformation(@" \______  /__|  |__| |____|  ");
+        logger.LogInformation(@"        \/                   ");
+
+        logger.LogInformation("GriT is about to start at {Timestamp}.", DateTime.UtcNow);
 
         MainApp = app;
         MainApp.Run(); // only blocks in real run

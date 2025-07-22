@@ -70,7 +70,10 @@ public class IntegrationTests : IClassFixture<BaseTest>, IDisposable
         {
             if (disposing)
             {
-                // _httpClient.Dispose();
+                foreach (var log in _baseTest.LogProvider.Logger.LoggedMessages)
+                {
+                    _converter.WriteLine($"{log}");
+                }
                 _converter.Dispose();
             }
 
