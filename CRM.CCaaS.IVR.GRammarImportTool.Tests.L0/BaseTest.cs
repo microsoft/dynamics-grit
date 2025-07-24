@@ -71,15 +71,21 @@ public class BaseTest : IDisposable
                     throw new Exception("Unknown exception occurred during processing.");
                 }
 
+                if (chatHistory.Any(y => y.Text.Contains("timeout5000", StringComparison.OrdinalIgnoreCase)))
+                {
+                    Thread.Sleep(5000); // Simulate a timeout
+                    throw new OperationCanceledException("Operation timed out.");
+                }
+
+                if (chatHistory.Any(y => y.Text.Contains("timeout4000", StringComparison.OrdinalIgnoreCase)))
+                {
+                    Thread.Sleep(4000); // Simulate a delay
+                    return CreateGptResult();
+                }
+
                 return CreateGptResult();
             });
 
-        /*
-         * ChatClientMock
-            .Setup(x => x.GetStreamingResponseAsync(It.Is<List<ChatMessage>>(x => x.Any(y => y.Text.Contains("good.grxml", StringComparison.OrdinalIgnoreCase))),
-            It.IsAny<ChatOptions>(), It.IsAny<CancellationToken>()))
-            .Returns(CreateGptResult);
-         */
         AzureOpenAIClientFactoryMock
             .Setup(x => x.CreateChatClient(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .Returns(ChatClientMock.Object);
@@ -104,6 +110,9 @@ public class BaseTest : IDisposable
         testConfiguration.AzureOpenAIEndpoint = "https://test.openai.azure.com/";
         testConfiguration.AzureOpenAIDeploymentName = "test-deployment";
         testConfiguration.AzureOpenAIKey = "test-key";
+        testConfiguration.MaxAllowedConversionTimeSingleFileSec = 5;
+        testConfiguration.MaxAllowedConversionTimeTotalSec = 10;
+        testConfiguration.DegreeParallelism = 2;
         testConfiguration.InitialChatHistory = new List<GPTMessage>
         {
             new GPTMessage

@@ -4,6 +4,7 @@
     <EnvironmentVariables>
       <ASPNETCORE_ENVIRONMENT>Test</ASPNETCORE_ENVIRONMENT>
     </EnvironmentVariables>
+  <DisableParallelization>true</DisableParallelization>
   </RunConfiguration>
   <MSTest>
     <OrderTestsByNameInClass>true</OrderTestsByNameInClass>

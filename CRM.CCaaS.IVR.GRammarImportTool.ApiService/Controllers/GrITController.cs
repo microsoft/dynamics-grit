@@ -47,7 +47,7 @@ public class GrITController() : ControllerBase
 
         try
         {
-            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(gptPrompterConfiguration.Value.MaxAllowedConversionTimeMinutes));
+            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(gptPrompterConfiguration.Value.MaxAllowedConversionTimeSingleFileSec));
             var resultsChannel = Channel.CreateBounded<KeyValuePair<string, string>>(gptPrompterConfiguration.Value.ResultStreamChannelCapacity);
             // Do NOT dispose memoryStream here; let it be GC'd after task completes
             _ = Task.Run(() => gptGrxmlChat.ConvertZipAsync(

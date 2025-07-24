@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 using System.IO.Compression;
 using System.Text;
+using System.Threading.Channels;
+using Castle.Components.DictionaryAdapter.Xml;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Controllers;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
@@ -76,6 +78,8 @@ tag-format=""semantics/1.0"">
         _converter = new GptChatGrxmlToMcsConverter(
             _baseTest.ServiceProvider.GetRequiredService<IOptions<GptChatGrxmlConfiguration>>(),
             _baseTest.ServiceProvider.GetRequiredService<IAzureOpenAIClientFactory>());
+
+        _baseTest.LogProvider.Logger.Clear();
     }
 
     private static MemoryStream CreateZipStream(string fileName1, string fileName2)
@@ -97,6 +101,25 @@ tag-format=""semantics/1.0"">
         zipStream.Position = 0; // Reset stream position for reading
         return zipStream;
     }
+
+    private static MemoryStream CreateZipStream(List<string> fileNames, string content)
+    {
+        var zipStream = new MemoryStream();
+        using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, true))
+        {
+            foreach (var fileName in fileNames)
+            {
+                var entry = archive.CreateEntry(fileName);
+                using (var writer = new StreamWriter(entry.Open(), Encoding.UTF8))
+                {
+                    writer.Write(content);
+                }
+            }
+        }
+        zipStream.Position = 0; // Reset stream position for reading
+        return zipStream;
+    }
+
     private static string GetStringSha256Hash(string text)
     {
         if (string.IsNullOrEmpty(text))
@@ -316,17 +339,7 @@ indeed invalid"));
     [Fact]
     public async Task When_ConvertZipAsyncR_InvalidXml_Then_ErrorIsReturnedInZip()
     {
-        // Arrange
-        var zipStream = new MemoryStream();
-        using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, true))
-        {
-            var entry = archive.CreateEntry("bad.grxml");
-            using (var writer = new StreamWriter(entry.Open(), Encoding.UTF8))
-            {
-                writer.Write("</root><child></root>");
-            }
-        }
-        zipStream.Position = 0;
+        var zipStream = CreateZipStream(new List<string> { "bad.grxml" }, "</root><child></root>");        
 
         Task ProgressCallback(int progress, string message) => Task.CompletedTask;
         byte[]? completedBytes = null;
@@ -348,19 +361,9 @@ indeed invalid"));
     }
 
     [Fact]
-    public async Task When_ConvertZipAsync_UnknownException_Then_ErrorIsReturnedInZip()
+    public async Task When_ConvertZipAsyncR_UnknownException_Then_ErrorIsReturnedInZip()
     {
-        // Arrange
-        var zipStream = new MemoryStream();
-        using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, true))
-        {
-            var entry = archive.CreateEntry("unKnownException.grxml");
-            using (var writer = new StreamWriter(entry.Open(), Encoding.UTF8))
-            {
-                writer.Write("<root>test</root>");
-            }
-        }
-        zipStream.Position = 0;
+        var zipStream = CreateZipStream(new List<string> { "unKnownException.grxml" }, "<root>test</root>");
 
         Task ProgressCallback(int progress, string message) => Task.CompletedTask;
         byte[]? completedBytes = null;
@@ -382,6 +385,254 @@ indeed invalid"));
     }
 
     [Fact]
+    public async Task When_ConvertZipAsyncR_SingleFileTimeout_Then_ErrorIsLogged()
+    {
+        var zipStream = CreateZipStream(new List<string> { "timeout5000.grxml" }, "<root>test</root>");
+
+        Task ProgressCallback(int progress, string message) => Task.CompletedTask;
+        byte[]? completedBytes = null;
+        Task CompletedCallback(byte[] bytes)
+        {
+            completedBytes = bytes;
+            return Task.CompletedTask;
+        }
+
+        var resultStream = await _converter.ConvertZipAsync(zipStream, ProgressCallback, CompletedCallback);
+
+        Assert.NotNull(resultStream);
+        using var archiveResult = new ZipArchive(resultStream, ZipArchiveMode.Read);
+        var entryResult = archiveResult.GetEntry("timeout5000.yaml");
+        Assert.NotNull(entryResult);
+        using var reader = new StreamReader(entryResult.Open());
+        var content = reader.ReadToEnd();
+        Assert.Contains("Error: Processing cancelled", content, StringComparison.OrdinalIgnoreCase);
+
+        var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
+        Assert.Contains(logMessages, m => m.Contains("Processing was cancelled", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task When_ConvertZipAsyncR_TotalTimeout_Then_ErrorIsLogged()
+    {
+        var zipStream = new MemoryStream();
+
+        using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, true))
+        {
+            for (int i = 0; i < 10; i++)
+            {
+                var entry = archive.CreateEntry($"timeout4000_{i}.grxml");
+                using (var writer = new StreamWriter(entry.Open(), Encoding.UTF8))
+                {
+                    writer.Write("<root>timeout</root>");
+                }
+            }
+        }
+        zipStream.Position = 0;
+
+        Task ProgressCallback(int progress, string message) => Task.CompletedTask;
+        byte[]? completedBytes = null;
+        Task CompletedCallback(byte[] bytes)
+        {
+            completedBytes = bytes;
+            return Task.CompletedTask;
+        }
+
+        var resultStream = await _converter.ConvertZipAsync(zipStream, ProgressCallback, CompletedCallback);
+
+        Assert.NotNull(resultStream);
+        using var archiveResult = new ZipArchive(resultStream, ZipArchiveMode.Read);
+        var entryResult = archiveResult.GetEntry("error.yaml");
+        Assert.NotNull(entryResult);
+        using var reader = new StreamReader(entryResult.Open());
+        var content = reader.ReadToEnd();
+        Assert.Contains("Error: Zip file processing cancelled", content, StringComparison.OrdinalIgnoreCase);
+
+        var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
+        Assert.Contains(logMessages, m => m.Contains("processing was cancelled", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task When_ConvertFileAsyncR_ValidGrxml_Then_ReturnsYaml()
+    {
+        var progressUpdates = new List<(int, string)>();
+        string resultYaml = string.Empty;
+
+        Task ProgressCallback(int progress, string message)
+        {
+            progressUpdates.Add((progress, message));
+            return Task.CompletedTask;
+        }
+
+        Task<string> CompletedCallback(string result)
+        {
+            return Task.FromResult(result);
+        }
+
+        resultYaml = await _converter.ConvertFileAsync(TestValidXml, ProgressCallback, CompletedCallback);
+
+        Assert.False(string.IsNullOrWhiteSpace(resultYaml));
+        Assert.True(progressUpdates.Count == 1);
+
+        var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
+        Assert.DoesNotContain(logMessages, m => m.Contains("Error", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(logMessages, m => m.Contains("Warning", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task When_ConvertFileAsyncR_EmptyFile_Then_ThrowsInvalidDataException()
+    {
+        var progressUpdates = new List<(int, string)>();
+
+        Task ProgressCallback(int progress, string message)
+        {
+            progressUpdates.Add((progress, message));
+            return Task.CompletedTask;
+        }
+
+        Task<string> CompletedCallback(string result)
+        {
+            return Task.FromResult(result);
+        }
+
+        await Assert.ThrowsAsync<ArgumentException>(async () =>
+            await _converter.ConvertFileAsync("", ProgressCallback, CompletedCallback));
+    }
+
+    [Fact]
+    public async Task When_ConvertFileAsyncR_BadXml_Then_ErrorIsLogged()
+    {
+        var progressUpdates = new List<(int, string)>();
+
+        Task ProgressCallback(int progress, string message)
+        {
+            progressUpdates.Add((progress, message));
+            return Task.CompletedTask;
+        }
+
+        Task<string> CompletedCallback(string result)
+        {
+            return Task.FromResult(result);
+        }
+
+        await _converter.ConvertFileAsync(@"</root><child></root>", ProgressCallback, CompletedCallback);
+
+        var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
+        Assert.Contains(logMessages, m => m.Contains("Failed to read XML content", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task When_ConvertZipAsync_ValidZip_Then_OutputChannelHasYamlFilesNoErrors()
+    {
+        using var zipStream = CreateZipStream("file1.grxml", "file2.grxml");
+
+        var resultsChannel = Channel.CreateBounded<KeyValuePair<string, string>>(_baseTest.GptChatGrxmlTestConfiguration.ResultStreamChannelCapacity);
+        var result = await _converter.ConvertZipAsync(zipStream, resultsChannel);
+
+        Assert.NotNull(result);
+        Assert.Equal("Conversion complete", result);
+        Assert.Equal(2, resultsChannel.Reader.Count);
+
+        var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
+        Assert.Contains(logMessages, m => m.Contains("Processed file file1.grxml", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.Contains("Processed file file2.grxml", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(logMessages, m => m.Contains("Error", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(logMessages, m => m.Contains("Warning", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.Contains("Completed processing files in the zip archive", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task When_ConvertZipAsync_EmptyZip_Then_ThrowsInvalidDataException()
+    {
+        using var ms = new MemoryStream();
+        using (var archive = new ZipArchive(ms, ZipArchiveMode.Create, true)) { }
+        ms.Position = 0;
+
+        var resultsChannel = Channel.CreateBounded<KeyValuePair<string, string>>(_baseTest.GptChatGrxmlTestConfiguration.ResultStreamChannelCapacity);
+
+        await Assert.ThrowsAsync<InvalidDataException>(async () =>
+            await _converter.ConvertZipAsync(ms, resultsChannel));
+    }
+
+    [Fact]
+    public async Task When_ConvertZipAsync_InvalidXml_Then_ErrorIsLogged()
+    {
+        var zipStream = CreateZipStream(new List<string> { "bad.grxml" }, "</root><child></root>");
+
+        var resultsChannel = Channel.CreateBounded<KeyValuePair<string, string>>(_baseTest.GptChatGrxmlTestConfiguration.ResultStreamChannelCapacity);
+        var result = await _converter.ConvertZipAsync(zipStream, resultsChannel);
+
+        Assert.NotNull(result);
+        Assert.Equal("Conversion complete", result);
+        Assert.Equal(1, resultsChannel.Reader.Count);
+
+        var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
+        Assert.Contains(logMessages, m => m.Contains("Failed to read XML content from the entry", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task When_ConvertZipAsync_UnknownException_Then_ErrorIsLogged()
+    {
+        var zipStream = CreateZipStream(new List<string> { "unKnownException.grxml" }, "<root>test</root>");
+
+        var resultsChannel = Channel.CreateBounded<KeyValuePair<string, string>>(_baseTest.GptChatGrxmlTestConfiguration.ResultStreamChannelCapacity);
+        var result = await _converter.ConvertZipAsync(zipStream, resultsChannel);
+
+        Assert.NotNull(result);
+        Assert.Equal("Conversion complete", result);
+        Assert.Equal(1, resultsChannel.Reader.Count);
+
+        var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
+        Assert.Contains(logMessages, m => m.Contains("Unexpected error occurred while processing file", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task When_ConvertZipAsync_SingleFileTimeout_Then_ErrorIsLogged()
+    {
+        _baseTest.LogProvider.Logger.Clear();
+
+        var zipStream = CreateZipStream(new List<string> { "timeout5000.grxml" }, "<root>test</root>");
+
+        var resultsChannel = Channel.CreateBounded<KeyValuePair<string, string>>(_baseTest.GptChatGrxmlTestConfiguration.ResultStreamChannelCapacity);
+        var result = await _converter.ConvertZipAsync(zipStream, resultsChannel);
+
+        Assert.NotNull(result);
+        Assert.Equal("Conversion complete", result);
+        Assert.Equal(1, resultsChannel.Reader.Count);
+
+        var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
+        Assert.Contains(logMessages, m => m.Contains("processing was cancelled ", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task When_ConvertZipAsync_TotalTimeout_Then_ErrorIsLogged()
+    {
+        var zipStream = new MemoryStream();
+
+        using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, true))
+        {
+            for (int i = 0; i < 10; i++)
+            {
+                var entry = archive.CreateEntry($"timeout4000_{i}.grxml");
+                using (var writer = new StreamWriter(entry.Open(), Encoding.UTF8))
+                {
+                    writer.Write("<root>timeout</root>");
+                }
+            }
+        }
+        zipStream.Position = 0;
+
+        var resultsChannel = Channel.CreateBounded<KeyValuePair<string, string>>(_baseTest.GptChatGrxmlTestConfiguration.ResultStreamChannelCapacity);
+        var result = await _converter.ConvertZipAsync(zipStream, resultsChannel);
+
+        Assert.NotNull(result);
+        Assert.Equal("Conversion complete", result);
+        Assert.Equal(7, resultsChannel.Reader.Count);
+
+        var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
+        Assert.Contains(logMessages, m => m.Contains("Processing was cancelled for zip", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task When_ConvertValidFileAsync_Then_GoodResult()
     {
         var result = await _converter.ConvertFileAsync(TestValidXml);
@@ -398,6 +649,7 @@ indeed invalid"));
         Assert.NotNull(result);
         Assert.Contains("Error: Failed to parse as XML", result, StringComparison.OrdinalIgnoreCase);
     }
+
     protected virtual void Dispose(bool disposing)
     {
         if (!_disposedValue)

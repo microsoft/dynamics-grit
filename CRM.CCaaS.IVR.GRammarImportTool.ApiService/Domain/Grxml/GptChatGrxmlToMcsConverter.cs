@@ -21,6 +21,8 @@ namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
 public class GptChatGrxmlToMcsConverter : GptChatBase
 {
     public const string SERVICE_KEY = "chat-grit";
+    private const int RESULTS_CHANNEL_WRITER_TIMEOUT_SEC = 5;
+
     private readonly IChatClient _chatClient;
     private readonly List<ChatMessage> _initialChatHistory;
     private readonly ILogger<GptChatGrxmlToMcsConverter> _logger;
@@ -72,49 +74,54 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
         var totalCount = entries.Count;
 
         using var cts = new CancellationTokenSource();
-        cts.CancelAfter(TimeSpan.FromMinutes(_gptPrompterConfiguration.MaxAllowedConversionTimeMinutes));
+        cts.CancelAfter(TimeSpan.FromSeconds(_gptPrompterConfiguration.MaxAllowedConversionTimeTotalSec));
         var options = new ParallelOptions
         {
             MaxDegreeOfParallelism = _gptPrompterConfiguration.DegreeParallelism,
             CancellationToken = cts.Token
         };
 
-        await Parallel.ForEachAsync(entries, options, async (entry, token) =>
+        try
         {
-            string content;
-            var stopWatch = new System.Diagnostics.Stopwatch();
-
-            _logger.LogInformation("Starting to process file {FileName}.", entry.Key);
-            if (!TryReadXmlContent(entry.Key, entry.Value, out content))
-                results[entry.Key] = $"<!-- Can't parse this XML -->\n{entry.Value}";
-            else
+            await Parallel.ForEachAsync(entries, options, async (entry, token) =>
             {
-                try
-                {
-                    stopWatch.Start();
-                    var response = ProcessSingleFileAsync(entry.Key, content).Result;
-                    results[entry.Key] = response;
-                    _logger.LogInformation("Processed file {FileName} in {ElapsedMilliseconds} ms at {Timestamp}.", entry.Key, stopWatch.ElapsedMilliseconds, DateTime.UtcNow);
-                    stopWatch.Stop();
-                }
-                catch (OperationCanceledException ex)
-                {
-                    _logger.LogError(ex, "Processing was cancelled for file {FileName} at {Timestamp}.", entry.Key, DateTime.UtcNow);
-                    results[entry.Key] = $"Error: Processing cancelled for {entry.Key}";
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Unexpected error occurred while processing file content at {Timestamp}.", DateTime.UtcNow);
-                    results[entry.Key] = $"Error: Unexpected error occured";
-                }
-            }
+                string content;
+                var stopWatch = new System.Diagnostics.Stopwatch();
 
-            var current = Interlocked.Increment(ref processedCount);
-            var progress = (int)(current / (double)totalCount * 100);
-            // Fire and forget progress callback (do not await inside Parallel.ForEach)
-            await progressCallback(progress, $"{entry.Key}|{stopWatch.ElapsedMilliseconds}|{current} of {totalCount} files...");
-        });
+                _logger.LogInformation("Starting to process file {FileName}.", entry.Key);
+                if (!TryReadXmlContent(entry.Key, entry.Value, out content))
+                {
+                    _logger.LogError("Failed to read XML content from the entry {FileName} at {Timestamp}.", entry.Key, DateTime.UtcNow);
+                    results[entry.Key] = $"<!-- Can't parse this XML -->\n{entry.Value}";
+                }
+                else
+                {
+                    try
+                    {
+                        stopWatch.Start();
+                        var response = await ProcessSingleFileAsync(entry.Key, content);
+                        results[entry.Key] = response;
+                        _logger.LogInformation("Processed file {FileName} in {ElapsedMilliseconds} ms at {Timestamp}.", entry.Key, stopWatch.ElapsedMilliseconds, DateTime.UtcNow);
+                        stopWatch.Stop();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Unexpected error occurred while processing file content at {Timestamp}.", DateTime.UtcNow);
+                        results[entry.Key] = $"Error: Unexpected error occured";
+                    }
+                }
 
+                var current = Interlocked.Increment(ref processedCount);
+                var progress = (int)(current / (double)totalCount * 100);
+                // Fire and forget progress callback (do not await inside Parallel.ForEach)
+                await progressCallback(progress, $"{entry.Key}|{stopWatch.ElapsedMilliseconds}|{current} of {totalCount} files...");
+            });
+        }
+        catch (OperationCanceledException ex)
+        {
+            _logger.LogError(ex, "Processing was cancelled for zip at {Timestamp}.", DateTime.UtcNow);
+            results["error.yaml"] = "Error: Zip file processing cancelled";
+        }
         _logger.LogInformation("Completed processing files in the zip archive at {Timestamp}.", DateTime.UtcNow);
 
         var outputStream = CreateResultZipStream(results, ".yaml");
@@ -137,15 +144,15 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
         ArgumentNullException.ThrowIfNull(completedCallback);
 
         _logger.LogInformation("Starting to process single file");
-        if (!TryReadXmlContent("ConvertedFile.grxml", stringFile, out var stringStrippedFile))
+        if (!TryReadXmlContent("ConvertToYaml.grxml", stringFile, out var stringStrippedFile))
         {
-            _logger.LogError("Failed to read XML content from the provided string file at {Timestamp}.", DateTime.UtcNow);
+            _logger.LogError("Failed to read XML content at {Timestamp}.", DateTime.UtcNow);
             return stringStrippedFile;
         }
 
         await progressCallback(0, "Starting processing...");
 
-        var processedResult = await ProcessSingleFileAsync("ConvertedFile.grxml", stringStrippedFile);
+        var processedResult = await ProcessSingleFileAsync("ConvertToYaml.grxml", stringStrippedFile);
         await completedCallback(processedResult);
 
         return processedResult;
@@ -167,7 +174,7 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
             ? string.Empty
             : $"\n#{_disclaimerAI}\n\n";
 
-        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(_gptPrompterConfiguration.MaxAllowedConversionTimeMinutes));
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(_gptPrompterConfiguration.MaxAllowedConversionTimeSingleFileSec));
         var retries = 0;
         while (retries < _gptPrompterConfiguration.MaxRetries)
         {
@@ -188,6 +195,12 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
             catch (YamlException ex)
             {
                 _logger.LogWarning("Yaml validation failed: {Message}", ex.Message);
+            }
+            catch (OperationCanceledException ex)
+            {
+                _logger.LogWarning(ex, "Processing was cancelled for file {FileName} at {Timestamp}.", fileName, DateTime.UtcNow);
+                response += $"Error: Processing cancelled for {fileName}";
+                return response;
             }
             response = string.Empty;
             retries++;
@@ -248,7 +261,7 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
         var totalCount = entries.Count;
 
         using var cts = new CancellationTokenSource();
-        cts.CancelAfter(TimeSpan.FromMinutes(_gptPrompterConfiguration.MaxAllowedConversionTimeMinutes));
+        cts.CancelAfter(TimeSpan.FromSeconds(_gptPrompterConfiguration.MaxAllowedConversionTimeTotalSec));
         var options = new ParallelOptions
         {
             MaxDegreeOfParallelism = _gptPrompterConfiguration.DegreeParallelism,
@@ -262,27 +275,37 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
                 string content;
                 var stopWatch = new System.Diagnostics.Stopwatch();
                 if (!TryReadXmlContent(entry.Key, entry.Value, out content))
-                    await results.Writer.WriteAsync(new KeyValuePair<string, string>(entry.Key, entry.Value), token);
+                {
+                    _logger.LogError("Failed to read XML content from the entry {FileName} at {Timestamp}.", entry.Key, DateTime.UtcNow);
+                    using var ctsWrite = new CancellationTokenSource(TimeSpan.FromSeconds(RESULTS_CHANNEL_WRITER_TIMEOUT_SEC));
+                    await results.Writer.WriteAsync(new KeyValuePair<string, string>(entry.Key, $"<!-- Can't parse this XML -->\n{entry.Value}"), ctsWrite.Token);
+                }
                 else
                 {
                     try
                     {
                         stopWatch.Start();
-                        // Synchronously wait for async method (not ideal, but required for Parallel.ForEach)
                         var response = ProcessSingleFileAsync(entry.Key, content).Result;
-                        await results.Writer.WriteAsync(new KeyValuePair<string, string>(entry.Key, response), token);
+
+                        using var ctsWrite = new CancellationTokenSource(TimeSpan.FromSeconds(RESULTS_CHANNEL_WRITER_TIMEOUT_SEC));
+                        await results.Writer.WriteAsync(new KeyValuePair<string, string>(entry.Key, response), ctsWrite.Token);
+
                         _logger.LogInformation("Processed file {FileName} in {ElapsedMilliseconds} ms at {Timestamp}.", entry.Key, stopWatch.ElapsedMilliseconds, DateTime.UtcNow);
                         stopWatch.Stop();
                     }
                     catch (OperationCanceledException ex)
                     {
                         _logger.LogError(ex, "Processing was cancelled for file {FileName} at {Timestamp}.", entry.Key, DateTime.UtcNow);
-                        await results.Writer.WriteAsync(new KeyValuePair<string, string>(entry.Key, $"Error: Processing cancelled for {entry.Key}"), token);
+
+                        using var ctsWrite = new CancellationTokenSource(TimeSpan.FromSeconds(RESULTS_CHANNEL_WRITER_TIMEOUT_SEC));
+                        await results.Writer.WriteAsync(new KeyValuePair<string, string>(entry.Key, $"Error: Processing cancelled for {entry.Key}"), ctsWrite.Token);
                     }
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "Unexpected error occurred while processing file content at {Timestamp}.", DateTime.UtcNow);
-                        await results.Writer.WriteAsync(new KeyValuePair<string, string>(entry.Key, $"Error: {ex.Message}"), token);
+
+                        using var ctsWrite = new CancellationTokenSource(TimeSpan.FromSeconds(RESULTS_CHANNEL_WRITER_TIMEOUT_SEC));
+                        await results.Writer.WriteAsync(new KeyValuePair<string, string>(entry.Key, $"Error: {ex.Message}"), ctsWrite.Token);
                     }
                 }
 
@@ -290,6 +313,13 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
                 var progress = (int)(current / (double)totalCount * 100);
                 _logger.LogInformation("Processed {Current} of {Total} files. Progress: {Progress}%", current, totalCount, progress);
             });
+        }
+        catch (OperationCanceledException ex)
+        {
+            _logger.LogError(ex, "Processing was cancelled for zip at {Timestamp}.", DateTime.UtcNow);
+
+            using var ctsWrite = new CancellationTokenSource(TimeSpan.FromSeconds(RESULTS_CHANNEL_WRITER_TIMEOUT_SEC));
+            await results.Writer.WriteAsync(new KeyValuePair<string, string>("error.yaml", "Error: Zip file processing cancelled"), ctsWrite.Token);
         }
         finally
         {

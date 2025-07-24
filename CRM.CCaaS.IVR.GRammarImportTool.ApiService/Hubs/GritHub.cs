@@ -49,7 +49,7 @@ public class GritHub(
         {
             using var zipStream = new MemoryStream(zipBytes);
 
-            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(gptPrompterConfiguration.Value.MaxAllowedConversionTimeMinutes));
+            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(gptPrompterConfiguration.Value.MaxAllowedConversionTimeSingleFileSec));
             await Task.Run(() => _grxmlConverter.ConvertZipAsync(
                 zipStream,
                 async (progress, message) =>

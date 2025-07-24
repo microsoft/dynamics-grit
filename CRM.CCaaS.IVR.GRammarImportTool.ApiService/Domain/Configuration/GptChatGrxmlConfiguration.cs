@@ -6,6 +6,9 @@ namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
 public class GptChatGrxmlConfiguration
 {
     public const string SectionName = "GptChat:Grxml";
+    public const int OneMbInBytes = 1024 * 1024;
+    public const int OneHourInSeconds = 3600;
+    public bool _disposedValue;
 
     [Range(1, 100, ErrorMessage = "Degree of parallelism for processing")]
     public int DegreeParallelism { get; set; } = 7; // Degree of parallelism for processing
@@ -16,14 +19,17 @@ public class GptChatGrxmlConfiguration
     [Range(1, 300, ErrorMessage = "Retry delay in seconds")]
     public int RetryDelaySec { get; set; } = 10; // Delay between retries in seconds
 
-    [Range(1, 120, ErrorMessage = "Maximum allowed conversion time in minutes")]
-    public int MaxAllowedConversionTimeMinutes { get; set; } = 60;
+    [Range(1, 1200, ErrorMessage = "Maximum allowed conversion time for single file in seconds")]
+    public int MaxAllowedConversionTimeSingleFileSec { get; set; } = 600;
+
+    [Range(1, 7200, ErrorMessage = "Maximum allowed conversion time for all files in seconds")]
+    public int MaxAllowedConversionTimeTotalSec { get; set; } = OneHourInSeconds;
 
     [Range(10, 20 * 1025 * 1024, ErrorMessage = "Allowed upload file size range in bytes")]
-    public int AllowedUploadFileSizeRangeBytes { get; set; } = 10 + 1024 * 1024;
+    public int AllowedUploadFileSizeRangeBytes { get; set; } = 10 * OneMbInBytes;
 
     [Range(10, 20 * 1025 * 1024, ErrorMessage = "Max SignalR hub message size in bytes")]
-    public int MaxSignalRMessageSizeBytes { get; set; } = 5 + 1024 * 1024;
+    public int MaxSignalRMessageSizeBytes { get; set; } = 5 * OneMbInBytes;
 
     [Range(1, 1000, ErrorMessage = "Channel depth for result stream")]
     public int ResultStreamChannelCapacity { get; set; } = 100;
