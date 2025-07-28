@@ -7,15 +7,70 @@ parameters:
   - { name: runSettingsFile,        type: string,  default: "Test.runsettings" }
 
 steps:
+- task: PowerShell@2
+  displayName: "Run Tests and generate Code Coverage Report (excluding gated and functional tests)"
+  name: RunUnit
+  inputs:
+    targetType: 'inline'
+    script: |
+      $ErrorActionPreference = "Stop"
+
+      Write-Host "##vso[task.setvariable variable=SkipCodeCoverage]false"
+      $LocalSkipCodeCoverage = $false
+
+      if (-not $env:SYSTEM_PULLREQUEST_PULLREQUESTID) {
+        Write-Host "No PR detected. Skipping PR title check."
+      } else {
+        try {
+          $PR_TITLE = Invoke-RestMethod -Uri "$($env:SYSTEM_COLLECTIONURI)_apis/git/repositories/$($env:BUILD_REPOSITORY_ID)/pullRequests/$($env:SYSTEM_PULLREQUEST_PULLREQUESTID)?api-version=5.1" -Headers @{ Authorization = "Bearer $($env:SYSTEM_ACCESSTOKEN)" } | Select-Object -ExpandProperty title
+          if ($PR_TITLE) {
+            Write-Host "Running test with PR title: $PR_TITLE"
+
+            if ($PR_TITLE -like "*[skip coverage]*") {
+              Write-Host "##vso[task.setvariable variable=SkipCodeCoverage]true"
+              Write-Host "PR Title contains '[skip coverage]', skipping code coverage."
+            }
+          } else {
+            Write-Host "Unable to fetch PR title. Defaulting SkipCodeCoverage to false."
+          }
+        } catch {
+          Write-Host "Error fetching PR Title: $($_.Exception.Message)"
+          Write-Host "Unable to fetch PR title. Defaulting SkipCodeCoverage to false."
+        }
+      }
+
+      cd "$(Build.SourcesDirectory)"
+
+      dotnet restore .\CRM.CCaaS.IVR.GRammarImportTool.sln
+      dotnet build --no-restore .\CRM.CCaaS.IVR.GRammarImportTool.sln -c Release -p:Platform="Any CPU"
+
+      dotnet test --verbosity normal --no-build --logger "trx" --collect:"XPlat Code Coverage" `
+        --settings Test.runsettings `
+        --results-directory "$(Build.SourcesDirectory)\TestResults\unit" `
+        -c Release -p:Platform="Any CPU" `
+        /p:CoverletOutputFormat=cobertura /p:PublishTestResults=false .\CRM.CCaaS.IVR.GRammarImportTool.sln --filter FullyQualifiedName~Tests.L0
+        
+      if ($LASTEXITCODE -ne 0) {
+        Write-Error "dotnet test failed with exit code $($LASTEXITCODE)"
+        exit 1
+      }
+
+
+  continueOnError: false
+
+- task: PublishCodeCoverageResults@2
+  displayName: 'Publish code coverage to pipeline'
+  inputs:
+    summaryFileLocation: '$(Build.SourcesDirectory)\TestResults/unit/**/GrITCoverage.cobertura.xml'
+    failIfCoverageEmpty: false
 
 - task: VSTest@3
-  displayName: $(stepPrefix) Run tests (VSTest)
+  displayName: $(stepPrefix) Run integration tests (VSTest)
   inputs:
   # Test selection
     testSelector: 'testAssemblies'
     testAssemblyVer2: |
       **\*.Tests.L1.dll
-      **\*.Tests.L0.dll
       !**\*TestAdapter.dll
       !**\obj\**
       !**\*FunctionalTests*.dll
@@ -25,7 +80,7 @@ steps:
   # Execution options
     resultsFolder: '$(Build.SourcesDirectory)/TestResults'
     runInParallel: false
-    codeCoverageEnabled: true
+    codeCoverageEnabled: false
     platform: '$(DefaultPlatform)'
     configuration: '$(BuildConfiguration)'
     diagnosticsEnabled: true
@@ -35,20 +90,22 @@ steps:
     rerunFailedThreshold: '${{ parameters.rerunFailedThreshold }}'
 
   # Reporting options
-    testRunTitle: Unit Tests $(Build.BuildNumber)
+    testRunTitle: Integration Tests $(Build.BuildNumber)
 
-#- task: PublishCodeCoverageResults@1
-#  displayName: 'Publish code coverage to pipeline'
-#  inputs:
-#    codeCoverageTool: 'Cobertura'
-#    summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.cobertura.xml'
-#    reportDirectory: '$(System.DefaultWorkingDirectory)/**/CodeCoverage'
+- task: PublishTestResults@2
+  displayName: Publish unit test results
+  inputs:
+      testResultsFormat: VSTest
+      testResultsFiles: '$(Build.SourcesDirectory)/TestResults/unit/*.trx'
+      failTaskOnFailedTests: false
+  condition: always()
 
-#- task: PublishBuildArtifacts@1
-#  displayName: 'Publish coverage report artifact'
-#  inputs:
-#    PathtoPublish: '$(System.DefaultWorkingDirectory)/**/CodeCoverage'
-#    ArtifactName: 'CodeCoverageReport'
-#    publishLocation: 'Container'
+- task: PublishTestResults@2
+  displayName: Publish integration test results
+  inputs:
+      testResultsFormat: VSTest
+      testResultsFiles: '$(Build.SourcesDirectory)/TestResults/**/*.trx'
+      failTaskOnFailedTests: false
+  condition: always()
 
 - template: debug-environment.yml

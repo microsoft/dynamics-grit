@@ -11,13 +11,18 @@
   </MSTest>
   <DataCollectionRunSettings>
     <DataCollectors>
-      <DataCollector friendlyName="Code Coverage">
+      <DataCollector friendlyName="XPlat Code Coverage" uri="datacollector://Microsoft/CodeCoverage/2.0" assemblyQualifiedName="Microsoft.VisualStudio.Coverage.DynamicCoverageDataCollector, Microsoft.VisualStudio.TraceCollector, Version=11.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
         <Configuration>
           <CodeCoverage>
             <ModulePaths>
+              <Include>
+                <ModulePath>.*ApiService.*</ModulePath>
+                <ModulePath>.*Tests.L0.*</ModulePath>
+              </Include>
               <Exclude>
-                   <ModulePath>.*Stubs.*</ModulePath>
-                   <ModulePath>.*Tests.L1.*</ModulePath>
+                <ModulePath>.*Stubs.*</ModulePath>
+                <ModulePath>.*Tests.L1.*</ModulePath>
+                <ModulePath>.*Moq.*</ModulePath>
               </Exclude>
             </ModulePaths>
             <Sources>
@@ -28,10 +33,18 @@
             </Sources>
             <Functions>
               <Exclude>
-              <Function>.*PlaceHolder.*</Function>
+                <Function>.*PlaceHolder.*</Function>
               </Exclude>
             </Functions>
           </CodeCoverage>
+
+          <Format>cobertura</Format>
+          <CoverageFileName>GrITCoverage.cobertura.xml</CoverageFileName>
+
+          <UseVerifiableInstrumentation>True</UseVerifiableInstrumentation>
+          <AllowLowIntegrityProcesses>True</AllowLowIntegrityProcesses>
+          <CollectFromChildProcesses>True</CollectFromChildProcesses>
+          <CollectAspDotNet>False</CollectAspDotNet>
         </Configuration>
       </DataCollector>
     </DataCollectors>
