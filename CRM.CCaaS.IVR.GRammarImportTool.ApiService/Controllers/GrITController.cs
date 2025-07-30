@@ -47,40 +47,53 @@ public class GrITController() : ControllerBase
 
         try
         {
-            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(gptPrompterConfiguration.Value.MaxAllowedConversionTimeSingleFileSec));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(gptPrompterConfiguration.Value.MaxAllowedConversionTimeTotalSec));
             var resultsChannel = Channel.CreateBounded<KeyValuePair<string, string>>(gptPrompterConfiguration.Value.ResultStreamChannelCapacity);
             // Do NOT dispose memoryStream here; let it be GC'd after task completes
-            _ = Task.Run(() => gptGrxmlChat.ConvertZipAsync(
+
+            var deQueueTask = Task.Run(async () =>
+            {
+                _logger.LogInformation("Starting results dequeue task");
+                try
+                {
+                    _logger.LogInformation("Starting results dequeue");
+                    SetContentType(Response, "application/x-yaml");
+                    await foreach (var partialResult in resultsChannel.Reader.ReadAllAsync(cts.Token))
+                    {
+                        _logger.LogInformation("Processed entry: {Key}", partialResult.Key);
+                        await Response.WriteAsync($"---\n#{partialResult.Key}\n{SerializeYaml(partialResult.Value)}\n");
+                        await Response.Body.FlushAsync();
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    _logger.LogInformation("Dequeue task was cancelled");
+                }
+                _logger.LogInformation("Finished results dequeue task");
+            }, cts.Token);
+
+            var conversionResult = await gptGrxmlChat.ConvertZipAsync(
                 memoryStream,
                 resultsChannel
-            ), cts.Token);
+            );
+            SetContentType(Response, "text/plain");
+            await Response.WriteAsync($"{conversionResult}");
+            await Response.Body.FlushAsync();
+            _logger.LogInformation("File processing completed with result: {Result}", conversionResult);
 
-            _logger.LogInformation("Starting results dequeue");
-            Response.ContentType = "application/x-yaml";
-            await foreach (var partialResult in resultsChannel.Reader.ReadAllAsync(cts.Token))
-            {
-                if (HttpContext.RequestAborted.IsCancellationRequested)
-                {
-                    _logger.LogInformation("Request was cancelled, stopping processing");
-                    resultsChannel.Writer.Complete();
-                    return;
-                }
-                _logger.LogInformation("Processed entry: {Key}", partialResult.Key);
-                await Response.WriteAsync($"---\n#{partialResult.Key}\n{SerializeYaml(partialResult.Value)}\n");
-                await Response.Body.FlushAsync();
-            }
+            await deQueueTask;
         }
         catch (OperationCanceledException ex)
         {
             _logger.LogError(ex, "Cancellation exception");
-            Response.ContentType = "text/plain";
+            SetContentType(Response, "text/plain");
             await Response.WriteAsync("File processing was cancelled.");
             await Response.Body.FlushAsync();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An error occurred while processing the file with connectionId");
-            Response.ContentType = "text/plain";
+            _logger.LogError(ex, "An error occurred while processing file");
+            SetContentType(Response, "text/plain");
             await Response.WriteAsync("An error occurred while processing the file.");
             await Response.Body.FlushAsync();
         }
@@ -118,7 +131,7 @@ public class GrITController() : ControllerBase
             if (string.IsNullOrEmpty(converted) || converted.StartsWith("Error:"))
             {
                 _logger.LogError("Conversion returned empty result for file: {FileName}", file.FileName);
-                WriteErrorResponse($"Conversion failed: {converted}", HttpStatusCode.InternalServerError);
+                WriteErrorResponse(Response, $"Conversion failed: {converted}", HttpStatusCode.InternalServerError);
                 return;
             }
             if (HttpContext.RequestAborted.IsCancellationRequested)
@@ -126,7 +139,7 @@ public class GrITController() : ControllerBase
                 _logger.LogInformation("Request was cancelled, stopping processing for file: {FileName}", file.FileName);
                 return;
             }
-            Response.ContentType = "application/x-yaml";
+            SetContentType(Response, "application/x-yaml");
             _logger.LogInformation("Conversion success for file: {FileName}", file.FileName);
             Response.StatusCode = StatusCodes.Status200OK;
             await Response.WriteAsync($"---\n#{file.FileName}\n{SerializeYaml(converted)}");
@@ -134,12 +147,14 @@ public class GrITController() : ControllerBase
         catch (OperationCanceledException ex)
         {
             _logger.LogError(ex, "Cancellation exception while processing GRXML file.");
-            WriteErrorResponse("File processing was cancelled.", HttpStatusCode.RequestTimeout);
+            SetContentType(Response, "text/plain");
+            WriteErrorResponse(Response, "File processing was cancelled.", HttpStatusCode.RequestTimeout);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "An error occurred while processing the GRXML file.");
-            WriteErrorResponse("Unexpected error occurred while processing the GRXML file.", HttpStatusCode.InternalServerError);
+            SetContentType(Response, "text/plain");
+            WriteErrorResponse(Response, "Unexpected error occurred while processing the GRXML file.", HttpStatusCode.InternalServerError);
         }
         finally
         {
@@ -147,15 +162,23 @@ public class GrITController() : ControllerBase
         }
     }
 
-    private void WriteErrorResponse(string message, HttpStatusCode statusCode)
+    private static void SetContentType(HttpResponse response, string contentType)
     {
-        Response.ContentType = "text/plain";
-        Response.StatusCode = (int)statusCode;
-        Response.WriteAsync(message).GetAwaiter().GetResult();
-        Response.Body.FlushAsync().GetAwaiter().GetResult();
+        if (string.IsNullOrEmpty(response.ContentType))
+        {
+            response.ContentType = contentType;
+        }
     }
 
-    private string SerializeYaml(string data)
+    private static void WriteErrorResponse(HttpResponse response, string message, HttpStatusCode statusCode)
+    {
+        SetContentType(response, "text/plain");
+        response.StatusCode = (int)statusCode;
+        response.WriteAsync(message).GetAwaiter().GetResult();
+        response.Body.FlushAsync().GetAwaiter().GetResult();
+    }
+
+    private static string SerializeYaml(string data)
     {
         ArgumentNullException.ThrowIfNull(data, nameof(data));
         var serializer = new YamlDotNet.Serialization.Serializer();
