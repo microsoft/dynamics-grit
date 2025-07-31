@@ -1,12 +1,14 @@
-﻿using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
-using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Hubs;
+﻿using System.Diagnostics.CodeAnalysis;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Hubs;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Endpoints;
 
+[ExcludeFromCodeCoverage]
 internal static class GritEndpoints
 {
     public static void MapGritEndpoints(this WebApplication app)

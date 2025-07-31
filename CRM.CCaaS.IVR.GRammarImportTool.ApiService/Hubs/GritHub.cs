@@ -38,12 +38,14 @@ public class GritHub(
     public async Task GrxmlZipConvert(byte[] zipBytes)
     {
         string resultBase64 = string.Empty;
-        _logger.LogInformation("GrxmlZipConvert called by {ConnectionId}, bytes: {zipBytes}", Context.ConnectionId, zipBytes?.Length);
-        if (zipBytes == null)
+        if (zipBytes == null || zipBytes.Length == 0)
         {
-            await Clients.Caller.SendAsync("Error", "Uploaded file is null.");
+            _logger.LogError("GrxmlZipConvert called with null or empty zipBytes by {ConnectionId}", Context.ConnectionId);
+            await Clients.Caller.SendAsync("Error", "GrxmlZipConvert called with null or empty zipBytes");
             return;
         }
+
+        _logger.LogInformation("GrxmlZipConvert called by {ConnectionId}, Zip Size: {zipBytes}", Context.ConnectionId, zipBytes.Length);
 
         try
         {
@@ -54,10 +56,12 @@ public class GritHub(
                 zipStream,
                 async (progress, message) =>
                 {
+                    _logger.LogInformation("Progress: {Progress}, Message: {Message}", progress, message);
                     await Clients.Caller.SendAsync("Progress", progress, message);
                 },
                 async (resultBytes) =>
                 {
+                    _logger.LogInformation("Conversion completed, result size: {ResultSize}", resultBytes.Length);
                     resultBase64 = Convert.ToBase64String(resultBytes);
                     await Clients.Caller.SendAsync("Completed", resultBase64);
                 }
@@ -65,7 +69,7 @@ public class GritHub(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error in UploadZipFile");
+            _logger.LogError(ex, "Error in GrxmlZipConvert");
             await Clients.Caller.SendAsync("Error", ex.Message);
         }
     }
@@ -77,9 +81,10 @@ public class GritHub(
     public async Task GrxmlConvert(byte[] bytes)
     {
         _logger.LogInformation("GrxmlConvert called by {ConnectionId}, bytes: {bytes}", Context.ConnectionId, bytes?.Length);
-        if (bytes == null)
+        if (bytes == null || bytes.Length == 0)
         {
-            await Clients.Caller.SendAsync("Error", "Uploaded file is null.");
+            _logger.LogError("GrxmlConvert called with null or empty bytes by {ConnectionId}", Context.ConnectionId);
+            await Clients.Caller.SendAsync("Error", "Uploaded file is null or empty");
             return;
         }
 
@@ -91,17 +96,19 @@ public class GritHub(
                 str,
                 async (progress, message) =>
                 {
+                    _logger.LogInformation("Progress: {Progress}, Message: {Message}", progress, message);
                     await Clients.Caller.SendAsync("Progress", progress, message);
                 },
                 async (resultString) =>
                 {
+                    _logger.LogInformation("Conversion completed, result size: {ResultSize}", resultString.Length);
                     await Clients.Caller.SendAsync("Completed", resultString);
                 }
             );
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error in UploadZipFile");
+            _logger.LogError(ex, "Error in GrxmlConvert");
             await Clients.Caller.SendAsync("Error", ex.Message);
         }
     }
