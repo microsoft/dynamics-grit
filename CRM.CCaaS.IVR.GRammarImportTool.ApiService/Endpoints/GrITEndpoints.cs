@@ -9,11 +9,11 @@ using Microsoft.AspNetCore.SignalR;
 namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Endpoints;
 
 [ExcludeFromCodeCoverage]
-internal static class GritEndpoints
+internal static class GrITEndpoints
 {
-    public static void MapGritEndpoints(this WebApplication app)
+    public static void MapGrITEndpoints(this WebApplication app)
     {
         // Map the SignalR hub for real-time communication
-        app.MapHub<GritHub>("/gritHub");
+        app.MapHub<GrITHub>("/gritHub");
     }
 }

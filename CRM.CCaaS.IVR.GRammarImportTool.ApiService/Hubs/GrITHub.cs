@@ -16,12 +16,12 @@ namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Hubs;
 /// </summary>
 /// <param name="grxmlConverter">The GRXML converter service.</param>
 /// <param name="gptPrompterConfiguration">Configuration options for the GRXML conversion process.</param>
-public class GritHub(
+public class GrITHub(
     [FromKeyedServices(GptChatGrxmlToMcsConverter.SERVICE_KEY)] IGptChat grxmlConverter,
     IOptions<GptChatGrxmlConfiguration> gptPrompterConfiguration) : Hub
 {
     private readonly IGptChat _grxmlConverter = grxmlConverter;
-    private readonly ILogger<GritHub> _logger = GrITLoggerFactory.CreateLogger<GritHub>();
+    private readonly ILogger<GrITHub> _logger = GrITLoggerFactory.CreateLogger<GrITHub>();
 
     public override async Task OnConnectedAsync()
     {

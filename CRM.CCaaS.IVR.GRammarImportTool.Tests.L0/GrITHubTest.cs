@@ -18,7 +18,7 @@ namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L0;
 
 public class GrITHubTest : IClassFixture<BaseTest>, IDisposable
 {
-    static byte[] TEST_XML_STRING = Encoding.UTF8.GetBytes("<test>test</test>");
+    static readonly byte[] TEST_XML_STRING = Encoding.UTF8.GetBytes("<test>test</test>");
 
     private readonly Mock<IHubCallerClients> _mockClients = new Mock<IHubCallerClients>();
     private readonly Mock<ISingleClientProxy> _mockCaller = new Mock<ISingleClientProxy>();
@@ -32,7 +32,7 @@ public class GrITHubTest : IClassFixture<BaseTest>, IDisposable
         ResultStreamChannelCapacity = 10
     };
 
-    private readonly GritHub _hub;
+    private readonly GrITHub _hub;
 
     private bool _disposedValue;
     private readonly BaseTest _baseTest;
@@ -51,7 +51,7 @@ public class GrITHubTest : IClassFixture<BaseTest>, IDisposable
         _mockContext.SetupGet(c => c.ConnectionId).Returns("test-connection-id");
         _mockClients.Setup(c => c.Caller).Returns(_mockCaller.Object);
 
-        _hub = new GritHub(_gptChatMock.Object, _optionsMock.Object)
+        _hub = new GrITHub(_gptChatMock.Object, _optionsMock.Object)
         {
             Context = _mockContext.Object,
             Clients = _mockClients.Object

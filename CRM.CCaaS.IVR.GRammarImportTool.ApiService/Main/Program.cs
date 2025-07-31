@@ -56,7 +56,7 @@ public static class Program
         {
             options.EnableDetailedErrors = true;
         })
-        .AddHubOptions<GritHub>(hubOptions =>
+        .AddHubOptions<GrITHub>(hubOptions =>
         {
             hubOptions.MaximumReceiveMessageSize = builder.Configuration.GetValue("GptChat:Grxml:MaxSignalRMessageSizeBytes", 5 * 1024 * 1024); // Default to 5 MB);
         });
@@ -126,7 +126,7 @@ public static class Program
             app.UseDeveloperExceptionPage();
         }
 
-        app.MapGritEndpoints();
+        app.MapGrITEndpoints();
 
 
         logger.LogInformation(@" ________      ._____________");
