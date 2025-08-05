@@ -142,7 +142,7 @@ public class GrITControllerTest : IClassFixture<BaseTest>, IDisposable
         await controller.PostGritZipResponse(_fileMockZip.Object, _gptChatMock.Object, _optionsMock.Object);
 
         var responseText = await GetResponseTextAsync();
-        Assert.Contains("An error occurred while processing the file", responseText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("An error occurred while processing the file.", responseText, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

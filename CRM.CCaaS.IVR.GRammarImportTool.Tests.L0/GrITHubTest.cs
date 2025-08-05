@@ -66,7 +66,7 @@ public class GrITHubTest : IClassFixture<BaseTest>, IDisposable
         await _hub.OnConnectedAsync();
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.Contains("Client connected: test-connection-id", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.Contains("Client connected. ConnectionId=test-connection-id", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public class GrITHubTest : IClassFixture<BaseTest>, IDisposable
         await _hub.GrxmlZipConvert(EmptyZipBytes);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.Contains("GrxmlZipConvert called with null or empty zipBytes by test-connection-id", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.StartsWith("Error - GrxmlZipConvert called with null or empty zipBytes. ConnectionId=test-connection-id", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -95,8 +95,8 @@ public class GrITHubTest : IClassFixture<BaseTest>, IDisposable
         await _hub.GrxmlZipConvert(TEST_XML_STRING);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.Contains("Progress: 50, Message: 50%", StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(logMessages, m => m.Contains("Conversion completed, result size: 12", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.StartsWith("Information - Progress update. ConnectionId=test-connection-id, Progress=50, Message=50%", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.StartsWith("Information - Conversion completed. ConnectionId=test-connection-id, ResultSizeBytes=12", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -131,8 +131,8 @@ public class GrITHubTest : IClassFixture<BaseTest>, IDisposable
         await _hub.GrxmlConvert(TEST_XML_STRING);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.Contains("Progress: 100, Message: Done", StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(logMessages, m => m.Contains("Conversion completed, result size: 12", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.StartsWith("Information - Progress update. ConnectionId=test-connection-id, Progress=100, Message=Done", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.StartsWith("Information - Conversion completed. ConnectionId=test-connection-id, ResultSizeChars=12", StringComparison.OrdinalIgnoreCase));
     }
 
 
@@ -142,7 +142,11 @@ public class GrITHubTest : IClassFixture<BaseTest>, IDisposable
         await _hub.GrxmlConvert([]);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.Contains("GrxmlConvert called with null or empty bytes by test-connection-id", StringComparison.OrdinalIgnoreCase));
+        foreach (var msg in logMessages)
+        {
+            Console.WriteLine(msg);
+        }
+        Assert.Contains(logMessages, m => m.Contains("GrxmlConvert called with null or empty bytes. ConnectionId=test-connection-id", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

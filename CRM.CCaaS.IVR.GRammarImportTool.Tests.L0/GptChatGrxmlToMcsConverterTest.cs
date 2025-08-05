@@ -408,7 +408,7 @@ indeed invalid"));
         Assert.Contains("Error: Processing cancelled", content, StringComparison.OrdinalIgnoreCase);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.Contains("Processing was cancelled", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.StartsWith("Warning - [ProcessSingleFileAsync] Cancelled", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -448,7 +448,7 @@ indeed invalid"));
         Assert.Contains("Error: Zip file processing cancelled", content, StringComparison.OrdinalIgnoreCase);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.Contains("processing was cancelled", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.Contains("[ConvertZipAsync] Cancelled", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -517,7 +517,7 @@ indeed invalid"));
         await _converter.ConvertFileAsync(@"</root><child></root>", ProgressCallback, CompletedCallback);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.Contains("Failed to read XML content", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.StartsWith("Error - Failed to parse ConvertToYaml.grxml as XML", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -533,11 +533,11 @@ indeed invalid"));
         Assert.Equal(2, resultsChannel.Reader.Count);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.Contains("Processed file file1.grxml", StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(logMessages, m => m.Contains("Processed file file2.grxml", StringComparison.OrdinalIgnoreCase));
-        Assert.DoesNotContain(logMessages, m => m.Contains("Error", StringComparison.OrdinalIgnoreCase));
-        Assert.DoesNotContain(logMessages, m => m.Contains("Warning", StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(logMessages, m => m.Contains("Completed processing files in the zip archive", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.StartsWith("Information - [ProcessSingleFileAsync] Success | FileName=file1.grxml", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.StartsWith("Information - [ProcessSingleFileAsync] Success | FileName=file2.grxml", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(logMessages, m => m.StartsWith("Error", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(logMessages, m => m.StartsWith("Warning", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.StartsWith("Information - [ConvertZipAsync-Channel] AllFilesProcessed", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -566,7 +566,7 @@ indeed invalid"));
         Assert.Equal(1, resultsChannel.Reader.Count);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.Contains("Failed to read XML content from the entry", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.StartsWith("Error - Failed to parse bad.grxml as XML", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -582,7 +582,7 @@ indeed invalid"));
         Assert.Equal(1, resultsChannel.Reader.Count);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.Contains("Unexpected error occurred while processing file", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.Contains("Error - [ConvertZipAsync-Channel] UnexpectedError", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -600,7 +600,7 @@ indeed invalid"));
         Assert.Equal(1, resultsChannel.Reader.Count);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.Contains("processing was cancelled ", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.StartsWith("Warning - [ProcessSingleFileAsync] Cancelled", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -629,7 +629,7 @@ indeed invalid"));
         Assert.Equal(7, resultsChannel.Reader.Count);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.Contains("Processing was cancelled for zip", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.StartsWith("Error - [ConvertZipAsync-Channel] Cancelled", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

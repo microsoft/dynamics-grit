@@ -43,7 +43,7 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
             _gptPrompterConfiguration.AzureOpenAIDeploymentName, _gptPrompterConfiguration.AzureOpenAIKey);
         _initialChatHistory = LoadInitialChatHistory(_gptPrompterConfiguration);
         _disclaimerAI = _gptPrompterConfiguration.DisclaimerAI ?? string.Empty;
-        _logger.LogInformation("GptChatGrxmlToMcsConverter initialized successfully at {Timestamp}.", DateTime.UtcNow);
+        _logger.LogInformation("[Init] GptChatGrxmlToMcsConverter initialized | Timestamp={Timestamp}", DateTime.UtcNow);
     }
 
     /// <summary>
@@ -63,12 +63,12 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
         ArgumentNullException.ThrowIfNull(completedCallback);
 
         var results = new ConcurrentDictionary<string, string>();
-
         var entries = LoadZipToDictionary(zipStream);
 
         await progressCallback(0, "Starting processing...");
 
-        _logger.LogInformation("Starting processing files at {Timestamp} with {_gptPrompterConfiguration.DegreeParallelism} parallel tasks", DateTime.UtcNow, _gptPrompterConfiguration.DegreeParallelism);
+        _logger.LogInformation("[ConvertZipAsync] Start | FileCount={FileCount} | DegreeParallelism={DegreeParallelism} | Timestamp={Timestamp}",
+            entries.Count, _gptPrompterConfiguration.DegreeParallelism, DateTime.UtcNow);
 
         var processedCount = 0;
         var totalCount = entries.Count;
@@ -88,10 +88,10 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
                 string content;
                 var stopWatch = new System.Diagnostics.Stopwatch();
 
-                _logger.LogInformation("Starting to process file {FileName}.", entry.Key);
+                _logger.LogInformation("[ConvertZipAsync] FileStart | FileName={FileName} | Timestamp={Timestamp}", entry.Key, DateTime.UtcNow);
                 if (!TryReadXmlContent(entry.Key, entry.Value, out content))
                 {
-                    _logger.LogError("Failed to read XML content from the entry {FileName} at {Timestamp}.", entry.Key, DateTime.UtcNow);
+                    _logger.LogError("[ConvertZipAsync] XmlParseError | FileName={FileName} | Timestamp={Timestamp}", entry.Key, DateTime.UtcNow);
                     results[entry.Key] = $"<!-- Can't parse this XML -->\n{entry.Value}";
                 }
                 else
@@ -101,12 +101,13 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
                         stopWatch.Start();
                         var response = await ProcessSingleFileAsync(entry.Key, content);
                         results[entry.Key] = response;
-                        _logger.LogInformation("Processed file {FileName} in {ElapsedMilliseconds} ms at {Timestamp}.", entry.Key, stopWatch.ElapsedMilliseconds, DateTime.UtcNow);
+                        _logger.LogInformation("[ConvertZipAsync] FileProcessed | FileName={FileName} | ElapsedMs={ElapsedMilliseconds} | Timestamp={Timestamp}",
+                            entry.Key, stopWatch.ElapsedMilliseconds, DateTime.UtcNow);
                         stopWatch.Stop();
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "Unexpected error occurred while processing file content at {Timestamp}.", DateTime.UtcNow);
+                        _logger.LogError(ex, "[ConvertZipAsync] UnexpectedError | FileName={FileName} | Timestamp={Timestamp}", entry.Key, DateTime.UtcNow);
                         results[entry.Key] = $"Error: Unexpected error occured";
                     }
                 }
@@ -119,10 +120,10 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
         }
         catch (OperationCanceledException ex)
         {
-            _logger.LogError(ex, "Processing was cancelled for zip at {Timestamp}.", DateTime.UtcNow);
+            _logger.LogError(ex, "[ConvertZipAsync] Cancelled | Reason=TotalTimeout | Timestamp={Timestamp}", DateTime.UtcNow);
             results["error.yaml"] = "Error: Zip file processing cancelled";
         }
-        _logger.LogInformation("Completed processing files in the zip archive at {Timestamp}.", DateTime.UtcNow);
+        _logger.LogInformation("[ConvertZipAsync] Complete | FileCount={FileCount} | Timestamp={Timestamp}", totalCount, DateTime.UtcNow);
 
         var outputStream = CreateResultZipStream(results, ".yaml");
         await completedCallback(outputStream.ToArray());
@@ -143,10 +144,10 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
         ArgumentNullException.ThrowIfNull(progressCallback);
         ArgumentNullException.ThrowIfNull(completedCallback);
 
-        _logger.LogInformation("Starting to process single file");
+        _logger.LogInformation("[ConvertFileAsync] Start | Timestamp={Timestamp}", DateTime.UtcNow);
         if (!TryReadXmlContent("ConvertToYaml.grxml", stringFile, out var stringStrippedFile))
         {
-            _logger.LogError("Failed to read XML content at {Timestamp}.", DateTime.UtcNow);
+            _logger.LogError("[ConvertFileAsync] XmlParseError | Timestamp={Timestamp}", DateTime.UtcNow);
             return stringStrippedFile;
         }
 
@@ -163,7 +164,7 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
     /// </summary>
     internal virtual async Task<string> ProcessSingleFileAsync(string fileName, string fileContent)
     {
-        _logger.LogInformation("Processing file content for entity type classification at {Timestamp}.", DateTime.UtcNow);
+        _logger.LogInformation("[ProcessSingleFileAsync] Start | FileName={FileName} | Timestamp={Timestamp}", fileName, DateTime.UtcNow);
 
         var chatHistory = new List<ChatMessage>(_initialChatHistory)
         {
@@ -184,21 +185,21 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
                 {
                     response += item.Text;
                 }
-                _logger.LogInformation("File content processed successfully at {Timestamp}.", DateTime.UtcNow);
+                _logger.LogInformation("[ProcessSingleFileAsync] Success | FileName={FileName} | Timestamp={Timestamp}", fileName, DateTime.UtcNow);
                 ValidateYamlContent(response);
                 return response;
             }
             catch (System.ClientModel.ClientResultException ex)
             {
-                _logger.LogWarning("Client error {Error} occurred while processing file content at {Timestamp}. \n Will retry", ex, DateTime.UtcNow);
+                _logger.LogWarning("[ProcessSingleFileAsync] ClientError | FileName={FileName} | Error={Error} | Timestamp={Timestamp}", fileName, ex.Message, DateTime.UtcNow);
             }
             catch (YamlException ex)
             {
-                _logger.LogWarning("Yaml validation failed: {Message}", ex.Message);
+                _logger.LogWarning("[ProcessSingleFileAsync] YamlValidationFailed | FileName={FileName} | Error={Error} | Timestamp={Timestamp}", fileName, ex.Message, DateTime.UtcNow);
             }
             catch (OperationCanceledException ex)
             {
-                _logger.LogWarning(ex, "Processing was cancelled for file {FileName} at {Timestamp}.", fileName, DateTime.UtcNow);
+                _logger.LogWarning(ex, "[ProcessSingleFileAsync] Cancelled | FileName={FileName} | Reason=Timeout | Timestamp={Timestamp}", fileName, DateTime.UtcNow);
                 response += $"Error: Processing cancelled for {fileName}";
                 return response;
             }
@@ -206,7 +207,7 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
             retries++;
             await Task.Delay(TimeSpan.FromSeconds(_gptPrompterConfiguration.RetryDelaySec * retries));
         }
-        _logger.LogError("Failed to process file {FileName} after {Retries} retries at {Timestamp}.", fileName, _gptPrompterConfiguration.MaxRetries, DateTime.UtcNow);
+        _logger.LogError("[ProcessSingleFileAsync] MaxRetriesExceeded | FileName={FileName} | Retries={Retries} | Timestamp={Timestamp}", fileName, _gptPrompterConfiguration.MaxRetries, DateTime.UtcNow);
         response += $"Error: Failed to process {fileName} after {_gptPrompterConfiguration.MaxRetries} retries.";
         return response;
     }
@@ -255,7 +256,8 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
 
         var entries = LoadZipToDictionary(zipStream);
 
-        _logger.LogInformation("Starting processing files at {Timestamp} with {_gptPrompterConfiguration.DegreeParallelism} parallel tasks", DateTime.UtcNow, _gptPrompterConfiguration.DegreeParallelism);
+        _logger.LogInformation("[ConvertZipAsync-Channel] Start | FileCount={FileCount} | DegreeParallelism={DegreeParallelism} | Timestamp={Timestamp}",
+            entries.Count, _gptPrompterConfiguration.DegreeParallelism, DateTime.UtcNow);
 
         var processedCount = 0;
         var totalCount = entries.Count;
@@ -276,7 +278,7 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
                 var stopWatch = new System.Diagnostics.Stopwatch();
                 if (!TryReadXmlContent(entry.Key, entry.Value, out content))
                 {
-                    _logger.LogError("Failed to read XML content from the entry {FileName} at {Timestamp}.", entry.Key, DateTime.UtcNow);
+                    _logger.LogError("[ConvertZipAsync-Channel] XmlParseError | FileName={FileName} | Timestamp={Timestamp}", entry.Key, DateTime.UtcNow);
                     using var ctsWrite = new CancellationTokenSource(TimeSpan.FromSeconds(RESULTS_CHANNEL_WRITER_TIMEOUT_SEC));
                     await results.Writer.WriteAsync(new KeyValuePair<string, string>(entry.Key, $"<!-- Can't parse this XML -->\n{entry.Value}"), ctsWrite.Token);
                 }
@@ -290,19 +292,20 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
                         using var ctsWrite = new CancellationTokenSource(TimeSpan.FromSeconds(RESULTS_CHANNEL_WRITER_TIMEOUT_SEC));
                         await results.Writer.WriteAsync(new KeyValuePair<string, string>(entry.Key, response), ctsWrite.Token);
 
-                        _logger.LogInformation("Processed file {FileName} in {ElapsedMilliseconds} ms at {Timestamp}.", entry.Key, stopWatch.ElapsedMilliseconds, DateTime.UtcNow);
+                        _logger.LogInformation("[ConvertZipAsync-Channel] FileProcessed | FileName={FileName} | ElapsedMs={ElapsedMilliseconds} | Timestamp={Timestamp}",
+                            entry.Key, stopWatch.ElapsedMilliseconds, DateTime.UtcNow);
                         stopWatch.Stop();
                     }
                     catch (OperationCanceledException ex)
                     {
-                        _logger.LogError(ex, "Processing was cancelled for file {FileName} at {Timestamp}.", entry.Key, DateTime.UtcNow);
+                        _logger.LogError(ex, "[ConvertZipAsync-Channel] Cancelled | FileName={FileName} | Timestamp={Timestamp}", entry.Key, DateTime.UtcNow);
 
                         using var ctsWrite = new CancellationTokenSource(TimeSpan.FromSeconds(RESULTS_CHANNEL_WRITER_TIMEOUT_SEC));
                         await results.Writer.WriteAsync(new KeyValuePair<string, string>(entry.Key, $"Error: Processing cancelled for {entry.Key}"), ctsWrite.Token);
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "Unexpected error occurred while processing file content at {Timestamp}.", DateTime.UtcNow);
+                        _logger.LogError(ex, "[ConvertZipAsync-Channel] UnexpectedError | FileName={FileName} | Timestamp={Timestamp}", entry.Key, DateTime.UtcNow);
 
                         using var ctsWrite = new CancellationTokenSource(TimeSpan.FromSeconds(RESULTS_CHANNEL_WRITER_TIMEOUT_SEC));
                         await results.Writer.WriteAsync(new KeyValuePair<string, string>(entry.Key, $"Error: {ex.Message}"), ctsWrite.Token);
@@ -311,12 +314,13 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
 
                 var current = Interlocked.Increment(ref processedCount);
                 var progress = (int)(current / (double)totalCount * 100);
-                _logger.LogInformation("Processed {Current} of {Total} files. Progress: {Progress}%", current, totalCount, progress);
+                _logger.LogInformation("[ConvertZipAsync-Channel] Progress | Current={Current} | Total={Total} | Percent={Percent} | Timestamp={Timestamp}",
+                    current, totalCount, progress, DateTime.UtcNow);
             });
         }
         catch (OperationCanceledException ex)
         {
-            _logger.LogError(ex, "Processing was cancelled for zip at {Timestamp}.", DateTime.UtcNow);
+            _logger.LogError(ex, "[ConvertZipAsync-Channel] Cancelled | Reason=TotalTimeout | Timestamp={Timestamp}", DateTime.UtcNow);
 
             using var ctsWrite = new CancellationTokenSource(TimeSpan.FromSeconds(RESULTS_CHANNEL_WRITER_TIMEOUT_SEC));
             await results.Writer.WriteAsync(new KeyValuePair<string, string>("error.yaml", "Error: Zip file processing cancelled"), ctsWrite.Token);
@@ -325,8 +329,9 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
         {
             results.Writer.Complete();
         }
-        _logger.LogInformation("Processed {ProcessedCount} of {TotalCount} files at {Timestamp}.", processedCount, totalCount, DateTime.UtcNow);
-        _logger.LogInformation("Completed processing files in the zip archive at {Timestamp}.", DateTime.UtcNow);
+        _logger.LogInformation("[ConvertZipAsync-Channel] Complete | Processed={ProcessedCount} | Total={TotalCount} | Timestamp={Timestamp}",
+            processedCount, totalCount, DateTime.UtcNow);
+        _logger.LogInformation("[ConvertZipAsync-Channel] AllFilesProcessed | Timestamp={Timestamp}", DateTime.UtcNow);
         return "Conversion complete";
     }
 
@@ -336,13 +341,13 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
 
         if (!TryReadXmlContent("ConvertedFile.grxml", stringFile, out var stringStrippedFile))
         {
-            _logger.LogError("Failed to read XML content from the provided string file at {Timestamp}.", DateTime.UtcNow);
+            _logger.LogError("[ConvertFileAsync] XmlParseError | Timestamp={Timestamp}", DateTime.UtcNow);
             return stringStrippedFile;
         }
 
-        _logger.LogInformation("Starting processing file at {Timestamp}", DateTime.UtcNow);
+        _logger.LogInformation("[ConvertFileAsync] StartProcessing | Timestamp={Timestamp}", DateTime.UtcNow);
         var processedResult = await ProcessSingleFileAsync("ConvertedFile.grxml", stringStrippedFile);
-        _logger.LogInformation("File processed successfully at {Timestamp}", DateTime.UtcNow);
+        _logger.LogInformation("[ConvertFileAsync] FileProcessed | Timestamp={Timestamp}", DateTime.UtcNow);
 
         return processedResult;
     }

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain;
@@ -25,7 +26,8 @@ public class GrITHub(
 
     public override async Task OnConnectedAsync()
     {
-        _logger.LogInformation("Client connected: {ConnectionId}", Context.ConnectionId);
+        var timestamp = DateTime.UtcNow;
+        _logger.LogInformation("Client connected. ConnectionId={ConnectionId}, Timestamp={Timestamp}", Context.ConnectionId, timestamp);
         await Clients.Caller.SendAsync("ConnectionId", Context.ConnectionId);
         await base.OnConnectedAsync();
     }
@@ -40,12 +42,15 @@ public class GrITHub(
         string resultBase64 = string.Empty;
         if (zipBytes == null || zipBytes.Length == 0)
         {
-            _logger.LogError("GrxmlZipConvert called with null or empty zipBytes by {ConnectionId}", Context.ConnectionId);
+            _logger.LogError("GrxmlZipConvert called with null or empty zipBytes. ConnectionId={ConnectionId}", Context.ConnectionId);
             await Clients.Caller.SendAsync("Error", "GrxmlZipConvert called with null or empty zipBytes");
             return;
         }
 
-        _logger.LogInformation("GrxmlZipConvert called by {ConnectionId}, Zip Size: {zipBytes}", Context.ConnectionId, zipBytes.Length);
+        _logger.LogInformation("GrxmlZipConvert called. ConnectionId={ConnectionId}, ZipSizeBytes={ZipSizeBytes}, Timestamp={Timestamp}",
+            Context.ConnectionId, zipBytes.Length, DateTime.UtcNow);
+
+        var stopwatch = Stopwatch.StartNew();
 
         try
         {
@@ -56,12 +61,15 @@ public class GrITHub(
                 zipStream,
                 async (progress, message) =>
                 {
-                    _logger.LogInformation("Progress: {Progress}, Message: {Message}", progress, message);
+                    _logger.LogInformation("Progress update. ConnectionId={ConnectionId}, Progress={Progress}, Message={Message}, Timestamp={Timestamp}",
+                        Context.ConnectionId, progress, message, DateTime.UtcNow);
                     await Clients.Caller.SendAsync("Progress", progress, message);
                 },
                 async (resultBytes) =>
                 {
-                    _logger.LogInformation("Conversion completed, result size: {ResultSize}", resultBytes.Length);
+                    stopwatch.Stop();
+                    _logger.LogInformation("Conversion completed. ConnectionId={ConnectionId}, ResultSizeBytes={ResultSizeBytes}, DurationMs={Duration}, Timestamp={Timestamp}",
+                        Context.ConnectionId, resultBytes.Length, stopwatch.ElapsedMilliseconds, DateTime.UtcNow);
                     resultBase64 = Convert.ToBase64String(resultBytes);
                     await Clients.Caller.SendAsync("Completed", resultBase64);
                 }
@@ -69,7 +77,9 @@ public class GrITHub(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error in GrxmlZipConvert");
+            stopwatch.Stop();
+            _logger.LogError(ex, "Error in GrxmlZipConvert. ConnectionId={ConnectionId}, DurationMs={Duration}, Timestamp={Timestamp}",
+                Context.ConnectionId, stopwatch.ElapsedMilliseconds, DateTime.UtcNow);
             await Clients.Caller.SendAsync("Error", ex.Message);
         }
     }
@@ -80,13 +90,17 @@ public class GrITHub(
     /// <param name="bytes">The GRXML file as a byte array.</param>
     public async Task GrxmlConvert(byte[] bytes)
     {
-        _logger.LogInformation("GrxmlConvert called by {ConnectionId}, bytes: {bytes}", Context.ConnectionId, bytes?.Length);
         if (bytes == null || bytes.Length == 0)
         {
-            _logger.LogError("GrxmlConvert called with null or empty bytes by {ConnectionId}", Context.ConnectionId);
+            _logger.LogError("GrxmlConvert called with null or empty bytes. ConnectionId={ConnectionId}", Context.ConnectionId);
             await Clients.Caller.SendAsync("Error", "Uploaded file is null or empty");
             return;
         }
+
+        _logger.LogInformation("GrxmlConvert called. ConnectionId={ConnectionId}, InputSizeBytes={InputSizeBytes}, Timestamp={Timestamp}",
+            Context.ConnectionId, bytes.Length, DateTime.UtcNow);
+
+        var stopwatch = Stopwatch.StartNew();
 
         try
         {
@@ -96,19 +110,24 @@ public class GrITHub(
                 str,
                 async (progress, message) =>
                 {
-                    _logger.LogInformation("Progress: {Progress}, Message: {Message}", progress, message);
+                    _logger.LogInformation("Progress update. ConnectionId={ConnectionId}, Progress={Progress}, Message={Message}, Timestamp={Timestamp}",
+                        Context.ConnectionId, progress, message, DateTime.UtcNow);
                     await Clients.Caller.SendAsync("Progress", progress, message);
                 },
                 async (resultString) =>
                 {
-                    _logger.LogInformation("Conversion completed, result size: {ResultSize}", resultString.Length);
+                    stopwatch.Stop();
+                    _logger.LogInformation("Conversion completed. ConnectionId={ConnectionId}, ResultSizeChars={ResultSizeChars}, DurationMs={Duration}, Timestamp={Timestamp}",
+                        Context.ConnectionId, resultString.Length, stopwatch.ElapsedMilliseconds, DateTime.UtcNow);
                     await Clients.Caller.SendAsync("Completed", resultString);
                 }
             );
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error in GrxmlConvert");
+            stopwatch.Stop();
+            _logger.LogError(ex, "Error in GrxmlConvert. ConnectionId={ConnectionId}, DurationMs={Duration}, Timestamp={Timestamp}",
+                Context.ConnectionId, stopwatch.ElapsedMilliseconds, DateTime.UtcNow);
             await Clients.Caller.SendAsync("Error", ex.Message);
         }
     }
