@@ -30,6 +30,7 @@
   <ItemGroup>
     <_CustomFilesToDelete Include="$(OutputPath)" />
   </ItemGroup>
+
   <Target Name="CustomClean" AfterTargets="Clean">
     <Message Text="Clean $(OutputPath) for CRM.CCaaS.IVR.GRammarImportTool.ApiService" Importance="high" />
     <RemoveDir Directories="@(_CustomFilesToDelete)" />

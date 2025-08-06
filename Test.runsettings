@@ -29,6 +29,7 @@
               <Exclude>
                 <Source>.*\\obj\\Debug\\net8.0.*</Source>
                 <Source>.*\\obj\\Release\\net8.0.*</Source>
+                <Source>.*\\Docs\\.*</Source>
               </Exclude>
             </Sources>
             <Functions>
