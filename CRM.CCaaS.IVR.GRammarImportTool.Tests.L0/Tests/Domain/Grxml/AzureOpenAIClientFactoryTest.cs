@@ -7,7 +7,7 @@ using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L0;
+namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L0.Tests.Domain.Grxml;
 public class AzureOpenAIClientFactoryTest : IClassFixture<BaseTestAzureOpenAIClientFactory>
 {
     private readonly BaseTestAzureOpenAIClientFactory _baseTest;
@@ -17,9 +17,7 @@ public class AzureOpenAIClientFactoryTest : IClassFixture<BaseTestAzureOpenAICli
     {
         _baseTest = baseTest ?? throw new ArgumentNullException(nameof(baseTest));
         if (_baseTest.ServiceProvider == null)
-        {
             throw new InvalidOperationException("ServiceProvider is not initialized.");
-        }
 
         _azureOpenAIClientFactory = _baseTest.ServiceProvider.GetRequiredService<IAzureOpenAIClientFactory>();
     }
@@ -37,9 +35,9 @@ public class AzureOpenAIClientFactoryTest : IClassFixture<BaseTestAzureOpenAICli
     [Fact]
     public void When_CreateChatClient_ValidParameters_Then_ReturnsChatClient()
     {
-        string endpoint = "https://test.openai.azure.com/";
-        string deployment = "test-deployment";
-        string key = "test-key";
+        var endpoint = "https://test.openai.azure.com/";
+        var deployment = "test-deployment";
+        var key = "test-key";
 
         var chatClient = _azureOpenAIClientFactory.CreateChatClient(endpoint, deployment, key);
 

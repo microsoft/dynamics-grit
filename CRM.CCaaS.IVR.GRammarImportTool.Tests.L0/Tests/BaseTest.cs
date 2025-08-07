@@ -20,7 +20,7 @@ using Xunit;
 using Xunit.Abstractions;
 using static System.Net.Mime.MediaTypeNames;
 
-namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L0;
+namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L0.Tests;
 public class BaseTest : IDisposable
 {
     public TestLoggerProvider LogProvider { get; private set; } = new TestLoggerProvider();
@@ -57,19 +57,13 @@ public class BaseTest : IDisposable
             .Returns((IEnumerable<ChatMessage> chatHistory, ChatOptions? options, CancellationToken token) =>
             {
                 if (chatHistory.Any(y => y.Text.Contains("clientException.grxml", StringComparison.OrdinalIgnoreCase)))
-                {
                     return CreateErrorGptResult("clientException.grxml");
-                }
 
                 if (chatHistory.Any(y => y.Text.Contains("badYaml.grxml", StringComparison.OrdinalIgnoreCase)))
-                {
                     return CreateBadGptResult();
-                }
 
                 if (chatHistory.Any(y => y.Text.Contains("unKnownException.grxml", StringComparison.OrdinalIgnoreCase)))
-                {
                     throw new Exception("Unknown exception occurred during processing.");
-                }
 
                 if (chatHistory.Any(y => y.Text.Contains("timeout5000", StringComparison.OrdinalIgnoreCase)))
                 {
@@ -157,9 +151,7 @@ this: is bad yaml") };
         ArgumentException.ThrowIfNullOrEmpty(fileName, nameof(fileName));
 
         if (fileName.Equals("clientException.grxml", StringComparison.OrdinalIgnoreCase))
-        {
             throw new System.ClientModel.ClientResultException("Bad GPT response");
-        }
 
         var enumerable = new List<ChatResponseUpdate> { new ChatResponseUpdate(ChatRole.Assistant, "") };
         foreach (var item in enumerable)
@@ -176,9 +168,7 @@ this: is bad yaml") };
                 LogProvider.Dispose(); // Dispose the LogProvider
 
                 if (ServiceProvider is IDisposable disposable)
-                {
                     disposable.Dispose();
-                }
             }
 
             // TODO: free unmanaged resources (unmanaged objects) and override finalizer

@@ -7,6 +7,7 @@ using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Controllers;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -15,7 +16,7 @@ using Xunit;
 using Xunit.Abstractions;
 using YamlDotNet.Core;
 
-namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L0;
+namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L0.Tests.Domain.Grxml;
 
 public class GptChatGrxmlToMcsConverterTest : IClassFixture<BaseTest>, IDisposable
 {
@@ -71,9 +72,7 @@ tag-format=""semantics/1.0"">
     {
         _baseTest = baseTest ?? throw new ArgumentNullException(nameof(baseTest));
         if (_baseTest.ServiceProvider == null)
-        {
             throw new InvalidOperationException("ServiceProvider is not initialized.");
-        }
 
         _converter = new GptChatGrxmlToMcsConverter(
             _baseTest.ServiceProvider.GetRequiredService<IOptions<GptChatGrxmlConfiguration>>(),
@@ -97,6 +96,12 @@ tag-format=""semantics/1.0"">
             {
                 writer.Write(TestValidXml2);
             }
+            var entry3 = archive.CreateEntry($"dir1/placeholder.grxml");
+            using (var writer = new StreamWriter(entry3.Open(), Encoding.UTF8))
+            {
+                writer.Write(TestValidXml2);
+            }
+            archive.CreateEntry($"dir2/");
         }
         zipStream.Position = 0; // Reset stream position for reading
         return zipStream;
@@ -124,8 +129,8 @@ tag-format=""semantics/1.0"">
     {
         if (string.IsNullOrEmpty(text))
             return string.Empty;
-        byte[] textData = Encoding.UTF8.GetBytes(text);
-        byte[] hash = System.Security.Cryptography.SHA256.HashData(textData);
+        var textData = Encoding.UTF8.GetBytes(text);
+        var hash = System.Security.Cryptography.SHA256.HashData(textData);
         return BitConverter.ToString(hash).Replace("-", string.Empty, StringComparison.Ordinal);
     }
 
@@ -143,7 +148,7 @@ tag-format=""semantics/1.0"">
         using var zipStream = CreateZipStream("file1.grxml", "file2.grxml");
         var result = _converter.LoadZipToDictionary(zipStream);
 
-        Assert.Equal(2, result.Count);
+        Assert.Equal(3, result.Count);
         Assert.Equal(HashTestValidXml, GetStringSha256Hash(result["file1.grxml"]));
         Assert.Equal(HashTestValidXml2, GetStringSha256Hash(result["file2.grxml"]));
     }
@@ -154,7 +159,7 @@ tag-format=""semantics/1.0"">
         using var zipStream = CreateZipStream("duplicate.grxml", "duplicate.grxml");
         var result = _converter.LoadZipToDictionary(zipStream);
 
-        Assert.Equal(2, result.Count);
+        Assert.Equal(3, result.Count);
         Assert.Contains("duplicate.grxml", result.Keys);
         Assert.Contains("duplicate-1.grxml", result.Keys);
         Assert.Equal(HashTestValidXml, GetStringSha256Hash(result["duplicate.grxml"]));
@@ -175,9 +180,7 @@ tag-format=""semantics/1.0"">
     public void When_Create_Then_NoErrors()
     {
         if (_baseTest.ServiceProvider == null)
-        {
             throw new InvalidOperationException("ServiceProvider is not initialized.");
-        }
 
         var converter = _baseTest.ServiceProvider.GetKeyedService<IGptChat>(GptChatGrxmlToMcsConverter.SERVICE_KEY);
         Assert.NotNull(converter);
@@ -205,7 +208,7 @@ indeed invalid"));
     public void When_TryReadXmlContent_Then_RemovesCommentsAndWhitespace()
     {
 
-        bool result = _converter.TryReadXmlContent("good.xml", TestValidXml, out var stripped);
+        var result = _converter.TryReadXmlContent("good.xml", TestValidXml, out var stripped);
 
         Assert.True(result);
         Assert.Contains("</grammar>", stripped, StringComparison.CurrentCultureIgnoreCase);
@@ -217,7 +220,7 @@ indeed invalid"));
     [InlineData(@"")]
     public void When_TryReadXmlContent_InvalidXml_ReturnsFalse(string xmlContent)
     {
-        bool result = _converter.TryReadXmlContent("invalid.xml", xmlContent, out var stripped);
+        var result = _converter.TryReadXmlContent("invalid.xml", xmlContent, out var stripped);
 
         Assert.False(result);
         Assert.Equal("Error: Failed to parse as XML.", stripped);
@@ -229,7 +232,7 @@ indeed invalid"));
         var results = new ConcurrentDictionary<string, string>();
         results["file1.grxml"] = TestValidXml;
         results["file2.grxml"] = TestValidXml2;
-        string extension = ".yaml";
+        var extension = ".yaml";
 
         using var zipStream = _converter.CreateResultZipStream(results, extension);
         Assert.NotNull(zipStream);
@@ -253,7 +256,7 @@ indeed invalid"));
     public void When_CreateResultZipStream_EmptyDictionary_Then_ThrowException()
     {
         var results = new ConcurrentDictionary<string, string>();
-        string extension = ".yaml";
+        var extension = ".yaml";
 
         Assert.Throws<InvalidDataException>(() => _converter.CreateResultZipStream(results, extension));
     }
@@ -316,7 +319,7 @@ indeed invalid"));
         Assert.NotNull(resultStream);
         Assert.NotNull(completedBytes);
         using var archive = new ZipArchive(resultStream, ZipArchiveMode.Read);
-        Assert.Equal(2, archive.Entries.Count);
+        Assert.Equal(3, archive.Entries.Count);
         Assert.Contains(archive.Entries, e => e.Name == "file1.yaml");
         Assert.Contains(archive.Entries, e => e.Name == "file2.yaml");
         Assert.True(progressUpdates.Count > 0);
@@ -408,7 +411,8 @@ indeed invalid"));
         Assert.Contains("Error: Processing cancelled", content, StringComparison.OrdinalIgnoreCase);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.StartsWith("Warning - [ProcessSingleFileAsync] Cancelled", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.Contains("Cancelled", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.Contains("Reason=Timeout", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -418,7 +422,7 @@ indeed invalid"));
 
         using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, true))
         {
-            for (int i = 0; i < 10; i++)
+            for (var i = 0; i < 10; i++)
             {
                 var entry = archive.CreateEntry($"timeout4000_{i}.grxml");
                 using (var writer = new StreamWriter(entry.Open(), Encoding.UTF8))
@@ -448,14 +452,14 @@ indeed invalid"));
         Assert.Contains("Error: Zip file processing cancelled", content, StringComparison.OrdinalIgnoreCase);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.Contains("[ConvertZipAsync] Cancelled", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.Contains("Cancelled | Reason=TotalTimeout", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
     public async Task When_ConvertFileAsyncR_ValidGrxml_Then_ReturnsYaml()
     {
         var progressUpdates = new List<(int, string)>();
-        string resultYaml = string.Empty;
+        var resultYaml = string.Empty;
 
         Task ProgressCallback(int progress, string message)
         {
@@ -517,7 +521,7 @@ indeed invalid"));
         await _converter.ConvertFileAsync(@"</root><child></root>", ProgressCallback, CompletedCallback);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.StartsWith("Error - Failed to parse ConvertToYaml.grxml as XML", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.Contains("XmlParseError", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -530,14 +534,14 @@ indeed invalid"));
 
         Assert.NotNull(result);
         Assert.Equal("Conversion complete", result);
-        Assert.Equal(2, resultsChannel.Reader.Count);
+        Assert.Equal(3, resultsChannel.Reader.Count);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.StartsWith("Information - [ProcessSingleFileAsync] Success | FileName=file1.grxml", StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(logMessages, m => m.StartsWith("Information - [ProcessSingleFileAsync] Success | FileName=file2.grxml", StringComparison.OrdinalIgnoreCase));
-        Assert.DoesNotContain(logMessages, m => m.StartsWith("Error", StringComparison.OrdinalIgnoreCase));
-        Assert.DoesNotContain(logMessages, m => m.StartsWith("Warning", StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(logMessages, m => m.StartsWith("Information - [ConvertZipAsync-Channel] AllFilesProcessed", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.Contains("FileProcessed | HashedFileName=", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.Contains("FileProcessed | HashedFileName=", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(logMessages, m => m.Contains("Error", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(logMessages, m => m.Contains("Warning", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.Contains("AllFilesProcessed", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -566,7 +570,7 @@ indeed invalid"));
         Assert.Equal(1, resultsChannel.Reader.Count);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.StartsWith("Error - Failed to parse bad.grxml as XML", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.Contains("XmlParseError | HashedFileName=", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -582,7 +586,7 @@ indeed invalid"));
         Assert.Equal(1, resultsChannel.Reader.Count);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.Contains("Error - [ConvertZipAsync-Channel] UnexpectedError", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.Contains("UnexpectedError | HashedFileName=", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -600,7 +604,7 @@ indeed invalid"));
         Assert.Equal(1, resultsChannel.Reader.Count);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.StartsWith("Warning - [ProcessSingleFileAsync] Cancelled", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.Contains("Cancelled | HashedFileName=", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -610,7 +614,7 @@ indeed invalid"));
 
         using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, true))
         {
-            for (int i = 0; i < 10; i++)
+            for (var i = 0; i < 10; i++)
             {
                 var entry = archive.CreateEntry($"timeout4000_{i}.grxml");
                 using (var writer = new StreamWriter(entry.Open(), Encoding.UTF8))
@@ -629,7 +633,7 @@ indeed invalid"));
         Assert.Equal(7, resultsChannel.Reader.Count);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.StartsWith("Error - [ConvertZipAsync-Channel] Cancelled", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.Contains("Cancelled | Reason=TotalTimeout", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -648,6 +652,15 @@ indeed invalid"));
 
         Assert.NotNull(result);
         Assert.Contains("Error: Failed to parse as XML", result, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void When_HashHelper_with_EmptyString_Then_Exception()
+    {
+        var emptyString = string.Empty;
+        Assert.Throws<ArgumentException>(() => HashHelper.HashSha256Hex(emptyString));
+
+        Assert.Throws<ArgumentException>(() => HashHelper.HashSha256Hex(null!));
     }
 
     protected virtual void Dispose(bool disposing)

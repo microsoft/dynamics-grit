@@ -42,7 +42,10 @@ public class TestLoggerProvider : ILoggerProvider
     {
         private readonly List<string> _loggedMessages = [];
 
-        public IDisposable? BeginScope<TState>(TState state) => null;
+        public IDisposable BeginScope<TState>(TState state)
+        {
+            return LoggerScope.Push(state);
+        }
 
         public bool IsEnabled(LogLevel logLevel) => true;
         public void Clear()
@@ -69,9 +72,26 @@ public class TestLoggerProvider : ILoggerProvider
             if (formatter != null)
             {
                 var message = formatter(state, exception);
+                var timestamp = DateTime.UtcNow;
+
+                var scopeInfo = string.Join(" | ", LoggerScope.Current?.Select(s =>
+                {
+                    if (s is IEnumerable<KeyValuePair<string, object>> scopeKvps)
+                    {
+                        return string.Join(", ", scopeKvps
+                            .Where(kvp => kvp.Key != "{OriginalFormat}")
+                            .Select(kvp => $"{kvp.Key}: {kvp.Value}"));
+                    }
+                    return s?.ToString();
+                }) ?? []);
+
                 lock (_loggedMessages)
                 {
-                    _loggedMessages.Add($"{logLevel} - {message}");
+                    _loggedMessages.Add($"[{timestamp.ToString("yyyy-MM-dd HH:mm:ss.fff")}] [{logLevel.ToString()}] - {message} => {scopeInfo}");
+                }
+                if (exception != null)
+                {
+                    _loggedMessages.Add(exception.ToString());
                 }
             }
         }

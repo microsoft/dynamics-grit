@@ -16,7 +16,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
 
-namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L0;
+namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L0.Tests.Controllers;
 
 public class GrITControllerTest : IClassFixture<BaseTest>, IDisposable
 {
@@ -47,20 +47,21 @@ public class GrITControllerTest : IClassFixture<BaseTest>, IDisposable
     {
         _baseTest = baseTest ?? throw new ArgumentNullException(nameof(baseTest));
         if (_baseTest.ServiceProvider == null)
-        {
             throw new InvalidOperationException("ServiceProvider is not initialized.");
-        }
 
         var content = new MemoryStream([0, 1, 2]);
+        _fileMockZip.Setup(f => f.FileName).Returns("test.zip");
         _fileMockZip.Setup(f => f.Length).Returns(3);
         _fileMockZip.Setup(f => f.CopyToAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
             .Returns<Stream, CancellationToken>(content.CopyToAsync);
 
 
+        _fileMockZip.Setup(f => f.FileName).Returns("test.empty.zip");
         _fileMockEmptyZip.Setup(f => f.Length).Returns(0);
         _fileMockEmptyZip.Setup(f => f.CopyToAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
             .Returns<Stream, CancellationToken>((stream, token) => Task.CompletedTask);
 
+        _fileMockZip.Setup(f => f.FileName).Returns("test.tooBig.zip");
         _fileMockTooBigZip.Setup(f => f.Length).Returns(1025);
         _fileMockTooBigZip.Setup(f => f.CopyToAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
             .Returns<Stream, CancellationToken>((stream, token) => Task.CompletedTask);
@@ -93,7 +94,7 @@ public class GrITControllerTest : IClassFixture<BaseTest>, IDisposable
     }
 
     [Fact]
-    public async Task PostGritZipResponse_WithValidZipFile_WritesYamlToResponse()
+    public async Task When_PostGritZipResponse_WithValidZipFile_Then_WritesYamlToResponse()
     {
         var channel = Channel.CreateBounded<KeyValuePair<string, string>>(1);
         _gptChatMock.Setup(x => x.ConvertZipAsync(It.IsAny<Stream>(), It.IsAny<Channel<KeyValuePair<string, string>>>()))
@@ -114,7 +115,7 @@ public class GrITControllerTest : IClassFixture<BaseTest>, IDisposable
     }
 
     [Fact]
-    public async Task PostGritZipResponse_WithEmptyFileForm_Throws_ArgumentOutOfRangeException()
+    public async Task When_PostGritZipResponse_WithEmptyFileForm_Then_Throws_ArgumentOutOfRangeException()
     {
         var controller = SetupGritController();
 
@@ -123,7 +124,7 @@ public class GrITControllerTest : IClassFixture<BaseTest>, IDisposable
     }
 
     [Fact]
-    public async Task PostGritZipResponse_WithTooBigFileForm_Throws_ArgumentOutOfRangeException()
+    public async Task When_PostGritZipResponse_WithTooBigFileForm_Then_Throws_ArgumentOutOfRangeException()
     {
         var controller = SetupGritController();
 
@@ -132,26 +133,26 @@ public class GrITControllerTest : IClassFixture<BaseTest>, IDisposable
     }
 
     [Fact]
-    public async Task PostGritZiplResponse_WithConversionException_WritesErrorToResponse()
+    public async Task When_PostGritZipResponse_WithConversionException_Then_WritesErrorToResponse()
     {
         _gptChatMock.Setup(x => x.ConvertZipAsync(It.IsAny<Stream>(), It.IsAny<Channel<KeyValuePair<string, string>>>()))
-            .Throws<Exception>(() => new Exception("something went wrong"));
+            .Throws(() => new Exception("something went wrong"));
 
         var controller = SetupGritController();
 
         await controller.PostGritZipResponse(_fileMockZip.Object, _gptChatMock.Object, _optionsMock.Object);
 
         var responseText = await GetResponseTextAsync();
-        Assert.Contains("An error occurred while processing the file.", responseText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("An error occurred while processing the file", responseText, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public async Task PostGritZipResponse_WithConversionCancelledException_WritesErrorToResponse()
+    public async Task When_PostGritZipResponse_WithConversionCancelledException_Then_WritesErrorToResponse()
     {
         _gptChatMock.SetupSequence(x => x.ConvertZipAsync(It.IsAny<Stream>(), It.IsAny<Channel<KeyValuePair<string, string>>>()))
-            .Throws<OperationCanceledException>(() => new OperationCanceledException("something went wrong"));
+            .Throws(() => new OperationCanceledException("something went wrong"));
 
-        var controller =SetupGritController();
+        var controller = SetupGritController();
 
         await controller.PostGritZipResponse(_fileMockZip.Object, _gptChatMock.Object, _optionsMock.Object);
 
@@ -160,7 +161,7 @@ public class GrITControllerTest : IClassFixture<BaseTest>, IDisposable
     }
 
     [Fact]
-    public async Task PostGritGrxmlResponse_WithValidFile_WritesYamlToResponse()
+    public async Task When_PostGritGrxmlResponse_WithValidFile_Then_WritesYamlToResponse()
     {
 
         _gptChatMock.Setup(x => x.ConvertFileAsync(It.IsAny<string>()))
@@ -176,7 +177,26 @@ public class GrITControllerTest : IClassFixture<BaseTest>, IDisposable
     }
 
     [Fact]
-    public async Task PostGritGrxmlResponse_WithConversionError_WritesErrorToResponse()
+    public async Task When_PostGritGrxmlResponse_Aborted_Then_ErrorLogged()
+    {
+
+        _gptChatMock.Setup(x => x.ConvertFileAsync(It.IsAny<string>()))
+            .ReturnsAsync((string input) =>
+            {
+                Task.Delay(5000).Wait();
+                return "yaml: content";
+            });
+
+        var controller = SetupGritController();
+        controller.HttpContext.RequestAborted = new CancellationTokenSource(TimeSpan.FromSeconds(1)).Token;
+        await controller.PostGritGrxmlResponse(_fileMockGrxml.Object, _gptChatMock.Object, _optionsMock.Object);
+
+        var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
+        Assert.Contains(logMessages, m => m.Contains("Request was cancelled. HashedFileName=", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task When_PostGritGrxmlResponse_WithConversionError_Then_WritesErrorToResponse()
     {
         _gptChatMock.Setup(x => x.ConvertFileAsync(It.IsAny<string>()))
             .ReturnsAsync("Error: something went wrong");
@@ -191,7 +211,7 @@ public class GrITControllerTest : IClassFixture<BaseTest>, IDisposable
     }
 
     [Fact]
-    public async Task PostGritGrxmlResponse_WithEmptyFileForm_Throws_ArgumentOutOfRangeException()
+    public async Task When_PostGritGrxmlResponse_WithEmptyFileForm_Then_Throws_ArgumentOutOfRangeException()
     {
         var controller = SetupGritController();
 
@@ -200,7 +220,7 @@ public class GrITControllerTest : IClassFixture<BaseTest>, IDisposable
     }
 
     [Fact]
-    public async Task PostGritGrxmlResponse_WithTooBigFileForm_Throws_ArgumentOutOfRangeException()
+    public async Task When_PostGritGrxmlResponse_WithTooBigFileForm_Then_Throws_ArgumentOutOfRangeException()
     {
         var controller = SetupGritController();
 
@@ -209,10 +229,10 @@ public class GrITControllerTest : IClassFixture<BaseTest>, IDisposable
     }
 
     [Fact]
-    public async Task PostGritGrxmlResponse_WithConversionException_WritesErrorToResponse()
+    public async Task When_PostGritGrxmlResponse_WithConversionException_Then_WritesErrorToResponse()
     {
         _gptChatMock.Setup(x => x.ConvertFileAsync(It.IsAny<string>()))
-            .Throws<Exception>(() => new Exception("something went wrong"));
+            .Throws(() => new Exception("something went wrong"));
 
         var controller = SetupGritController();
 
@@ -224,10 +244,10 @@ public class GrITControllerTest : IClassFixture<BaseTest>, IDisposable
     }
 
     [Fact]
-    public async Task PostGritGrxmlResponse_WithConversionCancelledException_WritesErrorToResponse()
+    public async Task When_PostGritGrxmlResponse_WithConversionCancelledException_Then_WritesErrorToResponse()
     {
         _gptChatMock.SetupSequence(x => x.ConvertFileAsync(It.IsAny<string>()))
-            .Throws<OperationCanceledException>(() => new OperationCanceledException("something went wrong"));
+            .Throws(() => new OperationCanceledException("something went wrong"));
 
         var controller = SetupGritController();
 
@@ -241,10 +261,7 @@ public class GrITControllerTest : IClassFixture<BaseTest>, IDisposable
         if (!_disposedValue)
         {
             if (disposing)
-            {
                 _responseBody.Dispose();
-                // TODO: dispose managed state (managed objects)
-            }
 
             // TODO: free unmanaged resources (unmanaged objects) and override finalizer
             // TODO: set large fields to null

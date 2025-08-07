@@ -17,7 +17,7 @@ public class HealthController() : ControllerBase
     [HttpGet]
     public IActionResult GetHealth()
     {
-        _logger.LogInformation("Health check requested at {Time}", DateTime.UtcNow);
+        _logger.LogInformation("Health check requested at {Time}");
         return Ok("Healthy");
     }
 }

@@ -15,7 +15,7 @@ using Microsoft.Extensions.Hosting.Internal;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L0;
+namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L0.Tests;
 public class BaseTestAzureOpenAIClientFactory : IDisposable
 {
     public TestLoggerProvider LogProvider { get; private set; } = new TestLoggerProvider();
@@ -76,9 +76,7 @@ public class BaseTestAzureOpenAIClientFactory : IDisposable
                 LogProvider.Dispose(); // Dispose the LogProvider
 
                 if (ServiceProvider is IDisposable disposable)
-                {
                     disposable.Dispose();
-                }
             }
 
             // TODO: free unmanaged resources (unmanaged objects) and override finalizer

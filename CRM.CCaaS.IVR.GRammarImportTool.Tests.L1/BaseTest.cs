@@ -41,7 +41,6 @@ public class BaseTest : IDisposable
             {
                 builder.AddProvider(LogProvider);
             });
-            ApiService.Util.Logging.GrITLoggerFactory.Instance = logger;
             ApiService.Main.Program.Main(Args);
         });
 
@@ -49,6 +48,10 @@ public class BaseTest : IDisposable
         {
             Task.Delay(1000).Wait();
         } while (ApiService.Main.Program.MainApp == null);
+
+        //ApiService.Util.Logging.GrITLoggerFactory.Instance = logger;
+        var logFactory = ApiService.Main.Program.MainApp!.Services.GetRequiredService<ILoggerFactory>();
+        logFactory.AddProvider(LogProvider);
 
         _handler = new HttpClientHandler();
         _handler.ClientCertificateOptions = ClientCertificateOption.Manual;

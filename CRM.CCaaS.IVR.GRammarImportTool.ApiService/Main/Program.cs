@@ -35,8 +35,8 @@ public static class Program
             .AddEnvironmentVariables(prefix: "GPTPrompter")
             .AddCommandLine(args);
 
-        builder.Logging.AddConsole()
-            .AddConfiguration(builder.Configuration.GetSection("Logging"));
+        builder.Logging.ClearProviders();
+        builder.Logging.AddConsole();
 
         var httpPort = builder.Configuration.GetValue<int>("Main:HttpPlainTextPort");
         var httpsPort = builder.Configuration.GetValue<int>("Main:HttpSslPort");
@@ -105,12 +105,12 @@ public static class Program
 
         if (app.Environment.IsTestOrDev())
         {
-            logger.LogInformation("Application started in development or test environment at {Timestamp}.", DateTime.UtcNow);
+            logger.LogInformation("Application started in development or test environment.");
             app.UseCors("DevOrTest"); // Use CORS policy for development or test
         }
         else
         {
-            logger.LogInformation("Application started in production environment at {Timestamp}.", DateTime.UtcNow);
+            logger.LogInformation("Application started in production environment.");
             app.UseCors("Production"); // Use CORS policy for production
         }
 
@@ -136,7 +136,7 @@ public static class Program
         logger.LogInformation(@" \______  /__|  |__| |____|  ");
         logger.LogInformation(@"        \/                   ");
 
-        logger.LogInformation("GriT is about to start at {Timestamp}.", DateTime.UtcNow);
+        logger.LogInformation("GriT is about to start.");
 
         MainApp = app;
         MainApp.Run(); // only blocks in real run

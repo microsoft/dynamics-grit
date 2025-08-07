@@ -24,10 +24,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Configuration\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\CRM.CCaaS.IVR.GRammarImportTool.ApiService\CRM.CCaaS.IVR.GRammarImportTool.ApiService.csproj" />
   </ItemGroup>
 

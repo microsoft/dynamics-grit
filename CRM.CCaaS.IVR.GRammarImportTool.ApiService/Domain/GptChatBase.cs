@@ -33,6 +33,11 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
         {
             foreach (var entry in a.Entries)
             {
+                if (string.IsNullOrWhiteSpace(entry.Name) && !string.IsNullOrEmpty(entry.FullName))
+                {
+                    _logger.LogInformation("Skipping directory entry in zip file.");
+                    continue;
+                }
                 using (var entryStream = entry.Open())
                 using (var reader = new StreamReader(entryStream, Encoding.UTF8))
                 {
@@ -51,7 +56,7 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
         }
         if (entries.Count == 0)
         {
-            _logger.LogWarning("No entries found in the zip file at {Timestamp}.", DateTime.UtcNow);
+            _logger.LogWarning("No entries found in the zip file.");
             throw new InvalidDataException("The zip file contains no entries.");
         }
         return entries;
@@ -89,7 +94,7 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to parse {FileName} as XML at {Timestamp}.", fileName, DateTime.UtcNow);
+            _logger.LogError(ex, "Failed to parse {FileName} as XML.", fileName);
             strippedContent = $"Error: Failed to parse as XML.";
             return false;
         }
@@ -103,7 +108,7 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
         ArgumentNullException.ThrowIfNull(results, nameof(results));
         if (results.IsEmpty)
         {
-            _logger.LogWarning("Attempted to create zip stream with empty results at {Timestamp}.", DateTime.UtcNow);
+            _logger.LogWarning("Attempted to create zip stream with empty results.");
             throw new InvalidDataException("Cannot create zip stream with empty results.");
         }
         var outputStream = new MemoryStream();

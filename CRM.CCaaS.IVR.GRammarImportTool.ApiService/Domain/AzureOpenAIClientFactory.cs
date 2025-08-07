@@ -28,7 +28,7 @@ public class AzureOpenAIClientFactory : IAzureOpenAIClientFactory
             throw new ArgumentException("The provided endpoint is not a valid URI.");
         }
 
-        _logger.LogInformation("AzureOpenAIClientFactory: Successfully created chat client for deployment {Deployment} at {Timestamp}.", deployment, DateTime.UtcNow);
+        _logger.LogInformation("[CreateChatClient]: Successfully created chat client for deployment {Deployment}.", deployment);
         return new AzureOpenAIClient(uriResult, new AzureKeyCredential(key))
             .AsChatClient(deployment);
     }

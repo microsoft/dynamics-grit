@@ -70,6 +70,7 @@ public class IntegrationTests : IClassFixture<BaseTest>, IDisposable
         {
             if (disposing)
             {
+                _converter.WriteLine("Logged Messages:");
                 foreach (var log in _baseTest.LogProvider.Logger.LoggedMessages)
                 {
                     _converter.WriteLine($"{log}");
@@ -259,8 +260,6 @@ public class IntegrationTests : IClassFixture<BaseTest>, IDisposable
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.False(TestForError(_converter.GetLines()));
-        var gritLog = _baseTest.LogProvider.Logger.LoggedMessages;
-        _converter.WriteLine($"Logged messages: {gritLog}");
     }
 
     [Theory]
