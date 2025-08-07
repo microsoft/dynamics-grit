@@ -16,6 +16,8 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.OpenApi;
+using Microsoft.Extensions.FileProviders;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Main;
 
@@ -26,7 +28,10 @@ public static class Program
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
-
+        if (builder.Environment.IsDevelopment())
+        {
+            builder.Services.AddEndpointsApiExplorer();
+        }
         builder.Configuration
             .SetBasePath(AppContext.BaseDirectory)
             .AddJsonFile("AppSettings.json", optional: false, reloadOnChange: true)
@@ -92,6 +97,24 @@ public static class Program
         });
 
         var app = builder.Build();
+
+        if (app.Environment.IsDevelopment())
+        {
+
+            var swaggerPath = Path.Combine(builder.Environment.ContentRootPath, "ApiDefinitions");
+
+            app.UseStaticFiles(new StaticFileOptions
+            {
+                FileProvider = new PhysicalFileProvider(swaggerPath),
+                RequestPath = "/swagger"
+            });
+            app.UseSwaggerUI(c =>
+            {
+                c.SwaggerEndpoint("/swagger/GrITOpenAPI.json", "GrIT API");
+                c.RoutePrefix = "swagger";
+            });
+        }
+
         app.UseRouting();
         app.MapControllers();
 
@@ -117,17 +140,12 @@ public static class Program
         // Configure the HTTP request pipeline.
         app.UseExceptionHandler();
 
-        //if (app.Environment.IsDevelopment())
-        //{
-        //    app..MapOpenApi();
-        //}
         if (app.Environment.IsDevelopment())
         {
             app.UseDeveloperExceptionPage();
         }
 
         app.MapGrITEndpoints();
-
 
         logger.LogInformation(@" ________      ._____________");
         logger.LogInformation(@"/  _____/______|__\__    ___/");
