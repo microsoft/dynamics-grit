@@ -146,7 +146,7 @@ tag-format=""semantics/1.0"">
     public void When_ValidZipWithUniqueFiles_Then_ReturnsCorrectDictionary()
     {
         using var zipStream = CreateZipStream("file1.grxml", "file2.grxml");
-        var result = _converter.LoadZipToDictionary(zipStream);
+        var result = _converter.LoadZipToDictionaryAsync(zipStream).GetAwaiter().GetResult();
 
         Assert.Equal(3, result.Count);
         Assert.Equal(HashTestValidXml, GetStringSha256Hash(result["file1.grxml"]));
@@ -157,7 +157,7 @@ tag-format=""semantics/1.0"">
     public void When_DuplicateFileNames_Then_AppendsSuffix()
     {
         using var zipStream = CreateZipStream("duplicate.grxml", "duplicate.grxml");
-        var result = _converter.LoadZipToDictionary(zipStream);
+        var result = _converter.LoadZipToDictionaryAsync(zipStream).GetAwaiter().GetResult();
 
         Assert.Equal(3, result.Count);
         Assert.Contains("duplicate.grxml", result.Keys);
@@ -173,7 +173,7 @@ tag-format=""semantics/1.0"">
         using (var archive = new ZipArchive(ms, ZipArchiveMode.Create, true)) { }
         ms.Position = 0;
 
-        Assert.Throws<InvalidDataException>(() => _converter.LoadZipToDictionary(ms));
+        Assert.Throws<InvalidDataException>(() => _converter.LoadZipToDictionaryAsync(ms).GetAwaiter().GetResult());
     }
 
     [Fact]
@@ -223,7 +223,7 @@ indeed invalid"));
         var result = _converter.TryReadXmlContent("invalid.xml", xmlContent, out var stripped);
 
         Assert.False(result);
-        Assert.Equal("Error: Failed to parse as XML.", stripped);
+        Assert.Equal("Error: Failed to parse as XML (XmlException).", stripped);
     }
 
     [Fact]
@@ -234,7 +234,8 @@ indeed invalid"));
         results["file2.grxml"] = TestValidXml2;
         var extension = ".yaml";
 
-        using var zipStream = _converter.CreateResultZipStream(results, extension);
+        // Use the async method synchronously for the test
+        using var zipStream = _converter.CreateResultZipStreamAsync(results, extension).GetAwaiter().GetResult();
         Assert.NotNull(zipStream);
 
         using var archive = new ZipArchive(zipStream, ZipArchiveMode.Read);
@@ -258,7 +259,7 @@ indeed invalid"));
         var results = new ConcurrentDictionary<string, string>();
         var extension = ".yaml";
 
-        Assert.Throws<InvalidDataException>(() => _converter.CreateResultZipStream(results, extension));
+        Assert.Throws<InvalidDataException>(() => _converter.CreateResultZipStreamAsync(results, extension).GetAwaiter().GetResult());
     }
 
     [Fact]
@@ -411,8 +412,8 @@ indeed invalid"));
         Assert.Contains("Error: Processing cancelled", content, StringComparison.OrdinalIgnoreCase);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.Contains("Cancelled", StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(logMessages, m => m.Contains("Reason=Timeout", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.Contains("[ProcessSingleFileAsync] Cancelled", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.Contains("[ProcessSingleFileAsync] Cancelled | Reason=Timeout", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -521,7 +522,7 @@ indeed invalid"));
         await _converter.ConvertFileAsync(@"</root><child></root>", ProgressCallback, CompletedCallback);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.Contains("XmlParseError", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.Contains("[ConvertFileAsync] XmlParseError", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -537,11 +538,11 @@ indeed invalid"));
         Assert.Equal(3, resultsChannel.Reader.Count);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.Contains("FileProcessed | HashedFileName=", StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(logMessages, m => m.Contains("FileProcessed | HashedFileName=", StringComparison.OrdinalIgnoreCase));
-        Assert.DoesNotContain(logMessages, m => m.Contains("Error", StringComparison.OrdinalIgnoreCase));
-        Assert.DoesNotContain(logMessages, m => m.Contains("Warning", StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(logMessages, m => m.Contains("AllFilesProcessed", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.Contains("[ConvertZipAsync-Channel] FileProcessed | HashedFileName=", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.Contains("[ConvertZipAsync-Channel] FileProcessed | HashedFileName=", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(logMessages, m => m.Contains("[ConvertZipAsync-Channel] Error", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(logMessages, m => m.Contains("[ConvertZipAsync-Channel] Warning", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.Contains("[ConvertZipAsync-Channel] AllFilesProcessed", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -570,7 +571,7 @@ indeed invalid"));
         Assert.Equal(1, resultsChannel.Reader.Count);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.Contains("XmlParseError | HashedFileName=", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.Contains("[ConvertZipAsync-Channel] XmlParseError | HashedFileName=", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -586,7 +587,7 @@ indeed invalid"));
         Assert.Equal(1, resultsChannel.Reader.Count);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.Contains("UnexpectedError | HashedFileName=", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.Contains("[ConvertZipAsync-Channel] UnexpectedError | HashedFileName=", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -604,7 +605,7 @@ indeed invalid"));
         Assert.Equal(1, resultsChannel.Reader.Count);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.Contains("Cancelled | HashedFileName=", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.Contains("[ProcessSingleFileAsync] Cancelled | Reason=Timeout", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

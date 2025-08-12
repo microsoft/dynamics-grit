@@ -1,10 +1,15 @@
 ﻿using System.Collections.Concurrent;
 using System.IO.Compression;
 using System.Runtime.CompilerServices;
+using System.Security;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Channels;
+using System.Xml;
+using System.Xml.Linq;
 using Azure;
 using Azure.AI.OpenAI;
+using Azure.Core;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util.Logging;
@@ -14,7 +19,7 @@ using Microsoft.Extensions.Options;
 [assembly: InternalsVisibleTo("CRM.CCaaS.IVR.GRammarImportTool.Tests.L0")]
 namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain;
 
-public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFactory) : IGptChat
+public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFactory, GptChatGrxmlConfiguration? gptChatGrxmlConfiguration = null) : IGptChat
 {
     public abstract Task<Stream> ConvertZipAsync(Stream zipStream, Func<int, string, Task> progressCallback, Func<byte[], Task> completedCallback);
     public abstract Task<string> ConvertFileAsync(string stringFile, Func<int, string, Task> progressCallback, Func<string, Task> completedCallback);
@@ -22,75 +27,172 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
     public abstract Task<string> ConvertFileAsync(string stringFile);
 
     public IAzureOpenAIClientFactory AzureOpenAIClientFactory { get; } = azureOpenAIClientFactory;
+    protected GptChatGrxmlConfiguration? GptChatGrxmlConfiguration { get; } = gptChatGrxmlConfiguration;
 
     private readonly ILogger<GptChatBase> _logger = GrITLoggerFactory.CreateLogger<GptChatBase>();
+    private const int DefaultBufferSize = 8192;
 
-    internal Dictionary<string, string> LoadZipToDictionary(Stream zipStream)
+    internal async Task<Dictionary<string, string>> LoadZipToDictionaryAsync(Stream zipStream, CancellationToken cancellationToken = default)
     {
-        Dictionary<string, string> entries = new Dictionary<string, string>();
+        ArgumentNullException.ThrowIfNull(zipStream, nameof(zipStream));
 
-        using (var a = new ZipArchive(zipStream, ZipArchiveMode.Read))
+        long maxEntrySize = GptChatGrxmlConfiguration?.MaxEntrySize ?? 1 * 1024 * 1024;
+        long maxTotalUncompressedSize = GptChatGrxmlConfiguration?.MaxTotalUncompressedSize ?? 100 * 1024 * 1024;
+        int maxEntryCount = GptChatGrxmlConfiguration?.MaxEntryCount ?? 1000;
+
+        var entries = new ConcurrentDictionary<string, string>();
+        long totalUncompressedSize = 0;
+
+        // Compute hash of the zip stream for logging
+        string zipFileHash;
+        if (zipStream.CanSeek)
         {
-            foreach (var entry in a.Entries)
+            long originalPosition = zipStream.Position;
+            zipStream.Position = 0;
+            using (var sha256 = System.Security.Cryptography.SHA256.Create())
             {
-                if (string.IsNullOrWhiteSpace(entry.Name) && !string.IsNullOrEmpty(entry.FullName))
+                zipFileHash = Convert.ToHexString(sha256.ComputeHash(zipStream));
+            }
+            zipStream.Position = originalPosition;
+        }
+        else
+        {
+            zipFileHash = "StreamNotSeekable";
+            _logger.LogInformation("Zip stream is not seekable; using fallback identifier {ZipFileHash} at {Timestamp}.", zipFileHash, DateTime.UtcNow);
+        }
+
+        using var archive = new ZipArchive(zipStream, ZipArchiveMode.Read, leaveOpen: false);
+
+        if (archive.Entries.Count > maxEntryCount)
+        {
+            _logger.LogWarning("Zip file contains too many entries ({EntryCount}) at {Timestamp}.", archive.Entries.Count, DateTime.UtcNow);
+            throw new InvalidDataException("Zip file has too many entries.");
+        }
+
+        var tasks = archive.Entries
+            .Where(entry =>
+            {
+                string fileName = Path.GetFileName(entry.FullName); // strips directory traversal
+                if (string.IsNullOrWhiteSpace(fileName))
                 {
-                    _logger.LogInformation("Skipping directory entry in zip file.");
-                    continue;
+                    _logger.LogWarning("Skipped a zip entry with empty or whitespace name at {Timestamp}.", DateTime.UtcNow);
+                    return false;
                 }
-                using (var entryStream = entry.Open())
-                using (var reader = new StreamReader(entryStream, Encoding.UTF8))
+                return true;
+            }) // Skip directory entries and log warning
+            .Select(async entry =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (entry.Length > maxEntrySize)
                 {
-                    string content = reader.ReadToEnd();
-                    //Handle duplicate file names by appending a numeric suffix
-                    string fileName = entry.Name;
+                    _logger.LogWarning("Zip entry {EntryName} exceeds maximum allowed size ({EntrySize} bytes) at {Timestamp}.", entry.FullName, entry.Length, DateTime.UtcNow);
+                    throw new InvalidDataException($"Zip entry '{entry.FullName}' is too large.");
+                }
+
+                totalUncompressedSize += entry.Length;
+                Interlocked.Add(ref totalUncompressedSize, entry.Length);
+                if (totalUncompressedSize > maxTotalUncompressedSize)
+                {
+                    _logger.LogWarning("Total uncompressed size of zip exceeds limit ({TotalSize} bytes) at {Timestamp}.", totalUncompressedSize, DateTime.UtcNow);
+                    throw new InvalidDataException("Zip file is too large when decompressed.");
+                }
+
+                // Path traversal protection
+                string safeRoot = Path.GetFullPath(".");
+                string fullPath = Path.GetFullPath(Path.Combine(safeRoot, entry.FullName));
+                if (!fullPath.StartsWith(safeRoot, StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogWarning("Zip entry path traversal detected: {EntryName} at {Timestamp}.", entry.FullName, DateTime.UtcNow);
+                    throw new SecurityException("Zip entry path traversal detected.");
+                }
+
+                Stream entryStream;
+                lock (archive)
+                {
+                    entryStream = entry.Open();
+                }
+                using (entryStream)
+                using (var reader = new StreamReader(entryStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: DefaultBufferSize, leaveOpen: false))
+                {
+                    string content = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+
+                    string fileName = Path.GetFileName(entry.FullName); // strips directory traversal
                     int duplicateCount = 1;
-                    while (entries.ContainsKey(fileName))
+
+                    // Ensure unique file names
+                    while (!entries.TryAdd(fileName, content))
                     {
-                        fileName = $"{Path.GetFileNameWithoutExtension(entry.Name)}-{duplicateCount}{Path.GetExtension(entry.Name)}";
+                        // Log a warning with a hash of the file name
+                        string fileNameHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(fileName)));
+                        string truncatedName = fileName.Length > 20 ? fileName[..20] + "..." : fileName;
+                        _logger.LogWarning(
+                            "Duplicate file name detected in zip: {FileNameHash} (Original: {TruncatedName}, ZipHash: {ZipFileHash}) at {Timestamp}.",
+                            fileNameHash, truncatedName, zipFileHash, DateTime.UtcNow);
+
+                        fileName = $"{Path.GetFileNameWithoutExtension(fileName)}-{duplicateCount}{Path.GetExtension(fileName)}";
                         duplicateCount++;
                     }
-                    entries.Add(fileName, content);
                 }
-            }
-        }
-        if (entries.Count == 0)
+            });
+
+        await Task.WhenAll(tasks).ConfigureAwait(false);
+
+        if (entries.IsEmpty)
         {
-            _logger.LogWarning("No entries found in the zip file.");
+            _logger.LogWarning("No entries found in the zip file (ZipHash: {ZipFileHash}) at {Timestamp}.", zipFileHash, DateTime.UtcNow);
             throw new InvalidDataException("The zip file contains no entries.");
         }
-        return entries;
-    }
 
-    /// <summary>
-    /// Removes comments and whitespace from an XML element and its descendants.
-    /// </summary>
-    internal void RemoveCommentsAndWhitespace(System.Xml.Linq.XElement element)
-    {
-        foreach (var node in element.DescendantNodes().OfType<System.Xml.Linq.XComment>().ToList())
-        {
-            node.Remove();
-        }
-        foreach (var node in element.DescendantNodes().OfType<System.Xml.Linq.XText>().Where(t => string.IsNullOrWhiteSpace(t.Value)).ToList())
-        {
-            node.Remove();
-        }
+        return new Dictionary<string, string>(entries);
     }
 
     /// <summary>
     /// Reads and cleans XML content from a ZipArchiveEntry.
     /// </summary>
+    /// <param name="fileName">The name of the file being processed.</param>
+    /// <param name="xmlContent">The XML content to parse and clean.</param>
+    /// <param name="strippedContent">The cleaned/minified XML content, or an error message if parsing fails. This parameter is returned as an output.</param>
+    /// <returns>True if the XML was successfully parsed and cleaned; otherwise, false.</returns>
     internal bool TryReadXmlContent(string fileName, string xmlContent, out string strippedContent)
     {
         try
         {
-            var xmlDoc = System.Xml.Linq.XDocument.Parse(xmlContent);
+            var settings = new XmlReaderSettings
+            {
+                DtdProcessing = DtdProcessing.Prohibit,
+                XmlResolver = null,
+                MaxCharactersFromEntities = 1024,
+                MaxCharactersInDocument = 10_000_000
+            };
+
+            using var reader = XmlReader.Create(new StringReader(xmlContent), settings);
+            var xmlDoc = XDocument.Load(reader, LoadOptions.None);
+
             if (xmlDoc.Root is not null)
             {
-                RemoveCommentsAndWhitespace(xmlDoc.Root);
+                strippedContent = GRXMLSanitizer.MinifyGRXMLContent(xmlDoc);
             }
-            strippedContent = xmlDoc.ToString();
+            else
+            {
+                _logger.LogWarning("XML document has no root element in file {FileName} at {Timestamp}.", fileName, DateTime.UtcNow);
+                strippedContent = "Error: XML document has no root element.";
+                return false;
+            }
+
             return true;
+        }
+        catch (XmlException ex)
+        {
+            _logger.LogError(ex, "Failed to parse {FileName} as XML (XmlException) at {Timestamp}.", fileName, DateTime.UtcNow);
+            strippedContent = "Error: Failed to parse as XML (XmlException).";
+            return false;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Failed to parse {FileName} as XML (InvalidOperationException) at {Timestamp}.", fileName, DateTime.UtcNow);
+            strippedContent = "Error: Failed to parse as XML (InvalidOperationException).";
+            return false;
         }
         catch (Exception ex)
         {
@@ -103,7 +205,10 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
     /// <summary>
     /// Creates a MemoryStream containing a zip archive with one text file per result.
     /// </summary>
-    internal MemoryStream CreateResultZipStream(ConcurrentDictionary<string, string> results, string newFileExtension)
+    internal async Task<MemoryStream> CreateResultZipStreamAsync(
+        ConcurrentDictionary<string, string> results,
+        string newFileExtension,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(results, nameof(results));
         if (results.IsEmpty)
@@ -116,10 +221,12 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
         {
             foreach (var kvp in results)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var entry = outputArchive.CreateEntry(Path.GetFileNameWithoutExtension(kvp.Key) + newFileExtension);
-                using var entryStream = entry.Open();
-                using var writer = new StreamWriter(entryStream);
-                writer.Write(kvp.Value);
+                await using var entryStream = entry.Open();
+                using var writer = new StreamWriter(entryStream, Encoding.UTF8, bufferSize: DefaultBufferSize);
+                await writer.WriteAsync(kvp.Value.AsMemory(), cancellationToken).ConfigureAwait(false);
+                await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
             }
         }
         outputStream.Position = 0;

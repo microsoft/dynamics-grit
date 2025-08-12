@@ -48,6 +48,16 @@ public class GptChatGrxmlConfiguration
 
     //AI Disclaimer
     public string? DisclaimerAI { get; set; } = string.Empty;
+
+    // New properties for zip entry limits
+    [Range(1, long.MaxValue, ErrorMessage = "Max entry size must be greater than 0")]
+    public long MaxEntrySize { get; set; } = 1 * 1024 * 1024; // 1 MB
+
+    [Range(1, long.MaxValue, ErrorMessage = "Max total uncompressed size must be greater than 0")]
+    public long MaxTotalUncompressedSize { get; set; } = 100 * 1024 * 1024; // 100 MB
+
+    [Range(1, 10000, ErrorMessage = "Max entry count must be between 1 and 10000")]
+    public int MaxEntryCount { get; set; } = 1000;
 }
 
 public class GPTMessage

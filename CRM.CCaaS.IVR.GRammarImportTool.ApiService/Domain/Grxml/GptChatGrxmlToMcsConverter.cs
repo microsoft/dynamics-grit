@@ -32,7 +32,8 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
 
     public GptChatGrxmlToMcsConverter(
         IOptions<GptChatGrxmlConfiguration> gptPrompterConfiguration,
-        IAzureOpenAIClientFactory azureOpenAIClientFactory) : base(azureOpenAIClientFactory)
+        IAzureOpenAIClientFactory azureOpenAIClientFactory)
+        : base(azureOpenAIClientFactory, gptPrompterConfiguration.Value)
     {
         ArgumentNullException.ThrowIfNull(gptPrompterConfiguration);
         ArgumentNullException.ThrowIfNull(azureOpenAIClientFactory);
@@ -64,7 +65,7 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
         ArgumentNullException.ThrowIfNull(completedCallback);
 
         var results = new ConcurrentDictionary<string, string>();
-        var entries = LoadZipToDictionary(zipStream);
+        var entries = await LoadZipToDictionaryAsync(zipStream);
 
         await progressCallback(0, "Starting processing...");
 
@@ -127,7 +128,7 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
         }
         _logger.LogInformation("[ConvertZipAsync] Complete | FileCount={FileCount}", totalCount);
 
-        var outputStream = CreateResultZipStream(results, ".yaml");
+        var outputStream = await CreateResultZipStreamAsync(results, ".yaml");
         await completedCallback(outputStream.ToArray());
         outputStream.Position = 0;
         return outputStream;
@@ -203,7 +204,7 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
             }
             catch (OperationCanceledException ex)
             {
-                _logger.LogWarning(ex, "[ProcessSingleFileAsync] Cancelled | HashedFileName={FileName} | Reason=Timeout", hashedFileName);
+                _logger.LogWarning(ex, "[ProcessSingleFileAsync] Cancelled | Reason=Timeout | HashedFileName={FileName}", hashedFileName);
                 response += $"Error: Processing cancelled for {fileName}";
                 return response;
             }
@@ -258,7 +259,7 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
         ArgumentNullException.ThrowIfNull(zipStream);
         ArgumentNullException.ThrowIfNull(results);
 
-        var entries = LoadZipToDictionary(zipStream);
+        var entries = await LoadZipToDictionaryAsync(zipStream);
 
         _logger.LogInformation("[ConvertZipAsync-Channel] Start | FileCount={FileCount} | DegreeParallelism={DegreeParallelism}",
             entries.Count, _gptPrompterConfiguration.DegreeParallelism);

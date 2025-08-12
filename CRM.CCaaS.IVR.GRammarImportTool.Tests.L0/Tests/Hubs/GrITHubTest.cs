@@ -75,7 +75,7 @@ public class GrITHubTest : IClassFixture<BaseTest>, IDisposable
         await _hub.GrxmlZipConvert(EmptyZipBytes);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.Contains($"Called with null or empty zipBytes. ConnectionId={HASHED_TEST_CONNECTION_ID}", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.Contains($"[GrxmlZipConvert] Called with null or empty zipBytes. ConnectionId={HASHED_TEST_CONNECTION_ID}", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -111,7 +111,7 @@ public class GrITHubTest : IClassFixture<BaseTest>, IDisposable
         await _hub.GrxmlZipConvert(TEST_XML_STRING);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.Contains("Error in GrxmlZipConvert", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.Contains("[GrxmlZipConvert] Error in GrxmlZipConvert", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -142,7 +142,7 @@ public class GrITHubTest : IClassFixture<BaseTest>, IDisposable
         await _hub.GrxmlConvert([]);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.Contains($"Called with null or empty bytes. ConnectionId={HASHED_TEST_CONNECTION_ID}", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.Contains($"[GrxmlConvert] Called with null or empty bytes. ConnectionId={HASHED_TEST_CONNECTION_ID}", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -157,7 +157,7 @@ public class GrITHubTest : IClassFixture<BaseTest>, IDisposable
         await _hub.GrxmlConvert(TEST_XML_STRING);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.Contains("Error in GrxmlConvert", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logMessages, m => m.Contains("Error in GrxmlConvert. ConnectionId=", StringComparison.OrdinalIgnoreCase));
     }
 
     protected virtual void Dispose(bool disposing)
