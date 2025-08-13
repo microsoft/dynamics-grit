@@ -72,7 +72,7 @@ public class TestLoggerProvider : ILoggerProvider
             if (formatter != null)
             {
                 var message = formatter(state, exception);
-                var timestamp = DateTime.UtcNow;
+                var timestamp = DateTimeOffset.UtcNow;
 
                 var scopeInfo = string.Join(" | ", LoggerScope.Current?.Select(s =>
                 {

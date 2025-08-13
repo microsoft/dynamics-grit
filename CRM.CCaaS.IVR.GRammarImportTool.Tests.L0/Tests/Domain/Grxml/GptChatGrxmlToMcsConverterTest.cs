@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.IO.Compression;
 using System.Text;
 using System.Threading.Channels;
@@ -606,6 +606,190 @@ indeed invalid"));
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
         Assert.Contains(logMessages, m => m.Contains("[ProcessSingleFileAsync] Cancelled | Reason=Timeout", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private sealed class NonSeekableReadStream : Stream
+    {
+        private readonly byte[] _data;
+        private int _position;
+
+        public NonSeekableReadStream(byte[] data) => _data = data ?? throw new ArgumentNullException(nameof(data));
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position
+        {
+            get => _position;
+            set => throw new NotSupportedException();
+        }
+        public override void Flush() { }
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            if (buffer == null) throw new ArgumentNullException(nameof(buffer));
+            if (offset < 0 || count < 0 || offset + count > buffer.Length) throw new ArgumentOutOfRangeException();
+
+            var remaining = _data.Length - _position;
+            if (remaining <= 0) return 0;
+
+            var toRead = Math.Min(count, remaining);
+            Buffer.BlockCopy(_data, _position, buffer, offset, toRead);
+            _position += toRead;
+            return toRead;
+        }
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
+    [Fact]
+    public async Task When_ConvertZipAsync_NonSeekableZip_Then_WarningIsLogged()
+    {
+        _baseTest.LogProvider.Logger.Clear();
+
+        var seekableZip = CreateZipStream(new List<string> { "timeout5000.grxml" }, "<root>test</root>");
+        var zipBytes = seekableZip.ToArray();
+        using Stream zipStream = new NonSeekableReadStream(zipBytes);
+
+        var resultsChannel = Channel.CreateBounded<KeyValuePair<string, string>>(_baseTest.GptChatGrxmlTestConfiguration.ResultStreamChannelCapacity);
+        var result = await _converter.ConvertZipAsync(zipStream, resultsChannel);
+
+        var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
+        Assert.Contains(logMessages, m => m.Contains("Zip stream is not seekable", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task When_ConvertZipAsync_TooManyEntries_Then_InvalidDataExceptionThrown()
+    {
+        _baseTest.LogProvider.Logger.Clear();
+
+        // Create a zip stream with more than the maximum allowed number of entries (from configuration)
+        var maxEntries = _baseTest.GptChatGrxmlTestConfiguration.MaxEntryCount;
+        var zipStream = new MemoryStream();
+        using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, true))
+        {
+            for (var i = 0; i < maxEntries + 2; i++)
+            {
+                var entry = archive.CreateEntry($"timeout5000_{i}.grxml");
+                using var writer = new StreamWriter(entry.Open(), Encoding.UTF8);
+                writer.Write("<root>test</root>");
+            }
+        }
+        zipStream.Position = 0;
+
+        var resultsChannel = Channel.CreateBounded<KeyValuePair<string, string>>(_baseTest.GptChatGrxmlTestConfiguration.ResultStreamChannelCapacity);
+
+        var ex = await Assert.ThrowsAsync<InvalidDataException>(async () =>
+            await _converter.ConvertZipAsync(zipStream, resultsChannel));
+
+        Assert.Equal("Zip file has too many entries.", ex.Message);
+
+        var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
+        Assert.Contains(logMessages, m => m.Contains("too many entries", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task When_ConvertZipAsync_TooLargeFile_Then_InvalidDataExceptionThrown()
+    {
+        // PSEUDOCODE:
+        // 1. Clear logger.
+        // 2. Set a deliberately small MaxEntrySize in test configuration (e.g., 128 bytes).
+        // 3. Create a refreshed converter instance using Options.Create so new size is picked up (original _converter captured old options).
+        // 4. Build content that exceeds the configured MaxEntrySize by 1 byte.
+        // 5. Create an in‑memory zip with a single entry containing that oversized content.
+        // 6. Create bounded results channel.
+        // 7. Invoke ConvertZipAsync on refreshed converter and assert InvalidDataException is thrown.
+        // 8. Assert exception message indicates entry size violation.
+        // 9. Assert logs contain size violation message.
+
+        _baseTest.LogProvider.Logger.Clear();
+
+        // Set small size to avoid large allocations and force violation quickly.
+        _baseTest.GptChatGrxmlTestConfiguration.MaxEntrySize = 128; // bytes
+
+        // Create a refreshed converter so new MaxEntrySize is honored.
+        var refreshedConverter = new GptChatGrxmlToMcsConverter(
+            Options.Create(_baseTest.GptChatGrxmlTestConfiguration),
+            _converter.AzureOpenAIClientFactory);
+
+        var oversizedLength = _baseTest.GptChatGrxmlTestConfiguration.MaxEntrySize + 1000;
+        var largeContent = new string('A', (int)oversizedLength);
+
+        var zipStream = new MemoryStream();
+        using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, true))
+        {
+            var entry = archive.CreateEntry("tooLarge.grxml", CompressionLevel.NoCompression);
+            using var writer = new StreamWriter(entry.Open(), Encoding.UTF8, leaveOpen: false);
+            writer.Write(largeContent);
+        }
+        zipStream.Position = 0;
+
+        var resultsChannel = Channel.CreateBounded<KeyValuePair<string, string>>(
+            _baseTest.GptChatGrxmlTestConfiguration.ResultStreamChannelCapacity);
+
+        var ex = await Assert.ThrowsAsync<InvalidDataException>(() =>
+            refreshedConverter.ConvertZipAsync(zipStream, resultsChannel));
+
+        Assert.True(
+            ex.Message.Contains("entry", StringComparison.OrdinalIgnoreCase) &&
+            ex.Message.Contains("too", StringComparison.OrdinalIgnoreCase) &&
+            ex.Message.Contains("large", StringComparison.OrdinalIgnoreCase),
+            $"Unexpected exception message: {ex.Message}");
+
+        var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
+        Assert.Contains(logMessages, m =>
+            m.Contains("entry", StringComparison.OrdinalIgnoreCase) &&
+            m.Contains("size", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task When_ConvertZipAsync_TooLargeUncompressedZip_Then_InvalidDataExceptionThrown()
+    {
+        _baseTest.LogProvider.Logger.Clear();
+
+        // Configure limits so that individual entries are fine but total uncompressed size exceeds the limit.
+        // Because _converter was created in the test fixture ctor (before we change the config here),
+        // we must create a new converter instance with the updated configuration; otherwise the old
+        // instance still holds the previous configuration snapshot from IOptions.
+        _baseTest.GptChatGrxmlTestConfiguration.MaxEntrySize = 10_000; // large enough to not trigger single entry violation
+        _baseTest.GptChatGrxmlTestConfiguration.MaxTotalUncompressedSize = 100; // very small total limit
+
+        var refreshedConverter = new GptChatGrxmlToMcsConverter(
+            Options.Create(_baseTest.GptChatGrxmlTestConfiguration),
+            _converter.AzureOpenAIClientFactory);
+
+        // Create multiple small entries whose combined size exceeds MaxTotalUncompressedSize
+        var entryContent = new string('A', 60); // each 60 bytes (ASCII)
+        var zipStream = new MemoryStream();
+        using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, true))
+        {
+            for (var i = 0; i < 3; i++) // 3 * 60 = 180 > 100 (total limit)
+            {
+                var entry = archive.CreateEntry($"file{i}.grxml", CompressionLevel.NoCompression);
+                using var writer = new StreamWriter(entry.Open(), Encoding.UTF8, leaveOpen: false);
+                writer.Write(entryContent);
+            }
+        }
+        zipStream.Position = 0;
+
+        var resultsChannel = Channel.CreateBounded<KeyValuePair<string, string>>(
+            _baseTest.GptChatGrxmlTestConfiguration.ResultStreamChannelCapacity);
+
+        var ex = await Assert.ThrowsAsync<InvalidDataException>(() =>
+            refreshedConverter.ConvertZipAsync(zipStream, resultsChannel));
+
+        // Flexible assertion: ensure message indicates total size violation
+        Assert.True(
+             ex.Message.Contains("decompressed", StringComparison.OrdinalIgnoreCase) &&
+            ex.Message.Contains("large", StringComparison.OrdinalIgnoreCase),
+            $"Unexpected exception message: {ex.Message}");
+
+        var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
+        Assert.Contains(logMessages, m =>
+            (m.Contains("total", StringComparison.OrdinalIgnoreCase) ||
+             m.Contains("uncompressed", StringComparison.OrdinalIgnoreCase)) &&
+            m.Contains("size", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

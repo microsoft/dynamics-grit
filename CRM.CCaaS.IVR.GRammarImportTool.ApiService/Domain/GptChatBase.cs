@@ -58,14 +58,14 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
         else
         {
             zipFileHash = "StreamNotSeekable";
-            _logger.LogInformation("Zip stream is not seekable; using fallback identifier {ZipFileHash} at {Timestamp}.", zipFileHash, DateTime.UtcNow);
+            _logger.LogWarning("Zip stream is not seekable; using fallback identifier {ZipFileHash} at {Timestamp}.", zipFileHash, DateTimeOffset.UtcNow);
         }
 
         using var archive = new ZipArchive(zipStream, ZipArchiveMode.Read, leaveOpen: false);
 
         if (archive.Entries.Count > maxEntryCount)
         {
-            _logger.LogWarning("Zip file contains too many entries ({EntryCount}) at {Timestamp}.", archive.Entries.Count, DateTime.UtcNow);
+            _logger.LogWarning("Zip file contains too many entries ({EntryCount}) at {Timestamp}.", archive.Entries.Count, DateTimeOffset.UtcNow);
             throw new InvalidDataException("Zip file has too many entries.");
         }
 
@@ -75,7 +75,7 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
                 string fileName = Path.GetFileName(entry.FullName); // strips directory traversal
                 if (string.IsNullOrWhiteSpace(fileName))
                 {
-                    _logger.LogWarning("Skipped a zip entry with empty or whitespace name at {Timestamp}.", DateTime.UtcNow);
+                    _logger.LogWarning("Skipped a zip entry with empty or whitespace name at {Timestamp}.", DateTimeOffset.UtcNow);
                     return false;
                 }
                 return true;
@@ -86,7 +86,7 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
 
                 if (entry.Length > maxEntrySize)
                 {
-                    _logger.LogWarning("Zip entry {EntryName} exceeds maximum allowed size ({EntrySize} bytes) at {Timestamp}.", entry.FullName, entry.Length, DateTime.UtcNow);
+                    _logger.LogWarning("Zip entry {EntryName} exceeds maximum allowed size ({EntrySize} bytes) at {Timestamp}.", entry.FullName, entry.Length, DateTimeOffset.UtcNow);
                     throw new InvalidDataException($"Zip entry '{entry.FullName}' is too large.");
                 }
 
@@ -94,7 +94,7 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
                 Interlocked.Add(ref totalUncompressedSize, entry.Length);
                 if (totalUncompressedSize > maxTotalUncompressedSize)
                 {
-                    _logger.LogWarning("Total uncompressed size of zip exceeds limit ({TotalSize} bytes) at {Timestamp}.", totalUncompressedSize, DateTime.UtcNow);
+                    _logger.LogWarning("Total uncompressed size of zip exceeds limit ({TotalSize} bytes) at {Timestamp}.", totalUncompressedSize, DateTimeOffset.UtcNow);
                     throw new InvalidDataException("Zip file is too large when decompressed.");
                 }
 
@@ -103,7 +103,7 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
                 string fullPath = Path.GetFullPath(Path.Combine(safeRoot, entry.FullName));
                 if (!fullPath.StartsWith(safeRoot, StringComparison.OrdinalIgnoreCase))
                 {
-                    _logger.LogWarning("Zip entry path traversal detected: {EntryName} at {Timestamp}.", entry.FullName, DateTime.UtcNow);
+                    _logger.LogWarning("Zip entry path traversal detected: {EntryName} at {Timestamp}.", entry.FullName, DateTimeOffset.UtcNow);
                     throw new SecurityException("Zip entry path traversal detected.");
                 }
 
@@ -128,7 +128,7 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
                         string truncatedName = fileName.Length > 20 ? fileName[..20] + "..." : fileName;
                         _logger.LogWarning(
                             "Duplicate file name detected in zip: {FileNameHash} (Original: {TruncatedName}, ZipHash: {ZipFileHash}) at {Timestamp}.",
-                            fileNameHash, truncatedName, zipFileHash, DateTime.UtcNow);
+                            fileNameHash, truncatedName, zipFileHash, DateTimeOffset.UtcNow);
 
                         fileName = $"{Path.GetFileNameWithoutExtension(fileName)}-{duplicateCount}{Path.GetExtension(fileName)}";
                         duplicateCount++;
@@ -140,7 +140,7 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
 
         if (entries.IsEmpty)
         {
-            _logger.LogWarning("No entries found in the zip file (ZipHash: {ZipFileHash}) at {Timestamp}.", zipFileHash, DateTime.UtcNow);
+            _logger.LogWarning("No entries found in the zip file (ZipHash: {ZipFileHash}) at {Timestamp}.", zipFileHash, DateTimeOffset.UtcNow);
             throw new InvalidDataException("The zip file contains no entries.");
         }
 
@@ -175,7 +175,7 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
             }
             else
             {
-                _logger.LogWarning("XML document has no root element in file {FileName} at {Timestamp}.", fileName, DateTime.UtcNow);
+                _logger.LogWarning("XML document has no root element in file {FileName} at {Timestamp}.", fileName, DateTimeOffset.UtcNow);
                 strippedContent = "Error: XML document has no root element.";
                 return false;
             }
@@ -184,13 +184,13 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
         }
         catch (XmlException ex)
         {
-            _logger.LogError(ex, "Failed to parse {FileName} as XML (XmlException) at {Timestamp}.", fileName, DateTime.UtcNow);
+            _logger.LogError(ex, "Failed to parse {FileName} as XML (XmlException) at {Timestamp}.", fileName, DateTimeOffset.UtcNow);
             strippedContent = "Error: Failed to parse as XML (XmlException).";
             return false;
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogError(ex, "Failed to parse {FileName} as XML (InvalidOperationException) at {Timestamp}.", fileName, DateTime.UtcNow);
+            _logger.LogError(ex, "Failed to parse {FileName} as XML (InvalidOperationException) at {Timestamp}.", fileName, DateTimeOffset.UtcNow);
             strippedContent = "Error: Failed to parse as XML (InvalidOperationException).";
             return false;
         }
