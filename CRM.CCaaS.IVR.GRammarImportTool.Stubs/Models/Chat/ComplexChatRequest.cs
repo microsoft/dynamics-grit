@@ -2,6 +2,6 @@
 
 public class ComplexChatRequest
 {
-    public List<ChatMessageDto> Messages { get; set; } = new();
+    public List<ChatMessage> Messages { get; set; } = new();
     public string? Model { get; set; } = "gpt-4";
 }

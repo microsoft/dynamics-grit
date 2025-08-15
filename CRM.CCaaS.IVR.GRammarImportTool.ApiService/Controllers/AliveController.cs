@@ -14,7 +14,7 @@ public class AliveController() : ControllerBase
     [HttpGet]
     public IActionResult GetLiveness()
     {
-        _logger.LogInformation("Liveness check requested at {Time}");
+        _logger.LogInformation("Liveness check requested.");
         return Ok("Alive");
     }
 }

@@ -109,11 +109,7 @@ public class BaseTest : IDisposable
         testConfiguration.DegreeParallelism = 2;
         testConfiguration.InitialChatHistory = new List<GPTMessage>
         {
-            new GPTMessage
-            {
-                Role = ChatRole.User.ToString(),
-                Content = "You are a helpful assistant that converts GRXML files to MCS format."
-            }
+            new("user", "You are a helpful assistant that converts GRXML files to MCS format.")
         };
         testConfiguration.RetryDelaySec = 1;
         services.AddSingleton(Options.Create(testConfiguration));
