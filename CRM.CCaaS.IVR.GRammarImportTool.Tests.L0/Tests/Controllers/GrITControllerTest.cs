@@ -192,7 +192,8 @@ public class GrITControllerTest : IClassFixture<BaseTest>, IDisposable
         await controller.PostGritGrxmlResponse(_fileMockGrxml.Object, _gptChatMock.Object, _optionsMock.Object);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        Assert.Contains(logMessages, m => m.Contains("[PostGritGrxmlResponse] Request was cancelled. HashedFileName=", StringComparison.OrdinalIgnoreCase));
+        var fileNameLogLabel = hashEnabled ? "HashedFileName" : "FileName";
+        Assert.Contains(logMessages, m => m.Contains("[PostGritGrxmlResponse] Request was cancelled. " + fileNameLogLabel + "=", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

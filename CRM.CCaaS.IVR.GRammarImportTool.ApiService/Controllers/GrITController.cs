@@ -42,9 +42,10 @@ public class GrITController() : ControllerBase
 
         var hashEnabled = gptPrompterConfiguration.Value.HashFileNameInLogs;
         var fileNameToLog = hashEnabled ? HashHelper.HashSha256Hex(file.FileName) : file.FileName;
+        var fileNameLogLabel = hashEnabled ? "HashedFileName" : "FileName";
 
-        _logger.LogInformation("[PostGritZipResponse] Received ZIP file upload request. HashedFileName={FileName}, Size={FileSizeBytes}",
-            fileNameToLog, file.Length);
+        _logger.LogInformation("[PostGritZipResponse] Received ZIP file upload request. {fileNameLogLabel}={FileName}, Size={FileSizeBytes}",
+            fileNameLogLabel, fileNameToLog, file.Length);
 
         var stopwatch = Stopwatch.StartNew();
 
@@ -129,8 +130,9 @@ public class GrITController() : ControllerBase
 
         var hashEnabled = gptPrompterConfiguration.Value.HashFileNameInLogs;
         var fileNameToLog = hashEnabled ? HashHelper.HashSha256Hex(file.FileName) : file.FileName;
+        var logFileNameLabel = hashEnabled ? "HashedFileName" : "FileName";
 
-        _logger.LogInformation("[PostGritGrxmlResponse] Received Grxml file upload request. HashedFileName={FileName}, Size={FileSizeBytes}", fileNameToLog, file.Length);
+        _logger.LogInformation("[PostGritGrxmlResponse] Received Grxml file upload request. {logFileNameLabel}={FileName}, Size={FileSizeBytes}", logFileNameLabel, fileNameToLog, file.Length);
 
         try
         {
