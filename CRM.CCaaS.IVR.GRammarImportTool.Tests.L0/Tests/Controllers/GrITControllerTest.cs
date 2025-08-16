@@ -30,7 +30,8 @@ public class GrITControllerTest : IClassFixture<BaseTest>, IDisposable
         MaxAllowedConversionTimeSingleFileSec = 10,
         MaxRetries = 1,
         RetryDelaySec = 1,
-        ResultStreamChannelCapacity = 10
+        ResultStreamChannelCapacity = 10,
+        HashFileNameInLogs = true
     };
 
     private readonly Mock<IFormFile> _fileMockZip = new();
@@ -192,7 +193,7 @@ public class GrITControllerTest : IClassFixture<BaseTest>, IDisposable
         await controller.PostGritGrxmlResponse(_fileMockGrxml.Object, _gptChatMock.Object, _optionsMock.Object);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
-        var fileNameLogLabel = hashEnabled ? "HashedFileName" : "FileName";
+        var fileNameLogLabel = _config.HashFileNameInLogs ? "HashedFileName" : "FileName";
         Assert.Contains(logMessages, m => m.Contains("[PostGritGrxmlResponse] Request was cancelled. " + fileNameLogLabel + "=", StringComparison.OrdinalIgnoreCase));
     }
 
