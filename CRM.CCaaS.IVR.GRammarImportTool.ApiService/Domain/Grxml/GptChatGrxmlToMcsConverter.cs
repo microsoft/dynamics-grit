@@ -90,11 +90,13 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
                 string content;
                 var stopWatch = new System.Diagnostics.Stopwatch();
 
-                var hashedFileName = HashHelper.HashSha256Hex(entry.Key);
-                _logger.LogInformation("[ConvertZipAsync] FileStart | HashedFileName={FileName}", hashedFileName);
+                var hashEnabled = _gptPrompterConfiguration.HashFileNameInLogs;
+                var fileNameToLog = hashEnabled ? HashHelper.HashSha256Hex(entry.Key) : entry.Key;
+
+                _logger.LogInformation("[ConvertZipAsync] FileStart | HashedFileName={FileName}", fileNameToLog);
                 if (!TryReadXmlContent(entry.Key, entry.Value, out content))
                 {
-                    _logger.LogError("[ConvertZipAsync] XmlParseError | HashedFileName={FileName}", hashedFileName);
+                    _logger.LogError("[ConvertZipAsync] XmlParseError | HashedFileName={FileName}", fileNameToLog);
                     results[entry.Key] = $"<!-- Can't parse this XML -->\n{entry.Value}";
                 }
                 else
@@ -105,12 +107,12 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
                         var response = await ProcessSingleFileAsync(entry.Key, content);
                         results[entry.Key] = response;
                         _logger.LogInformation("[ConvertZipAsync] FileProcessed | HashedFileName={FileName} | ElapsedMs={ElapsedMilliseconds}",
-                            hashedFileName, stopWatch.ElapsedMilliseconds);
+                            fileNameToLog, stopWatch.ElapsedMilliseconds);
                         stopWatch.Stop();
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "[ConvertZipAsync] UnexpectedError | HashedFileName={FileName}", hashedFileName);
+                        _logger.LogError(ex, "[ConvertZipAsync] UnexpectedError | HashedFileName={FileName}", fileNameToLog);
                         results[entry.Key] = $"Error: Unexpected error occured";
                     }
                 }
@@ -168,8 +170,10 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
     /// </summary>
     internal virtual async Task<string> ProcessSingleFileAsync(string fileName, string fileContent)
     {
-        var hashedFileName = HashHelper.HashSha256Hex(fileName);
-        _logger.LogInformation("[ProcessSingleFileAsync] Start | HashedFileName={FileName}", hashedFileName);
+        var hashEnabled = _gptPrompterConfiguration.HashFileNameInLogs;
+        var fileNameToLog = hashEnabled ? HashHelper.HashSha256Hex(fileName) : fileName;
+
+        _logger.LogInformation("[ProcessSingleFileAsync] Start | HashedFileName={FileName}", fileNameToLog);
 
         var chatHistory = new List<ChatMessage>(_initialChatHistory)
         {
@@ -190,21 +194,21 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
                 {
                     response += item.Text;
                 }
-                _logger.LogInformation("[ProcessSingleFileAsync] Success | HashedFileName={FileName}", hashedFileName);
+                _logger.LogInformation("[ProcessSingleFileAsync] Success | HashedFileName={FileName}", fileNameToLog);
                 ValidateYamlContent(response);
                 return response;
             }
             catch (System.ClientModel.ClientResultException ex)
             {
-                _logger.LogWarning("[ProcessSingleFileAsync] ClientError | HashedFileName={FileName} | Error={Error}", hashedFileName, ex.Message);
+                _logger.LogWarning("[ProcessSingleFileAsync] ClientError | HashedFileName={FileName} | Error={Error}", fileNameToLog, ex.Message);
             }
             catch (YamlException ex)
             {
-                _logger.LogWarning("[ProcessSingleFileAsync] YamlValidationFailed | HashedFileName={FileName} | Error={Error}", hashedFileName, ex.Message);
+                _logger.LogWarning("[ProcessSingleFileAsync] YamlValidationFailed | HashedFileName={FileName} | Error={Error}", fileNameToLog, ex.Message);
             }
             catch (OperationCanceledException ex)
             {
-                _logger.LogWarning(ex, "[ProcessSingleFileAsync] Cancelled | Reason=Timeout | HashedFileName={FileName}", hashedFileName);
+                _logger.LogWarning(ex, "[ProcessSingleFileAsync] Cancelled | Reason=Timeout | HashedFileName={FileName}", fileNameToLog);
                 response += $"Error: Processing cancelled for {fileName}";
                 return response;
             }
@@ -212,7 +216,7 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
             retries++;
             await Task.Delay(TimeSpan.FromSeconds(_gptPrompterConfiguration.RetryDelaySec * retries));
         }
-        _logger.LogError("[ProcessSingleFileAsync] MaxRetriesExceeded | HashedFileName={FileName} | Retries={Retries}", hashedFileName, _gptPrompterConfiguration.MaxRetries);
+        _logger.LogError("[ProcessSingleFileAsync] MaxRetriesExceeded | HashedFileName={FileName} | Retries={Retries}", fileNameToLog, _gptPrompterConfiguration.MaxRetries);
         response += $"Error: Failed to process {fileName} after {_gptPrompterConfiguration.MaxRetries} retries.";
         return response;
     }
@@ -280,12 +284,13 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
             await Parallel.ForEachAsync(entries, options, async (entry, token) =>
             {
                 string content;
-                var hashedFileName = HashHelper.HashSha256Hex(entry.Key);
+                var hashEnabled = _gptPrompterConfiguration.HashFileNameInLogs;
+                var fileNameToLog = hashEnabled ? HashHelper.HashSha256Hex(entry.Key) : entry.Key;
                 var stopWatch = new System.Diagnostics.Stopwatch();
 
                 if (!TryReadXmlContent(entry.Key, entry.Value, out content))
                 {
-                    _logger.LogError("[ConvertZipAsync-Channel] XmlParseError | HashedFileName={FileName}", hashedFileName);
+                    _logger.LogError("[ConvertZipAsync-Channel] XmlParseError | HashedFileName={FileName}", fileNameToLog);
                     using var ctsWrite = new CancellationTokenSource(TimeSpan.FromSeconds(RESULTS_CHANNEL_WRITER_TIMEOUT_SEC));
                     await results.Writer.WriteAsync(new KeyValuePair<string, string>(entry.Key, $"<!-- Can't parse this XML -->\n{entry.Value}"), ctsWrite.Token);
                 }
@@ -300,19 +305,19 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
                         await results.Writer.WriteAsync(new KeyValuePair<string, string>(entry.Key, response), ctsWrite.Token);
 
                         _logger.LogInformation("[ConvertZipAsync-Channel] FileProcessed | HashedFileName={FileName} | ElapsedMs={ElapsedMilliseconds}",
-                            hashedFileName, stopWatch.ElapsedMilliseconds);
+                            fileNameToLog, stopWatch.ElapsedMilliseconds);
                         stopWatch.Stop();
                     }
                     catch (OperationCanceledException ex)
                     {
-                        _logger.LogError(ex, "[ConvertZipAsync-Channel] Cancelled | HashedFileName={FileName}", hashedFileName);
+                        _logger.LogError(ex, "[ConvertZipAsync-Channel] Cancelled | HashedFileName={FileName}", fileNameToLog);
 
                         using var ctsWrite = new CancellationTokenSource(TimeSpan.FromSeconds(RESULTS_CHANNEL_WRITER_TIMEOUT_SEC));
                         await results.Writer.WriteAsync(new KeyValuePair<string, string>(entry.Key, $"Error: Processing cancelled for {entry.Key}"), ctsWrite.Token);
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "[ConvertZipAsync-Channel] UnexpectedError | HashedFileName={FileName}", hashedFileName);
+                        _logger.LogError(ex, "[ConvertZipAsync-Channel] UnexpectedError | HashedFileName={FileName}", fileNameToLog);
 
                         using var ctsWrite = new CancellationTokenSource(TimeSpan.FromSeconds(RESULTS_CHANNEL_WRITER_TIMEOUT_SEC));
                         await results.Writer.WriteAsync(new KeyValuePair<string, string>(entry.Key, $"Error: {ex.Message}"), ctsWrite.Token);

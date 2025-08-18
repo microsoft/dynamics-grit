@@ -40,9 +40,12 @@ public class GrITController() : ControllerBase
         ArgumentOutOfRangeException.ThrowIfZero(file.Length, nameof(file.Length));
         ArgumentOutOfRangeException.ThrowIfGreaterThan(file.Length, gptPrompterConfiguration.Value.AllowedUploadFileSizeRangeBytes, nameof(file.Length));
 
-        var hashedZipFileName = HashHelper.HashSha256Hex(file.FileName);
-        _logger.LogInformation("[PostGritZipResponse] Received ZIP file upload request. HashedFileName={FileName}, Size={FileSizeBytes}",
-            hashedZipFileName, file.Length);
+        var hashEnabled = gptPrompterConfiguration.Value.HashFileNameInLogs;
+        var fileNameToLog = hashEnabled ? HashHelper.HashSha256Hex(file.FileName) : file.FileName;
+        var fileNameLogLabel = hashEnabled ? "HashedFileName" : "FileName";
+
+        _logger.LogInformation("[PostGritZipResponse] Received ZIP file upload request. {fileNameLogLabel}={FileName}, Size={FileSizeBytes}",
+            fileNameLogLabel, fileNameToLog, file.Length);
 
         var stopwatch = Stopwatch.StartNew();
 
@@ -65,7 +68,8 @@ public class GrITController() : ControllerBase
                     SetContentType(Response, "application/x-yaml");
                     await foreach (var partialResult in resultsChannel.Reader.ReadAllAsync(cts.Token))
                     {
-                        _logger.LogInformation("[PostGritZipResponse] Processed entry. HashedKey={Key}", HashHelper.HashSha256Hex(partialResult.Key));
+                        var keyToLog = hashEnabled ? HashHelper.HashSha256Hex(partialResult.Key) : partialResult.Key;
+                        _logger.LogInformation("[PostGritZipResponse] Processed entry. HashedKey={Key}", keyToLog);
                         await Response.WriteAsync($"---\n#{partialResult.Key}\n{SerializeYaml(partialResult.Value)}\n");
                         await Response.Body.FlushAsync();
                     }
@@ -93,14 +97,14 @@ public class GrITController() : ControllerBase
         }
         catch (OperationCanceledException ex)
         {
-            _logger.LogError(ex, "[PostGritZipResponse] Cancellation exception. HashedFileName={FileName}", hashedZipFileName);
+            _logger.LogError(ex, "[PostGritZipResponse] Cancellation exception. HashedFileName={FileName}", fileNameToLog);
             SetContentType(Response, "text/plain");
             await Response.WriteAsync("File processing was cancelled.");
             await Response.Body.FlushAsync();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[PostGritZipResponse] An error occurred while processing file. HashedFileName={FileName}, Size={FileSizeBytes}", hashedZipFileName, file.Length);
+            _logger.LogError(ex, "[PostGritZipResponse] An error occurred while processing file. HashedFileName={FileName}, Size={FileSizeBytes}", fileNameToLog, file.Length);
             SetContentType(Response, "text/plain");
             await Response.WriteAsync("An error occurred while processing the file.");
             await Response.Body.FlushAsync();
@@ -124,8 +128,11 @@ public class GrITController() : ControllerBase
         ArgumentOutOfRangeException.ThrowIfZero(file.Length, nameof(file.Length));
         ArgumentOutOfRangeException.ThrowIfGreaterThan(file.Length, gptPrompterConfiguration.Value.AllowedUploadFileSizeRangeBytes, nameof(file.Length));
 
-        var hashedFileName = HashHelper.HashSha256Hex(file.FileName);
-        _logger.LogInformation("[PostGritGrxmlResponse] Received Grxml file upload request. HashedFileName={FileName}, Size={FileSizeBytes}", hashedFileName, file.Length);
+        var hashEnabled = gptPrompterConfiguration.Value.HashFileNameInLogs;
+        var fileNameToLog = hashEnabled ? HashHelper.HashSha256Hex(file.FileName) : file.FileName;
+        var logFileNameLabel = hashEnabled ? "HashedFileName" : "FileName";
+
+        _logger.LogInformation("[PostGritGrxmlResponse] Received Grxml file upload request. {logFileNameLabel}={FileName}, Size={FileSizeBytes}", logFileNameLabel, fileNameToLog, file.Length);
 
         try
         {
@@ -139,29 +146,29 @@ public class GrITController() : ControllerBase
 
             if (string.IsNullOrEmpty(converted) || converted.StartsWith("Error:"))
             {
-                _logger.LogError("[PostGritGrxmlResponse] Conversion returned empty result. HashedFileName={FileName}, ContentLength={Length}", hashedFileName, grxmlContent?.Length ?? 0);
+                _logger.LogError("[PostGritGrxmlResponse] Conversion returned empty result. HashedFileName={FileName}, ContentLength={Length}", fileNameToLog, grxmlContent?.Length ?? 0);
                 WriteErrorResponse(Response, $"Conversion failed: {converted}", HttpStatusCode.InternalServerError);
                 return;
             }
             if (HttpContext.RequestAborted.IsCancellationRequested)
             {
-                _logger.LogInformation("[PostGritGrxmlResponse] Request was cancelled. HashedFileName={FileName}", hashedFileName);
+                _logger.LogInformation("[PostGritGrxmlResponse] Request was cancelled. HashedFileName={FileName}", fileNameToLog);
                 return;
             }
             SetContentType(Response, "application/x-yaml");
-            _logger.LogInformation("[PostGritGrxmlResponse] Conversion success. HashedFileName={FileName}, OutputLength={Length}", hashedFileName, converted?.Length ?? 0);
+            _logger.LogInformation("[PostGritGrxmlResponse] Conversion success. HashedFileName={FileName}, OutputLength={Length}", fileNameToLog, converted?.Length ?? 0);
             Response.StatusCode = StatusCodes.Status200OK;
             await Response.WriteAsync($"---\n#{file.FileName}\n{SerializeYaml(converted)}");
         }
         catch (OperationCanceledException ex)
         {
-            _logger.LogError(ex, "[PostGritGrxmlResponse] Cancellation exception while processing GRXML file. HashedFileName={FileName}", hashedFileName);
+            _logger.LogError(ex, "[PostGritGrxmlResponse] Cancellation exception while processing GRXML file. HashedFileName={FileName}", fileNameToLog);
             SetContentType(Response, "text/plain");
             WriteErrorResponse(Response, "File processing was cancelled.", HttpStatusCode.RequestTimeout);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[PostGritGrxmlResponse] Unexpected error occurred while processing GRXML file. HashedFileName={FileName}", hashedFileName);
+            _logger.LogError(ex, "[PostGritGrxmlResponse] Unexpected error occurred while processing GRXML file. HashedFileName={FileName}", fileNameToLog);
             SetContentType(Response, "text/plain");
             WriteErrorResponse(Response, "Unexpected error occurred while processing the GRXML file.", HttpStatusCode.InternalServerError);
         }

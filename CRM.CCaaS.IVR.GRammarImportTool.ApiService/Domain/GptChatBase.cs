@@ -32,6 +32,9 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
     private readonly ILogger<GptChatBase> _logger = GrITLoggerFactory.CreateLogger<GptChatBase>();
     private const int DefaultBufferSize = 8192;
 
+    private static string HashName(string name) =>
+        Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(name)));
+
     internal async Task<Dictionary<string, string>> LoadZipToDictionaryAsync(Stream zipStream, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(zipStream, nameof(zipStream));
@@ -43,7 +46,7 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
         var entries = new ConcurrentDictionary<string, string>();
         long totalUncompressedSize = 0;
 
-        // Compute hash of the zip stream for logging
+        // Compute hash of the zip stream for logging (identifier only; not a file name)
         string zipFileHash;
         if (zipStream.CanSeek)
         {
@@ -70,6 +73,8 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
             throw new InvalidDataException("Zip file has too many entries.");
         }
 
+        var hashNames = GptChatGrxmlConfiguration?.HashFileNameInLogs ?? false;
+
         var tasks = archive.Entries
             .Where(entry =>
             {
@@ -87,10 +92,12 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
 
                 if (entry.Length > maxEntrySize)
                 {
-                    _logger.LogWarning("Zip entry {EntryName} exceeds maximum allowed size ({EntrySize} bytes).", entry.FullName, entry.Length);
+                    var nameForLog = hashNames ? HashName(entry.FullName) : entry.FullName;
+                    _logger.LogWarning("Zip entry {EntryName} exceeds maximum allowed size ({EntrySize} bytes).", nameForLog, entry.Length);
                     throw new InvalidDataException($"Zip entry '{entry.FullName}' is too large.");
                 }
 
+                // Note: existing code increments twice (direct and Interlocked). Left as-is to preserve behavior.
                 totalUncompressedSize += entry.Length;
                 Interlocked.Add(ref totalUncompressedSize, entry.Length);
                 if (totalUncompressedSize > maxTotalUncompressedSize)
@@ -104,7 +111,8 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
                 string fullPath = Path.GetFullPath(Path.Combine(safeRoot, entry.FullName));
                 if (!fullPath.StartsWith(safeRoot, StringComparison.OrdinalIgnoreCase))
                 {
-                    _logger.LogWarning("Zip entry path traversal detected: {EntryName}.", entry.FullName);
+                    var nameForLog = hashNames ? HashName(entry.FullName) : entry.FullName;
+                    _logger.LogWarning("Zip entry path traversal detected: {EntryName}.", nameForLog);
                     throw new SecurityException("Zip entry path traversal detected.");
                 }
 
@@ -124,12 +132,11 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
                     // Ensure unique file names
                     while (!entries.TryAdd(fileName, content))
                     {
-                        // Log a warning with a hash of the file name
-                        string fileNameHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(fileName)));
+                        string fileNameForLog = hashNames ? HashName(fileName) : fileName;
                         string truncatedName = fileName.Length > 20 ? fileName[..20] + "..." : fileName;
                         _logger.LogWarning(
-                            "Duplicate file name detected in zip: {FileNameHash} (Original: {TruncatedName}, ZipHash: {ZipFileHash}).",
-                            fileNameHash, truncatedName, zipFileHash);
+                            "Duplicate file name detected in zip: {FileName} (Original: {TruncatedName}, ZipHash: {ZipFileHash}).",
+                            fileNameForLog, truncatedName, zipFileHash);
 
                         fileName = $"{Path.GetFileNameWithoutExtension(fileName)}-{duplicateCount}{Path.GetExtension(fileName)}";
                         duplicateCount++;
@@ -157,6 +164,9 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
     /// <returns>True if the XML was successfully parsed and cleaned; otherwise, false.</returns>
     internal bool TryReadXmlContent(string fileName, string xmlContent, out string strippedContent)
     {
+        var hashNames = GptChatGrxmlConfiguration?.HashFileNameInLogs ?? false;
+        string fileNameForLog = hashNames ? HashName(fileName) : fileName;
+
         try
         {
             var settings = new XmlReaderSettings
@@ -177,7 +187,7 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
             else
             {
 
-                _logger.LogWarning("XML document has no root element in file {FileName}.", fileName);
+                _logger.LogWarning("XML document has no root element in file {FileName}.", fileNameForLog);
                 strippedContent = "Error: XML document has no root element.";
                 return false;
             }
@@ -186,19 +196,19 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
         }
         catch (XmlException ex)
         {
-            _logger.LogError(ex, "Failed to parse {FileName} as XML (XmlException).", fileName);
+            _logger.LogError(ex, "Failed to parse {FileName} as XML (XmlException).", fileNameForLog);
             strippedContent = "Error: Failed to parse as XML (XmlException).";
             return false;
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogError(ex, "Failed to parse {FileName} as XML (InvalidOperationException).", fileName);
+            _logger.LogError(ex, "Failed to parse {FileName} as XML (InvalidOperationException).", fileNameForLog);
             strippedContent = "Error: Failed to parse as XML (InvalidOperationException).";
             return false;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to parse {FileName} as XML.", fileName);
+            _logger.LogError(ex, "Failed to parse {FileName} as XML.", fileNameForLog);
             strippedContent = $"Error: Failed to parse as XML.";
             return false;
         }

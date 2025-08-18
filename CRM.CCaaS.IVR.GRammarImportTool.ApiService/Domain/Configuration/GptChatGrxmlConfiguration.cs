@@ -58,12 +58,11 @@ public class GptChatGrxmlConfiguration
 
     [Range(1, 10000, ErrorMessage = "Max entry count must be between 1 and 10000")]
     public int MaxEntryCount { get; set; } = 1000;
+
+    public bool HashFileNameInLogs { get; set; } = true;
 }
 
-public class GPTMessage
-{
-    [Required(ErrorMessage = "Role is required")]
-    public string Role { get; set; } = string.Empty;
-    [Required(ErrorMessage = "Content is required")]
-    public string Content { get; set; } = string.Empty;
-}
+public sealed record class GPTMessage(
+    [property: Required(ErrorMessage = "Role is required")] string Role,
+    [property: Required(ErrorMessage = "Content is required")] string Content
+);

@@ -55,7 +55,7 @@ public class GptChatGrxmlConfigurationTest : IClassFixture<BaseTest>, IDisposabl
             ResultStreamChannelCapacity = 200,
             InitialChatHistory = new List<GPTMessage>
             {
-                new GPTMessage { Role = "user", Content = "test" }
+                new("user", "test")
             },
             AzureOpenAIEndpoint = "https://test.openai.azure.com/",
             AzureOpenAIDeploymentName = "deployment",
@@ -94,7 +94,7 @@ public class GptChatGrxmlConfigurationTest : IClassFixture<BaseTest>, IDisposabl
     [Fact]
     public void When_GPTMessageMissingRoleOrContent_Then_ValidationFails()
     {
-        var message = new GPTMessage { Role = "", Content = "" };
+        var message = new GPTMessage("", "");
         var results = new List<ValidationResult>();
         var isValid = Validator.TryValidateObject(message, new ValidationContext(message), results, true);
 
