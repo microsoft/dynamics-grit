@@ -12,12 +12,13 @@ using Azure.AI.OpenAI;
 using Azure.Core;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.AzureOpenAI;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util.Logging;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
 
 [assembly: InternalsVisibleTo("CRM.CCaaS.IVR.GRammarImportTool.Tests.L0")]
-namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain;
+namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.GptChat;
 
 public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFactory, GptChatGrxmlConfiguration? gptChatGrxmlConfiguration = null) : IGptChat
 {
@@ -39,9 +40,9 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
     {
         ArgumentNullException.ThrowIfNull(zipStream, nameof(zipStream));
 
-        long maxEntrySize = GptChatGrxmlConfiguration?.MaxEntrySize ?? 1 * 1024 * 1024;
-        long maxTotalUncompressedSize = GptChatGrxmlConfiguration?.MaxTotalUncompressedSize ?? 100 * 1024 * 1024;
-        int maxEntryCount = GptChatGrxmlConfiguration?.MaxEntryCount ?? 1000;
+        var maxEntrySize = GptChatGrxmlConfiguration?.MaxEntrySize ?? 1 * 1024 * 1024;
+        var maxTotalUncompressedSize = GptChatGrxmlConfiguration?.MaxTotalUncompressedSize ?? 100 * 1024 * 1024;
+        var maxEntryCount = GptChatGrxmlConfiguration?.MaxEntryCount ?? 1000;
 
         var entries = new ConcurrentDictionary<string, string>();
         long totalUncompressedSize = 0;
@@ -50,7 +51,7 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
         string zipFileHash;
         if (zipStream.CanSeek)
         {
-            long originalPosition = zipStream.Position;
+            var originalPosition = zipStream.Position;
             zipStream.Position = 0;
             using (var sha256 = System.Security.Cryptography.SHA256.Create())
             {
@@ -78,7 +79,7 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
         var tasks = archive.Entries
             .Where(entry =>
             {
-                string fileName = Path.GetFileName(entry.FullName); // strips directory traversal
+                var fileName = Path.GetFileName(entry.FullName); // strips directory traversal
                 if (string.IsNullOrWhiteSpace(fileName))
                 {
                     _logger.LogWarning("Skipped a zip entry with empty or whitespace name.");
@@ -107,8 +108,8 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
                 }
 
                 // Path traversal protection
-                string safeRoot = Path.GetFullPath(".");
-                string fullPath = Path.GetFullPath(Path.Combine(safeRoot, entry.FullName));
+                var safeRoot = Path.GetFullPath(".");
+                var fullPath = Path.GetFullPath(Path.Combine(safeRoot, entry.FullName));
                 if (!fullPath.StartsWith(safeRoot, StringComparison.OrdinalIgnoreCase))
                 {
                     var nameForLog = hashNames ? HashName(entry.FullName) : entry.FullName;
@@ -124,16 +125,16 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
                 using (entryStream)
                 using (var reader = new StreamReader(entryStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: DefaultBufferSize, leaveOpen: false))
                 {
-                    string content = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+                    var content = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
 
-                    string fileName = Path.GetFileName(entry.FullName); // strips directory traversal
-                    int duplicateCount = 1;
+                    var fileName = Path.GetFileName(entry.FullName); // strips directory traversal
+                    var duplicateCount = 1;
 
                     // Ensure unique file names
                     while (!entries.TryAdd(fileName, content))
                     {
-                        string fileNameForLog = hashNames ? HashName(fileName) : fileName;
-                        string truncatedName = fileName.Length > 20 ? fileName[..20] + "..." : fileName;
+                        var fileNameForLog = hashNames ? HashName(fileName) : fileName;
+                        var truncatedName = fileName.Length > 20 ? fileName[..20] + "..." : fileName;
                         _logger.LogWarning(
                             "Duplicate file name detected in zip: {FileName} (Original: {TruncatedName}, ZipHash: {ZipFileHash}).",
                             fileNameForLog, truncatedName, zipFileHash);
@@ -165,7 +166,7 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
     internal bool TryReadXmlContent(string fileName, string xmlContent, out string strippedContent)
     {
         var hashNames = GptChatGrxmlConfiguration?.HashFileNameInLogs ?? false;
-        string fileNameForLog = hashNames ? HashName(fileName) : fileName;
+        var fileNameForLog = hashNames ? HashName(fileName) : fileName;
 
         try
         {
@@ -181,9 +182,7 @@ public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFac
             var xmlDoc = XDocument.Load(reader, LoadOptions.None);
 
             if (xmlDoc.Root is not null)
-            {
                 strippedContent = GRXMLSanitizer.MinifyGRXMLContent(xmlDoc);
-            }
             else
             {
 

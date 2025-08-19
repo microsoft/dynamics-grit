@@ -8,6 +8,8 @@ using Azure;
 using Azure.AI.OpenAI;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Controllers;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.GptChat;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.AzureOpenAI;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util.Logging;
 using Microsoft.Extensions.AI;

@@ -46,6 +46,14 @@ public class GptChatGrxmlConfiguration
     [Required(ErrorMessage = "Azure OpenAI key is required")]
     public string AzureOpenAIKey { get; set; } = string.Empty;
 
+    [Range(1, 1000, ErrorMessage = "Background tasks queue capacity")]
+    public int BackgroundTasksQueueCapacity { get; set; } = 100;
+
+    [Range(1, 60, ErrorMessage = "Maximum wait time for background task to be added in seconds")]
+    public int AddBackgroundTaskMaxWaitTimeSec { get; set; } = 10;
+
+    [Range(1, 1000, ErrorMessage = "Max items to store in InMemory conversation results store")]
+    public int ConversationResultsStoreInMemoryMaxItems { get; set; } = 100;
     //AI Disclaimer
     public string? DisclaimerAI { get; set; } = string.Empty;
 

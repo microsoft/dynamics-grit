@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.AI;
 
-namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain;
+namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.AzureOpenAI;
 
 public interface IAzureOpenAIClientFactory
 {

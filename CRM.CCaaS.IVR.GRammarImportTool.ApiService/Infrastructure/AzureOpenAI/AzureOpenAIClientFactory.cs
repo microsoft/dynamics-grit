@@ -3,7 +3,7 @@ using Azure.AI.OpenAI;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util.Logging;
 using Microsoft.Extensions.AI;
 
-namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain;
+namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.AzureOpenAI;
 
 public class AzureOpenAIClientFactory : IAzureOpenAIClientFactory
 {
@@ -22,7 +22,7 @@ public class AzureOpenAIClientFactory : IAzureOpenAIClientFactory
             throw new ArgumentException("One of the Azure OpenAI configuration parameters is missing or contains only whitespace.");
         }
 
-        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out Uri? uriResult))
+        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uriResult))
         {
             _logger.LogError("The provided endpoint is not a valid URI.");
             throw new ArgumentException("The provided endpoint is not a valid URI.");

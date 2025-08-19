@@ -65,7 +65,7 @@ public class BaseTest : IDisposable
         {
             BaseAddress = new Uri("http://localhost:5003")
         };
-        _httpClient.Timeout = TimeSpan.FromMinutes(30);
+        _httpClient.Timeout = TimeSpan.FromMinutes(60);
 
         Console.WriteLine($"Main application started. {_main.Id}");
     }
@@ -78,6 +78,11 @@ public class BaseTest : IDisposable
     public void AddEvent(string eventName)
     {
         _events.Add(eventName);
+    }
+
+    public HttpClientHandler GetHttpHandler()
+    {
+        return _handler;
     }
 
     public IReadOnlyList<string> GetEvents()

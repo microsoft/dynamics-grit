@@ -1,8 +1,9 @@
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
 
-public static class GRXMLSanitizer
+public static partial class GRXMLSanitizer
 {
     public static void SanitizeMetadata(XDocument doc)
     {
@@ -118,12 +119,18 @@ public static class GRXMLSanitizer
     {
         ArgumentNullException.ThrowIfNull(xmlString);
 
-        return System.Text.RegularExpressions.Regex.Replace(xmlString, "<!--.*?-->", string.Empty, System.Text.RegularExpressions.RegexOptions.Singleline);
+        return RemoveMalformedCommentsRegex().Replace(xmlString, string.Empty);
     }
 
     private static string RemoveWhitespaceBetweenTags(string xml)
     {
         ArgumentNullException.ThrowIfNull(xml);
-        return System.Text.RegularExpressions.Regex.Replace(xml, @">\s+<", "><");
+        return RemoveWhitespaceBetweenTagsRegex().Replace(xml, "><");
     }
+
+    [GeneratedRegex(@">\s+<")]
+    private static partial Regex RemoveWhitespaceBetweenTagsRegex();
+
+    [GeneratedRegex("<!--.*?-->", RegexOptions.Singleline)]
+    private static partial Regex RemoveMalformedCommentsRegex();
 }

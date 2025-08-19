@@ -1,14 +1,20 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Controllers;
-using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.GptChat;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.AzureOpenAI;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.Background;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.Store;
 using CRM.CCaaS.IVR.GRammarImportTool.Tests.L0.Common;
+using CRM.CCaaS.IVR.GRammarImportTool.Tests.L0.Tests.Domain.Configuration;
+using CRM.CCaaS.IVR.GRammarImportTool.Tests.L0.Tests.Domain.Grxml;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -29,6 +35,10 @@ public class BaseTest : IDisposable
 
     public Mock<IChatClient> ChatClientMock { get; private set; } = new Mock<IChatClient>();
     public Mock<IAzureOpenAIClientFactory> AzureOpenAIClientFactoryMock { get; private set; } = new Mock<IAzureOpenAIClientFactory>();
+    public Mock<IConversionResultsStore> ResultsStoreMock { get; private set; } = new Mock<IConversionResultsStore>();
+    public Mock<IBackgroundTaskQueue> QueueMock { get; private set; } = new Mock<IBackgroundTaskQueue>();
+
+    public Mock<JobTracker> JobTrackerMock { get; private set; } = new Mock<JobTracker>();
 
     private bool _disposedValue;
 
@@ -94,25 +104,39 @@ public class BaseTest : IDisposable
     {
         var services = new ServiceCollection();
 
+        var resultData = new ConversionResult(new ConcurrentDictionary<string, string>());
+        resultData.ResultData.TryAdd("file.yaml", "yaml: content");
+
+        ResultsStoreMock.Setup(rs => rs.GetResultAsync("job123")).ReturnsAsync(resultData);
+        ResultsStoreMock.Setup(rs => rs.GetResultAsync("jobResultIsNull")).ReturnsAsync(new ConversionResult(new ConcurrentDictionary<string, string>()));
+        ResultsStoreMock.Setup(rs => rs.ResultExistsAsync("job123")).ReturnsAsync(true);
+        ResultsStoreMock.Setup(rs => rs.RemoveResultAsync("job123")).Returns(Task.CompletedTask);
+        ResultsStoreMock.Setup(rs => rs.UpdateResultAsync("job123", It.IsAny<ConversionResult>())).Returns(Task.CompletedTask);
+        ResultsStoreMock.Setup(rs => rs.AddResultAsync(It.IsAny<string>(), It.IsAny<ConversionResult>())).Returns(Task.CompletedTask);
+
+        QueueMock.Setup(q => q.EnqueueAsync(It.IsAny<JobTask>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+
         services.AddSingleton<IHostEnvironment>(new UnitTestHostEnvironment { EnvironmentName = "Development" });
+        services.AddKeyedSingleton(InMemoryConversionResultsStore.SERVICE_KEY, ResultsStoreMock.Object);
+        services.AddSingleton(QueueMock.Object);
         services.AddKeyedTransient<IGptChat, GptChatGrxmlToMcsConverter>(GptChatGrxmlToMcsConverter.SERVICE_KEY);
         services.AddTransient(provider => AzureOpenAIClientFactoryMock.Object);
         services.AddControllers().AddApplicationPart(typeof(HealthController).Assembly);
         services.AddControllers().AddApplicationPart(typeof(GrITController).Assembly);
 
-        var testConfiguration = new GptChatGrxmlConfiguration();
-        testConfiguration.AzureOpenAIEndpoint = "https://test.openai.azure.com/";
-        testConfiguration.AzureOpenAIDeploymentName = "test-deployment";
-        testConfiguration.AzureOpenAIKey = "test-key";
-        testConfiguration.MaxAllowedConversionTimeSingleFileSec = 5;
-        testConfiguration.MaxAllowedConversionTimeTotalSec = 10;
-        testConfiguration.DegreeParallelism = 2;
-        testConfiguration.InitialChatHistory = new List<GPTMessage>
+        GptChatGrxmlTestConfiguration.AzureOpenAIEndpoint = "https://test.openai.azure.com/";
+        GptChatGrxmlTestConfiguration.AzureOpenAIDeploymentName = "test-deployment";
+        GptChatGrxmlTestConfiguration.AzureOpenAIKey = "test-key";
+        GptChatGrxmlTestConfiguration.MaxAllowedConversionTimeSingleFileSec = 5;
+        GptChatGrxmlTestConfiguration.MaxAllowedConversionTimeTotalSec = 10;
+        GptChatGrxmlTestConfiguration.DegreeParallelism = 2;
+        GptChatGrxmlTestConfiguration.BackgroundTasksQueueCapacity = 2;
+        GptChatGrxmlTestConfiguration.InitialChatHistory = new List<GPTMessage>
         {
             new("user", "You are a helpful assistant that converts GRXML files to MCS format.")
         };
-        testConfiguration.RetryDelaySec = 1;
-        services.AddSingleton(Options.Create(testConfiguration));
+        GptChatGrxmlTestConfiguration.RetryDelaySec = 1;
+        services.AddSingleton(Options.Create(GptChatGrxmlTestConfiguration));
 
         services.AddLogging(builder =>
         {
@@ -155,6 +179,7 @@ this: is bad yaml") };
             yield return await Task.FromResult(item);
         }
     }
+
     protected virtual void Dispose(bool disposing)
     {
         if (!_disposedValue)

@@ -1,7 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Threading.Channels;
 
-namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain;
+namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.GptChat;
 
 public interface IGptChat
 {

@@ -6,8 +6,8 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Controllers;
-using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.GptChat;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -56,7 +56,6 @@ public class GrITControllerTest : IClassFixture<BaseTest>, IDisposable
         _fileMockZip.Setup(f => f.CopyToAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
             .Returns<Stream, CancellationToken>(content.CopyToAsync);
 
-
         _fileMockZip.Setup(f => f.FileName).Returns("test.empty.zip");
         _fileMockEmptyZip.Setup(f => f.Length).Returns(0);
         _fileMockEmptyZip.Setup(f => f.CopyToAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
@@ -72,7 +71,6 @@ public class GrITControllerTest : IClassFixture<BaseTest>, IDisposable
         _fileMockGrxml.Setup(f => f.Length).Returns(grxmlContent.Length);
         _fileMockGrxml.Setup(f => f.OpenReadStream()).Returns(stream);
         _fileMockGrxml.Setup(f => f.FileName).Returns("test.grxml");
-
 
         _optionsMock.Setup(o => o.Value).Returns(_config);
         _baseTest.LogProvider.Logger.Clear();

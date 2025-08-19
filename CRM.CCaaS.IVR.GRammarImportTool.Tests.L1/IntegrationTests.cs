@@ -57,7 +57,7 @@ public class IntegrationTests : IClassFixture<BaseTest>, IDisposable
         }
     }
 
-    private bool TestForError (IEnumerable<string> lines)
+    private bool TestForError(IEnumerable<string> lines)
     {
         return lines.Any(x => x.Contains("Error:", StringComparison.OrdinalIgnoreCase) ||
                               x.Contains("fail", StringComparison.OrdinalIgnoreCase) ||

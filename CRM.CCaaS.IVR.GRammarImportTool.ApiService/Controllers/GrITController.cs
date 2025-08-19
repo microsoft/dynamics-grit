@@ -2,8 +2,8 @@
 using System.Diagnostics;
 using System.Net;
 using System.Threading.Channels;
-using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.GptChat;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Hubs;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util;
@@ -70,7 +70,7 @@ public class GrITController() : ControllerBase
                     {
                         var keyToLog = hashEnabled ? HashHelper.HashSha256Hex(partialResult.Key) : partialResult.Key;
                         _logger.LogInformation("[PostGritZipResponse] Processed entry. HashedKey={Key}", keyToLog);
-                        await Response.WriteAsync($"---\n#{partialResult.Key}\n{SerializeYaml(partialResult.Value)}\n");
+                        await Response.WriteAsync($"---\n#{partialResult.Key}\n{YamlHelper.SerializeYaml(partialResult.Value)}\n");
                         await Response.Body.FlushAsync();
                     }
                 }
@@ -111,6 +111,7 @@ public class GrITController() : ControllerBase
         }
         finally
         {
+            await Response.Body.FlushAsync();
             memoryStream.Dispose();
         }
     }
@@ -158,7 +159,7 @@ public class GrITController() : ControllerBase
             SetContentType(Response, "application/x-yaml");
             _logger.LogInformation("[PostGritGrxmlResponse] Conversion success. HashedFileName={FileName}, OutputLength={Length}", fileNameToLog, converted?.Length ?? 0);
             Response.StatusCode = StatusCodes.Status200OK;
-            await Response.WriteAsync($"---\n#{file.FileName}\n{SerializeYaml(converted)}");
+            await Response.WriteAsync($"---\n#{file.FileName}\n{YamlHelper.SerializeYaml(converted)}");
         }
         catch (OperationCanceledException ex)
         {
@@ -192,12 +193,5 @@ public class GrITController() : ControllerBase
         response.StatusCode = (int)statusCode;
         response.WriteAsync(message).GetAwaiter().GetResult();
         response.Body.FlushAsync().GetAwaiter().GetResult();
-    }
-
-    private static string SerializeYaml(string? data)
-    {
-        ArgumentNullException.ThrowIfNull(data, nameof(data));
-        var serializer = new YamlDotNet.Serialization.Serializer();
-        return serializer.Serialize(data);
     }
 }

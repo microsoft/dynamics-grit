@@ -1,8 +1,8 @@
 using System.Diagnostics;
 using System.IO;
 using System.Text;
-using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.GptChat;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util.Logging;

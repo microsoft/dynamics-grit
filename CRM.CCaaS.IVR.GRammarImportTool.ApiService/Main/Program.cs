@@ -2,11 +2,14 @@ using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Controllers;
-using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.GptChat;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Endpoints;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Hubs;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.AzureOpenAI;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.Background;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.Store;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util.Logging;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Mvc;
@@ -54,6 +57,11 @@ public static class Program
         builder.Services.Configure<GptChatGrxmlConfiguration>(builder.Configuration.GetSection(GptChatGrxmlConfiguration.SectionName));
 
         builder.Services.AddProblemDetails();
+
+        builder.Services.AddSingleton<IBackgroundTaskQueue, BackgroundTaskQueue>();
+        builder.Services.AddSingleton<JobTracker>();
+        builder.Services.AddKeyedSingleton<IConversionResultsStore, InMemoryConversionResultsStore>(InMemoryConversionResultsStore.SERVICE_KEY);
+        builder.Services.AddHostedService<GrxmlConversionService>();
         builder.Services.AddTransient<IAzureOpenAIClientFactory, AzureOpenAIClientFactory>();
         builder.Services.AddKeyedTransient<IGptChat, GptChatGrxmlToMcsConverter>(GptChatGrxmlToMcsConverter.SERVICE_KEY);
 
@@ -128,6 +136,15 @@ public static class Program
 
         if (app.Environment.IsTestOrDev())
         {
+            app.Lifetime.ApplicationStopping.Register(() =>
+            {
+                logger.LogInformation("Application is stopping gracefully.");
+            });
+
+            app.Lifetime.ApplicationStopped.Register(() =>
+            {
+                logger.LogInformation("Application has stopped.");
+            });
             logger.LogInformation("Application started in development or test environment.");
             app.UseCors("DevOrTest"); // Use CORS policy for development or test
         }

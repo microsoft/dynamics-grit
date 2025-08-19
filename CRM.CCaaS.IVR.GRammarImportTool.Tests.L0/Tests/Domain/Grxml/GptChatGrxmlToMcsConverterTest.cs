@@ -4,9 +4,10 @@ using System.Text;
 using System.Threading.Channels;
 using Castle.Components.DictionaryAdapter.Xml;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Controllers;
-using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.GptChat;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.AzureOpenAI;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
@@ -81,7 +82,7 @@ tag-format=""semantics/1.0"">
         _baseTest.LogProvider.Logger.Clear();
     }
 
-    private static MemoryStream CreateZipStream(string fileName1, string fileName2)
+    public static MemoryStream CreateZipStream(string fileName1, string fileName2)
     {
         var zipStream = new MemoryStream();
         using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, true))
@@ -143,10 +144,10 @@ tag-format=""semantics/1.0"">
     }
 
     [Fact]
-    public void When_ValidZipWithUniqueFiles_Then_ReturnsCorrectDictionary()
+    public async Task When_ValidZipWithUniqueFiles_Then_ReturnsCorrectDictionary()
     {
         using var zipStream = CreateZipStream("file1.grxml", "file2.grxml");
-        var result = _converter.LoadZipToDictionaryAsync(zipStream).GetAwaiter().GetResult();
+        var result = await _converter.LoadZipToDictionaryAsync(zipStream);
 
         Assert.Equal(3, result.Count);
         Assert.Equal(HashTestValidXml, GetStringSha256Hash(result["file1.grxml"]));
@@ -154,10 +155,10 @@ tag-format=""semantics/1.0"">
     }
 
     [Fact]
-    public void When_DuplicateFileNames_Then_AppendsSuffix()
+    public async Task When_DuplicateFileNames_Then_AppendsSuffix()
     {
         using var zipStream = CreateZipStream("duplicate.grxml", "duplicate.grxml");
-        var result = _converter.LoadZipToDictionaryAsync(zipStream).GetAwaiter().GetResult();
+        var result = await _converter.LoadZipToDictionaryAsync(zipStream);
 
         Assert.Equal(3, result.Count);
         Assert.Contains("duplicate.grxml", result.Keys);
@@ -227,7 +228,7 @@ indeed invalid"));
     }
 
     [Fact]
-    public void When_CreateResultZipStream_ValidDictionary_Then_CreatesZipWithCorrectFilesAndContent()
+    public async Task When_CreateResultZipStream_ValidDictionary_Then_CreatesZipWithCorrectFilesAndContent()
     {
         var results = new ConcurrentDictionary<string, string>();
         results["file1.grxml"] = TestValidXml;
@@ -235,7 +236,7 @@ indeed invalid"));
         var extension = ".yaml";
 
         // Use the async method synchronously for the test
-        using var zipStream = _converter.CreateResultZipStreamAsync(results, extension).GetAwaiter().GetResult();
+        using var zipStream = await _converter.CreateResultZipStreamAsync(results, extension);
         Assert.NotNull(zipStream);
 
         using var archive = new ZipArchive(zipStream, ZipArchiveMode.Read);
@@ -343,7 +344,7 @@ indeed invalid"));
     [Fact]
     public async Task When_ConvertZipAsyncR_InvalidXml_Then_ErrorIsReturnedInZip()
     {
-        var zipStream = CreateZipStream(new List<string> { "bad.grxml" }, "</root><child></root>");        
+        var zipStream = CreateZipStream(new List<string> { "bad.grxml" }, "</root><child></root>");
 
         Task ProgressCallback(int progress, string message) => Task.CompletedTask;
         byte[]? completedBytes = null;
@@ -627,8 +628,8 @@ indeed invalid"));
         public override void Flush() { }
         public override int Read(byte[] buffer, int offset, int count)
         {
-            if (buffer == null) throw new ArgumentNullException(nameof(buffer));
-            if (offset < 0 || count < 0 || offset + count > buffer.Length) throw new ArgumentOutOfRangeException();
+            ArgumentNullException.ThrowIfNull(buffer);
+            if (offset < 0 || count < 0 || offset + count > buffer.Length) throw new ArgumentOutOfRangeException(nameof(buffer));
 
             var remaining = _data.Length - _position;
             if (remaining <= 0) return 0;
@@ -706,6 +707,7 @@ indeed invalid"));
         _baseTest.LogProvider.Logger.Clear();
 
         // Set small size to avoid large allocations and force violation quickly.
+        var saveMaxEntrySize = _baseTest.GptChatGrxmlTestConfiguration.MaxEntrySize;
         _baseTest.GptChatGrxmlTestConfiguration.MaxEntrySize = 128; // bytes
 
         // Create a refreshed converter so new MaxEntrySize is honored.
@@ -741,6 +743,7 @@ indeed invalid"));
         Assert.Contains(logMessages, m =>
             m.Contains("entry", StringComparison.OrdinalIgnoreCase) &&
             m.Contains("size", StringComparison.OrdinalIgnoreCase));
+        _baseTest.GptChatGrxmlTestConfiguration.MaxEntrySize = saveMaxEntrySize; // restore original value
     }
 
     [Fact]
@@ -752,7 +755,9 @@ indeed invalid"));
         // Because _converter was created in the test fixture ctor (before we change the config here),
         // we must create a new converter instance with the updated configuration; otherwise the old
         // instance still holds the previous configuration snapshot from IOptions.
+        var saveMaxEntrySize = _baseTest.GptChatGrxmlTestConfiguration.MaxEntrySize;
         _baseTest.GptChatGrxmlTestConfiguration.MaxEntrySize = 10_000; // large enough to not trigger single entry violation
+        var saveMaxTotalUncompressedSize = _baseTest.GptChatGrxmlTestConfiguration.MaxTotalUncompressedSize;
         _baseTest.GptChatGrxmlTestConfiguration.MaxTotalUncompressedSize = 100; // very small total limit
 
         var refreshedConverter = new GptChatGrxmlToMcsConverter(
@@ -790,6 +795,9 @@ indeed invalid"));
             (m.Contains("total", StringComparison.OrdinalIgnoreCase) ||
              m.Contains("uncompressed", StringComparison.OrdinalIgnoreCase)) &&
             m.Contains("size", StringComparison.OrdinalIgnoreCase));
+
+        _baseTest.GptChatGrxmlTestConfiguration.MaxTotalUncompressedSize = saveMaxTotalUncompressedSize; // restore original value
+        _baseTest.GptChatGrxmlTestConfiguration.MaxEntrySize = saveMaxEntrySize; // restore original value
     }
 
     [Fact]
@@ -864,7 +872,7 @@ indeed invalid"));
     }
 
     // // TODO: override finalizer only if 'Dispose(bool disposing)' has code to free unmanaged resources
-    // ~GritTest()
+    // ~GptChatGrxmlToMcsConverterTest()
     // {
     //     // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
     //     Dispose(disposing: false);
