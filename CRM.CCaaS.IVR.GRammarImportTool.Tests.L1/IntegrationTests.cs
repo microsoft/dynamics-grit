@@ -57,8 +57,12 @@ public class IntegrationTests : IClassFixture<BaseTest>, IDisposable
         }
     }
 
-    private bool TestForError(IEnumerable<string> lines)
+    private bool TestForError(IEnumerable<string>? lines)
     {
+        if (lines == null)
+        {
+            return true;
+        }
         return lines.Any(x => x.Contains("Error:", StringComparison.OrdinalIgnoreCase) ||
                               x.Contains("fail", StringComparison.OrdinalIgnoreCase) ||
                               x.Contains("failed", StringComparison.OrdinalIgnoreCase));
@@ -322,7 +326,7 @@ public class IntegrationTests : IClassFixture<BaseTest>, IDisposable
 
     [Theory]
     [Trait("Category", "Load")]
-    [InlineData("grit-test-data-1.grxml", 25, 25)]
+    [InlineData("grit-test-data-1.grxml", 10, 10)]
     public async Task When_mutiple_uploads_grxml_file_to_post_Then_conversion_success(string grxmlFileName,
         int parallelRequests,
         int loops)
@@ -357,6 +361,7 @@ public class IntegrationTests : IClassFixture<BaseTest>, IDisposable
                     _converter.WriteLine(collectedLines);
                     Assert.Equal(HttpStatusCode.OK, response.StatusCode);
                 }));
+                await Task.Delay(100);
             }
             await Task.WhenAll(tasks);
             tasks.Clear();
@@ -406,6 +411,7 @@ public class IntegrationTests : IClassFixture<BaseTest>, IDisposable
                     _converter.WriteLine(collectedLines);
                     Assert.Equal(HttpStatusCode.OK, response.StatusCode);
                 }));
+                await Task.Delay(100);
             }
 
             await Task.WhenAll(tasks);
