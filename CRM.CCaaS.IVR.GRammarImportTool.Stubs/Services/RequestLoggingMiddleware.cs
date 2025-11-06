@@ -9,7 +9,8 @@ public class RequestLoggingMiddleware(RequestDelegate next, ILogger<RequestLoggi
         ArgumentNullException.ThrowIfNull(context, nameof(context));
         var sw = Stopwatch.StartNew();
 
-        logger.LogInformation("Incoming request: {Method} {Path}", context.Request.Method, context.Request.Path);
+        var sanitizedPath = context.Request.Path.ToString().Replace("\r", "").Replace("\n", "");
+        logger.LogInformation("Incoming request: {Method} {Path}", context.Request.Method, sanitizedPath);
 
         await next(context);
         var statusCode = context.Response.StatusCode;
