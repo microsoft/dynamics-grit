@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.Store;
 using Microsoft.Extensions.AI;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
@@ -8,7 +9,8 @@ public class GptChatGrxmlConfiguration
     public const string SectionName = "GptChat:Grxml";
     public const int OneMbInBytes = 1024 * 1024;
     public const int OneHourInSeconds = 3600;
-    public bool _disposedValue;
+    public const string OpenAIProvider_OpenAI = "OpenAI";
+    public const string OpenAIProvider_AzureOpenAI = "AzureOpenAI";
 
     [Range(1, 100, ErrorMessage = "Degree of parallelism for processing")]
     public int DegreeParallelism { get; set; } = 7; // Degree of parallelism for processing
@@ -37,14 +39,24 @@ public class GptChatGrxmlConfiguration
     [Required(ErrorMessage = "Initial Chat history is required")]
     public List<GPTMessage>? InitialChatHistory { get; set; } = new List<GPTMessage>();
 
-    [Required(ErrorMessage = "Azure OpenAI endpoint is required")]
+    [Required(ErrorMessage = "Provider selection is required")]
+    public string OpenAI_Provider { get; set; } = OpenAIProvider_AzureOpenAI; //OpenAI
+
+    //Azure OpenAI settings
+    [RequireWhenAzureOpenAI(ErrorMessage = "Azure OpenAI endpoint is required")]
     public string AzureOpenAIEndpoint { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "Azure OpenAI deployment name is required")]
+    [RequireWhenAzureOpenAI(ErrorMessage = "Azure OpenAI deployment name is required")]
     public string AzureOpenAIDeploymentName { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "Azure OpenAI key is required")]
+    [RequireWhenAzureOpenAI(ErrorMessage = "Azure OpenAI key is required")]
     public string AzureOpenAIKey { get; set; } = string.Empty;
+
+    //Public ChatGPT OpenAI settings 
+    [RequireWhenOpenAI]
+    public string OpenAI_ApiKey { get; set; } = string.Empty;
+    [RequireWhenOpenAI]
+    public string OpenAI_Model { get; set; } = "gpt-4o";
 
     [Range(1, 1000, ErrorMessage = "Background tasks queue capacity")]
     public int BackgroundTasksQueueCapacity { get; set; } = 100;
@@ -53,7 +65,14 @@ public class GptChatGrxmlConfiguration
     public int AddBackgroundTaskMaxWaitTimeSec { get; set; } = 10;
 
     [Range(1, 1000, ErrorMessage = "Max items to store in InMemory conversation results store")]
-    public int ConversationResultsStoreInMemoryMaxItems { get; set; } = 100;
+    public int InMemoryConversionResultsStoreMaxItems { get; set; } = 100;
+
+    [Required(ErrorMessage = "Path for File based conversation results store")]
+    public string FileConversationResultsStorePath { get; set; } = "/tmp";
+
+    [Range(10, 1000, ErrorMessage = "Max items to store in File conversation results store")]
+    public int FileConversationResultsStoreMaxItems { get; set; } = 100;
+
     //AI Disclaimer
     public string? DisclaimerAI { get; set; } = string.Empty;
 
@@ -68,6 +87,11 @@ public class GptChatGrxmlConfiguration
     public int MaxEntryCount { get; set; } = 1000;
 
     public bool HashFileNameInLogs { get; set; } = true;
+
+    [Range(1, 100000, ErrorMessage = "Max token limit must be between 1 and 100000")]
+    public int MaxTokenLimit { get; set; } = 10000;
+
+    public string JobResultsStoreInterface { get; set; } = InMemoryConversionResultsStore.SERVICE_KEY;
 }
 
 public sealed record class GPTMessage(

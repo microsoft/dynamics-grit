@@ -27,7 +27,7 @@ public class BackgroundTaskQueue : IBackgroundTaskQueue
         _logger = GrITLoggerFactory.CreateLogger<BackgroundTaskQueue>();
         _gptPrompterConfiguration = gptPrompterConfiguration.Value;
         _serviceProvider = serviceProvider;
-        _conversionResultsStore = _serviceProvider.GetRequiredKeyedService<IConversionResultsStore>(InMemoryConversionResultsStore.SERVICE_KEY);
+        _conversionResultsStore = _serviceProvider.GetRequiredKeyedService<IConversionResultsStore>(gptPrompterConfiguration.Value.JobResultsStoreInterface);
         _gptChat = _serviceProvider.GetRequiredKeyedService<IGptChat>(GptChatGrxmlToMcsConverter.SERVICE_KEY);
 
         _logger.LogInformation("[BackgroundTaskQueue] Initializing with capacity {Capacity}.", _gptPrompterConfiguration.BackgroundTasksQueueCapacity);

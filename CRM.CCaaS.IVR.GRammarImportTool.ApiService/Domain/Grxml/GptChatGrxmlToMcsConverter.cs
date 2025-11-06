@@ -9,9 +9,10 @@ using Azure.AI.OpenAI;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Controllers;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.GptChat;
-using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.AzureOpenAI;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.OpenAIChat;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util.Logging;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Validation;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
 using YamlDotNet.Core;
@@ -26,28 +27,79 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
     public const string SERVICE_KEY = "chat-grit";
     private const int RESULTS_CHANNEL_WRITER_TIMEOUT_SEC = 5;
 
-    private readonly IChatClient _chatClient;
-    private readonly List<ChatMessage> _initialChatHistory;
+    private readonly List<ChatTurn> _initialChatHistory;
     private readonly ILogger<GptChatGrxmlToMcsConverter> _logger;
     private readonly GptChatGrxmlConfiguration _gptPrompterConfiguration;
     private readonly string _disclaimerAI;
 
+    /// <summary>
+    /// Optional validator for AI content to enforce Responsible AI guardrails.
+    /// </summary>
+    public AiContentValidator AiContentValidator { get; set; }
+
+    /// <summary>
+    /// Validator for token count limits.
+    /// </summary>
+    public TokenValidator TokenValidator { get; private set; }
+
     public GptChatGrxmlToMcsConverter(
         IOptions<GptChatGrxmlConfiguration> gptPrompterConfiguration,
-        IAzureOpenAIClientFactory azureOpenAIClientFactory)
-        : base(azureOpenAIClientFactory, gptPrompterConfiguration.Value)
+        IChatService openAIChatServiceFactory,
+        AiContentValidator aiContentValidator,
+        TokenValidator tokenValidator)
+        : base(openAIChatServiceFactory, gptPrompterConfiguration.Value)
     {
         ArgumentNullException.ThrowIfNull(gptPrompterConfiguration);
-        ArgumentNullException.ThrowIfNull(azureOpenAIClientFactory);
+        ArgumentNullException.ThrowIfNull(openAIChatServiceFactory);
+        ArgumentNullException.ThrowIfNull(tokenValidator);
 
         _logger = GrITLoggerFactory.CreateLogger<GptChatGrxmlToMcsConverter>();
         _gptPrompterConfiguration = gptPrompterConfiguration.Value;
 
-        _chatClient = azureOpenAIClientFactory.CreateChatClient(_gptPrompterConfiguration.AzureOpenAIEndpoint,
-            _gptPrompterConfiguration.AzureOpenAIDeploymentName, _gptPrompterConfiguration.AzureOpenAIKey);
         _initialChatHistory = LoadInitialChatHistory(_gptPrompterConfiguration);
         _disclaimerAI = _gptPrompterConfiguration.DisclaimerAI ?? string.Empty;
-        _logger.LogInformation("[Init] GptChatGrxmlToMcsConverter initialized");
+        AiContentValidator = aiContentValidator;
+        TokenValidator = tokenValidator;
+        _logger.LogInformation("[Init] GptChatGrxmlToMcsConverter initialized with AI content validation and token validation");
+    }
+
+    private async Task<string> ProcessAndLogFileAsync(string fileName, string fileContent, string loggerContext, CancellationToken cancellationToken)
+    {
+        string content;
+        var hashEnabled = _gptPrompterConfiguration.HashFileNameInLogs;
+        var fileNameToLog = hashEnabled ? HashHelper.HashSha256Hex(fileName) : fileName;
+        var stopWatch = new System.Diagnostics.Stopwatch();
+
+        _logger.LogInformation("[{LoggingContext}] FileStart | HashedFileName={FileName}", loggerContext, fileNameToLog);
+        if (!TryReadXmlContent(fileName, fileContent, out content))
+        {
+            _logger.LogError("[{LoggingContext}] XmlParseError | HashedFileName={FileName}", loggerContext, fileNameToLog);
+            return $"<!-- Can't parse this XML -->\n{fileContent}";
+        }
+        try
+        {
+            stopWatch.Start();
+            var response = await ProcessSingleFileAsync(fileName, content, cancellationToken);
+            _logger.LogInformation("[{LoggingContext}] FileProcessed | HashedFileName={FileName} | ElapsedMs={ElapsedMilliseconds}",
+                loggerContext, fileNameToLog, stopWatch.ElapsedMilliseconds);
+            return response;
+        }
+        catch (OperationCanceledException ex)
+        {
+            _logger.LogError(ex, "[{LoggingContext}] Cancelled | HashedFileName={FileName}", loggerContext, fileNameToLog);
+            return $"Error: Processing cancelled for {fileName}";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[{LoggingContext}] UnexpectedError | HashedFileName={FileName}", loggerContext, fileNameToLog);
+            return $"Error: {ex.Message}";
+        }
+        finally
+        {
+            stopWatch.Stop();
+            _logger.LogInformation("[{LoggingContext}] FileEnd | HashedFileName={FileName} | TotalElapsedMs={ElapsedMilliseconds}",
+                loggerContext, fileNameToLog, stopWatch.ElapsedMilliseconds);
+        }
     }
 
     /// <summary>
@@ -89,40 +141,13 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
         {
             await Parallel.ForEachAsync(entries, options, async (entry, token) =>
             {
-                string content;
-                var stopWatch = new System.Diagnostics.Stopwatch();
-
-                var hashEnabled = _gptPrompterConfiguration.HashFileNameInLogs;
-                var fileNameToLog = hashEnabled ? HashHelper.HashSha256Hex(entry.Key) : entry.Key;
-
-                _logger.LogInformation("[ConvertZipAsync] FileStart | HashedFileName={FileName}", fileNameToLog);
-                if (!TryReadXmlContent(entry.Key, entry.Value, out content))
-                {
-                    _logger.LogError("[ConvertZipAsync] XmlParseError | HashedFileName={FileName}", fileNameToLog);
-                    results[entry.Key] = $"<!-- Can't parse this XML -->\n{entry.Value}";
-                }
-                else
-                {
-                    try
-                    {
-                        stopWatch.Start();
-                        var response = await ProcessSingleFileAsync(entry.Key, content);
-                        results[entry.Key] = response;
-                        _logger.LogInformation("[ConvertZipAsync] FileProcessed | HashedFileName={FileName} | ElapsedMs={ElapsedMilliseconds}",
-                            fileNameToLog, stopWatch.ElapsedMilliseconds);
-                        stopWatch.Stop();
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "[ConvertZipAsync] UnexpectedError | HashedFileName={FileName}", fileNameToLog);
-                        results[entry.Key] = $"Error: Unexpected error occured";
-                    }
-                }
+                var response = await ProcessAndLogFileAsync(entry.Key, entry.Value, "ConvertZipAsync", token);
+                results[entry.Key] = response;
 
                 var current = Interlocked.Increment(ref processedCount);
                 var progress = (int)(current / (double)totalCount * 100);
                 // Fire and forget progress callback (do not await inside Parallel.ForEach)
-                await progressCallback(progress, $"{entry.Key}|{stopWatch.ElapsedMilliseconds}|{current} of {totalCount} files...");
+                await progressCallback(progress, $"{entry.Key}|{current} of {totalCount} files...");
             });
         }
         catch (OperationCanceledException ex)
@@ -152,15 +177,9 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
         ArgumentNullException.ThrowIfNull(completedCallback);
 
         _logger.LogInformation("[ConvertFileAsync] Start");
-        if (!TryReadXmlContent("ConvertToYaml.grxml", stringFile, out var stringStrippedFile))
-        {
-            _logger.LogError("[ConvertFileAsync] XmlParseError");
-            return stringStrippedFile;
-        }
-
         await progressCallback(0, "Starting processing...");
 
-        var processedResult = await ProcessSingleFileAsync("ConvertToYaml.grxml", stringStrippedFile);
+        var processedResult = await ProcessAndLogFileAsync("ConvertToYaml.grxml", stringFile, "ConvertFileAsync", CancellationToken.None);
         await completedCallback(processedResult);
 
         _logger.LogInformation("[ConvertFileAsync] Done");
@@ -170,31 +189,60 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
     /// <summary>
     /// Processes a single file by sending its content to the model and returning the response.
     /// </summary>
-    internal virtual async Task<string> ProcessSingleFileAsync(string fileName, string fileContent)
+    /// <param name="fileName">Name of the file (for logging / context).</param>
+    /// <param name="fileContent">Content of the GRXML file.</param>
+    /// <param name="cancellationToken">External cancellation token to observe in addition to the per-file timeout.</param>
+    internal virtual async Task<string> ProcessSingleFileAsync(string fileName, string fileContent, CancellationToken cancellationToken = default)
     {
         var hashEnabled = _gptPrompterConfiguration.HashFileNameInLogs;
         var fileNameToLog = hashEnabled ? HashHelper.HashSha256Hex(fileName) : fileName;
 
         _logger.LogInformation("[ProcessSingleFileAsync] Start | HashedFileName={FileName}", fileNameToLog);
 
-        var chatHistory = new List<ChatMessage>(_initialChatHistory)
+        // Create the prompt for the AI model
+        string prompt = $"Convert the file {fileName} to Microsoft Copilot Studio Yaml: {fileContent}";
+
+        // If AI content validator is available, use it to validate and sanitize the prompt
+        if (AiContentValidator != null)
         {
-            new ChatMessage(ChatRole.User, $"Convert the file {fileName} to Microsoft Copilot Studio Yaml: {fileContent}")
+            var validationResult = await AiContentValidator.ValidateAiPromptAsync(prompt, fileName);
+            if (!validationResult.IsValid)
+            {
+                _logger.LogWarning("[ProcessSingleFileAsync] AI prompt validation failed | HashedFileName={FileName} | Reason={Reason}",
+                    fileNameToLog, validationResult.ErrorMessage);
+                return $"Error: {validationResult.ErrorMessage}";
+            }
+
+            // Sanitize the prompt to ensure it cannot be used for prompt injection
+            prompt = AiContentValidator.SanitizeAiPrompt(prompt);
+        }
+
+        if (!IsTokenCountValid(prompt, fileNameToLog, out var tokenError))
+        {
+            return tokenError ?? "Unknown error while counting tokens.";
+        }
+
+        var chatHistory = new List<ChatTurn>(_initialChatHistory)
+        {
+            new ChatTurn("user", prompt)
         };
 
         var response = string.IsNullOrWhiteSpace(_disclaimerAI)
             ? string.Empty
             : $"\n#{_disclaimerAI}\n\n";
 
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(_gptPrompterConfiguration.MaxAllowedConversionTimeSingleFileSec));
+        // Create a timeout CTS and link with external token
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(_gptPrompterConfiguration.MaxAllowedConversionTimeSingleFileSec));
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken);
+
         var retries = 0;
         while (retries < _gptPrompterConfiguration.MaxRetries)
         {
             try
             {
-                await foreach (var item in _chatClient.GetStreamingResponseAsync(chatHistory, null, cts.Token))
+                await foreach (var item in OpenAIChatService.StreamAsync(chatHistory, linkedCts.Token))
                 {
-                    response += item.Text;
+                    response += item;
                 }
                 _logger.LogInformation("[ProcessSingleFileAsync] Success | HashedFileName={FileName}", fileNameToLog);
                 ValidateYamlContent(response);
@@ -210,14 +258,19 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
             }
             catch (OperationCanceledException ex)
             {
-                _logger.LogWarning(ex, "[ProcessSingleFileAsync] Cancelled | Reason=Timeout | HashedFileName={FileName}", fileNameToLog);
-                response += $"Error: Processing cancelled for {fileName}";
+                var reason = timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested
+                    ? "Timeout"
+                    : "Cancelled";
+                _logger.LogWarning(ex, "[ProcessSingleFileAsync] Cancelled | Reason={Reason} | HashedFileName={FileName}", reason, fileNameToLog);
+                response += $"Error: Processing {reason.ToLowerInvariant()} for {fileName}";
                 return response;
             }
+
             response = string.Empty;
             retries++;
-            await Task.Delay(TimeSpan.FromSeconds(_gptPrompterConfiguration.RetryDelaySec * retries));
+            await Task.Delay(TimeSpan.FromSeconds(_gptPrompterConfiguration.RetryDelaySec * retries), cancellationToken);
         }
+
         _logger.LogError("[ProcessSingleFileAsync] MaxRetriesExceeded | HashedFileName={FileName} | Retries={Retries}", fileNameToLog, _gptPrompterConfiguration.MaxRetries);
         response += $"Error: Failed to process {fileName} after {_gptPrompterConfiguration.MaxRetries} retries.";
         return response;
@@ -226,23 +279,16 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
     /// <summary>
     /// Loads the initial chat history from configuration.
     /// </summary>
-    private List<ChatMessage> LoadInitialChatHistory(GptChatGrxmlConfiguration config)
+    private List<ChatTurn> LoadInitialChatHistory(GptChatGrxmlConfiguration config)
     {
-        var initialChatHistory = new List<ChatMessage>();
+        var initialChatHistory = new List<ChatTurn>();
         foreach (var item in config.InitialChatHistory!)
         {
             var role = item.Role;
             var content = item.Content;
             if (!string.IsNullOrEmpty(role) && !string.IsNullOrEmpty(content))
             {
-                var chatRole = role.ToLower() switch
-                {
-                    "system" => ChatRole.System,
-                    "user" => ChatRole.User,
-                    "assistant" => ChatRole.Assistant,
-                    _ => ChatRole.System
-                };
-                initialChatHistory.Add(new ChatMessage(chatRole, content));
+                initialChatHistory.Add(new ChatTurn(role, content));
             }
         }
         return initialChatHistory;
@@ -285,46 +331,9 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
         {
             await Parallel.ForEachAsync(entries, options, async (entry, token) =>
             {
-                string content;
-                var hashEnabled = _gptPrompterConfiguration.HashFileNameInLogs;
-                var fileNameToLog = hashEnabled ? HashHelper.HashSha256Hex(entry.Key) : entry.Key;
-                var stopWatch = new System.Diagnostics.Stopwatch();
-
-                if (!TryReadXmlContent(entry.Key, entry.Value, out content))
-                {
-                    _logger.LogError("[ConvertZipAsync-Channel] XmlParseError | HashedFileName={FileName}", fileNameToLog);
-                    using var ctsWrite = new CancellationTokenSource(TimeSpan.FromSeconds(RESULTS_CHANNEL_WRITER_TIMEOUT_SEC));
-                    await results.Writer.WriteAsync(new KeyValuePair<string, string>(entry.Key, $"<!-- Can't parse this XML -->\n{entry.Value}"), ctsWrite.Token);
-                }
-                else
-                {
-                    try
-                    {
-                        stopWatch.Start();
-                        var response = ProcessSingleFileAsync(entry.Key, content).Result;
-
-                        using var ctsWrite = new CancellationTokenSource(TimeSpan.FromSeconds(RESULTS_CHANNEL_WRITER_TIMEOUT_SEC));
-                        await results.Writer.WriteAsync(new KeyValuePair<string, string>(entry.Key, response), ctsWrite.Token);
-
-                        _logger.LogInformation("[ConvertZipAsync-Channel] FileProcessed | HashedFileName={FileName} | ElapsedMs={ElapsedMilliseconds}",
-                            fileNameToLog, stopWatch.ElapsedMilliseconds);
-                        stopWatch.Stop();
-                    }
-                    catch (OperationCanceledException ex)
-                    {
-                        _logger.LogError(ex, "[ConvertZipAsync-Channel] Cancelled | HashedFileName={FileName}", fileNameToLog);
-
-                        using var ctsWrite = new CancellationTokenSource(TimeSpan.FromSeconds(RESULTS_CHANNEL_WRITER_TIMEOUT_SEC));
-                        await results.Writer.WriteAsync(new KeyValuePair<string, string>(entry.Key, $"Error: Processing cancelled for {entry.Key}"), ctsWrite.Token);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "[ConvertZipAsync-Channel] UnexpectedError | HashedFileName={FileName}", fileNameToLog);
-
-                        using var ctsWrite = new CancellationTokenSource(TimeSpan.FromSeconds(RESULTS_CHANNEL_WRITER_TIMEOUT_SEC));
-                        await results.Writer.WriteAsync(new KeyValuePair<string, string>(entry.Key, $"Error: {ex.Message}"), ctsWrite.Token);
-                    }
-                }
+                var response = await ProcessAndLogFileAsync(entry.Key, entry.Value, "ConvertZipAsync-Channel", token);
+                using var ctsWrite = new CancellationTokenSource(TimeSpan.FromSeconds(RESULTS_CHANNEL_WRITER_TIMEOUT_SEC));
+                await results.Writer.WriteAsync(new KeyValuePair<string, string>(entry.Key, response), ctsWrite.Token);
 
                 var current = Interlocked.Increment(ref processedCount);
                 var progress = (int)(current / (double)totalCount * 100);
@@ -353,16 +362,24 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
     {
         ArgumentException.ThrowIfNullOrEmpty(stringFile);
 
-        if (!TryReadXmlContent("ConvertedFile.grxml", stringFile, out var stringStrippedFile))
-        {
-            _logger.LogError("[ConvertFileAsync] XmlParseError");
-            return stringStrippedFile;
-        }
-
-        _logger.LogInformation("[ConvertFileAsync] StartProcessing");
-        var processedResult = await ProcessSingleFileAsync("ConvertedFile.grxml", stringStrippedFile);
-        _logger.LogInformation("[ConvertFileAsync] FileProcessed");
-
+        var processedResult = await ProcessAndLogFileAsync("ConvertedFile.grxml", stringFile, "ConvertFileAsync", CancellationToken.None);
         return processedResult;
+    }
+
+    private bool IsTokenCountValid(string prompt, string fileNameToLog, out string? errorMessage)
+    {
+        errorMessage = null;
+        if (TokenValidator != null)
+        {
+            var tokenValidationResult = TokenValidator.ValidateTokenCount(prompt, fileNameToLog);
+            if (!tokenValidationResult.IsValid)
+            {
+                _logger.LogWarning("[ProcessSingleFileAsync] Token validation failed | HashedFileName={FileName} | Reason={Reason}",
+                    fileNameToLog, tokenValidationResult.ErrorMessage);
+                errorMessage = $"Error: {tokenValidationResult.ErrorMessage}";
+                return false;
+            }
+        }
+        return true;
     }
 }

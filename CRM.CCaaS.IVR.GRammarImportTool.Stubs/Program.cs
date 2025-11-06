@@ -13,6 +13,32 @@ public static class Program
 {
     public static WebApplication? App { get; private set; }
 
+    public static ConcurrentDictionary<string, string> PendingErrors = new();
+    public const string PendingErrorSeparator = "#";
+
+    public static KeyValuePair<string, string>? GetPendingError()
+    {
+        foreach (var error in PendingErrors)
+        {
+            if (PendingErrors.TryRemove(error.Key, out var removedError))
+            {
+                return new KeyValuePair<string, string>(error.Key, removedError);
+            }
+        }
+        return null;
+    }
+
+    public static void AddPendingError(string key, string error)
+    {
+        var uniqueKey = $"{key}{PendingErrorSeparator}{Guid.NewGuid()}";
+        PendingErrors[uniqueKey] = error;
+    }
+
+    public static void ClearPendingErrors()
+    {
+        PendingErrors.Clear();
+    }
+
     public static void Main(string[] args)
     {
         var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Local";

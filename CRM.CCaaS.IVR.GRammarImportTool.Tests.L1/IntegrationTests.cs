@@ -3,6 +3,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Reflection.Metadata;
 using System.Text;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Main;
 using CRM.CCaaS.IVR.GRammarImportTool.Tests.L1.Util;
@@ -15,7 +16,8 @@ using Stubs = CRM.CCaaS.IVR.GRammarImportTool.Stubs;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L1;
 
-public class IntegrationTests : IClassFixture<BaseTest>, IDisposable
+[Collection("BaseTestCollection")]
+public class IntegrationTests : IDisposable
 {
     private bool _disposedValue;
     private readonly BaseTest _baseTest;
@@ -291,8 +293,8 @@ public class IntegrationTests : IClassFixture<BaseTest>, IDisposable
             _converter.WriteLine(line);
         }
 
-        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
-        Assert.Equal(1, _converter.GetLines().Count(x => x.Contains("Error:", StringComparison.Ordinal)));
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(1, _converter.GetLines().Count(x => x.Contains("File does not appear to be a valid XML document", StringComparison.Ordinal)));
     }
 
     [Theory]
@@ -325,6 +327,41 @@ public class IntegrationTests : IClassFixture<BaseTest>, IDisposable
     }
 
     [Theory]
+    [Trait("Category", "Negative")]
+    [InlineData("grit-test-data-1.grxml", "401", "This is to simulate access denied once")]
+    public async Task When_upload_grxml_file_to_post_with_401_error_Then_conversion_success_after_1st_retry(string grxmlFileName,
+        string errorType, string message)
+    {
+        Stubs.Program.AddPendingError(errorType, message);
+        var httpClient = _baseTest.GetHttpClient();
+        using var form = new MultipartFormDataContent();
+
+        var fileStream = File.OpenRead(Path.Combine(AppContext.BaseDirectory, "Data", grxmlFileName));
+        using var fileContent = new StreamContent(fileStream);
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/srgs+xml");
+
+        form.Add(fileContent, "file", Path.GetFileName(grxmlFileName));
+
+        var response = await httpClient.PostAsync("grit/grxml", form);
+
+        using var stream = await response.Content.ReadAsStreamAsync();
+        using var reader = new StreamReader(stream);
+
+        while (!reader.EndOfStream)
+        {
+            var line = await reader.ReadLineAsync();
+            _converter.WriteLine(line);
+        }
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var logs = _baseTest.LogProvider.Logger.LoggedMessages;
+        Assert.Contains(logs, x => x.Contains("Status: 401 (Unauthorized)", StringComparison.OrdinalIgnoreCase));
+
+        // Clear the pending error state to prevent state leakage across tests
+        Stubs.Program.ClearPendingErrors();
+    }
+
+    [Theory]
     [Trait("Category", "Load")]
     [InlineData("grit-test-data-1.grxml", 10, 10)]
     public async Task When_mutiple_uploads_grxml_file_to_post_Then_conversion_success(string grxmlFileName,
@@ -332,15 +369,21 @@ public class IntegrationTests : IClassFixture<BaseTest>, IDisposable
         int loops)
     {
         var tasks = new List<Task>();
-        var httpClient = _baseTest.GetHttpClient();
 
         for (int j = 0; j < loops; j++)
         {
             _converter.WriteLine($"Loop {j + 1} of {loops}");
             for (int i = 0; i < parallelRequests; i++)
             {
+                _converter.WriteLine($"Parallel task {i + 1} of {parallelRequests}");
                 tasks.Add(Task.Run(async () =>
                 {
+                    var httpClient = new HttpClient(_baseTest.GetHttpHandler())
+                    {
+                        BaseAddress = new Uri("http://localhost:5003")
+                    };
+                    httpClient.Timeout = TimeSpan.FromMinutes(60);
+
                     string collectedLines = string.Empty;
                     using var form = new MultipartFormDataContent();
 
@@ -374,13 +417,12 @@ public class IntegrationTests : IClassFixture<BaseTest>, IDisposable
 
     [Theory]
     [Trait("Category", "Load")]
-    [InlineData("grit-test-data-1.zip", 20, 2)]
+    [InlineData("grit-test-data-1.zip", 10, 5)]
     public async Task When_mutiple_uploads_zip_file_to_post_Then_conversion_success(string zipFileName,
         int parallelRequests,
         int loops)
     {
         var tasks = new List<Task>();
-        var httpClient = _baseTest.GetHttpClient();
 
         for (int j = 0; j < loops; j++)
         {
@@ -389,6 +431,13 @@ public class IntegrationTests : IClassFixture<BaseTest>, IDisposable
             {
                 tasks.Add(Task.Run(async () =>
                 {
+                    _converter.WriteLine($"Parallel task {i + 1} of {parallelRequests} start");
+                    var httpClient = new HttpClient(_baseTest.GetHttpHandler())
+                    {
+                        BaseAddress = new Uri("http://localhost:5003")
+                    };
+                    httpClient.Timeout = TimeSpan.FromMinutes(60);
+
                     string collectedLines = string.Empty;
                     using var form = new MultipartFormDataContent();
 
@@ -410,6 +459,7 @@ public class IntegrationTests : IClassFixture<BaseTest>, IDisposable
                     }
                     _converter.WriteLine(collectedLines);
                     Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+                    _converter.WriteLine($"Parallel task {i + 1} of {parallelRequests} done");
                 }));
                 await Task.Delay(100);
             }

@@ -10,11 +10,12 @@ using Xunit;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L0.Tests.Domain.Configuration;
 
-public class GptChatGrxmlConfigurationTest : IClassFixture<BaseTest>, IDisposable
+[Collection("BaseTestCollection")]
+public class GptChatGrxmlConfigurationTest : IDisposable
 {
     private bool _disposedValue;
 
-    public GptChatGrxmlConfigurationTest()
+    public GptChatGrxmlConfigurationTest(BaseTest _)
     {
 
     }
@@ -73,8 +74,9 @@ public class GptChatGrxmlConfigurationTest : IClassFixture<BaseTest>, IDisposabl
     [Fact]
     public void When_MissingRequiredProperties_Then_ValidationFails()
     {
-        var config = new GptChatGrxmlConfiguration
+        var configAzure = new GptChatGrxmlConfiguration
         {
+            OpenAI_Provider = "AzureOpenAI",
             InitialChatHistory = null,
             AzureOpenAIEndpoint = "",
             AzureOpenAIDeploymentName = "",
@@ -82,13 +84,28 @@ public class GptChatGrxmlConfigurationTest : IClassFixture<BaseTest>, IDisposabl
         };
 
         var results = new List<ValidationResult>();
-        var isValid = Validator.TryValidateObject(config, new ValidationContext(config), results, true);
+        var isValid = Validator.TryValidateObject(configAzure, new ValidationContext(configAzure), results, true);
 
         Assert.False(isValid);
         Assert.Contains(results, r => r.ErrorMessage?.Contains("Initial Chat history is required", StringComparison.OrdinalIgnoreCase) == true);
-        Assert.Contains(results, r => r.ErrorMessage?.Contains("Azure OpenAI endpoint is required", StringComparison.OrdinalIgnoreCase) == true);
-        Assert.Contains(results, r => r.ErrorMessage?.Contains("Azure OpenAI deployment name is required", StringComparison.OrdinalIgnoreCase) == true);
-        Assert.Contains(results, r => r.ErrorMessage?.Contains("Azure OpenAI key is required", StringComparison.OrdinalIgnoreCase) == true);
+        Assert.Contains(results, r => r.ErrorMessage?.Contains("AzureOpenAIEndpoint is required when AzureOpenAI_Provider is set to AzureOpenAI", StringComparison.OrdinalIgnoreCase) == true);
+        Assert.Contains(results, r => r.ErrorMessage?.Contains("AzureOpenAIDeploymentName is required when AzureOpenAI_Provider is set to AzureOpenAI", StringComparison.OrdinalIgnoreCase) == true);
+        Assert.Contains(results, r => r.ErrorMessage?.Contains("AzureOpenAIKey is required when AzureOpenAI_Provider is set to AzureOpenAI", StringComparison.OrdinalIgnoreCase) == true);
+
+       var configOpenAI = new GptChatGrxmlConfiguration
+        {
+            OpenAI_Provider = "OpenAI",
+            InitialChatHistory = new List<GPTMessage>
+            {
+                new("user", "test")
+            },
+            OpenAI_ApiKey = "",
+            OpenAI_Model = "gpt-4o"
+        };
+
+        isValid = Validator.TryValidateObject(configOpenAI, new ValidationContext(configOpenAI), results, true);
+        Assert.False(isValid);
+        Assert.Contains(results, r => r.ErrorMessage?.Contains("OpenAI_ApiKey is required when OpenAI_Provider is set to OpenAI", StringComparison.OrdinalIgnoreCase) == true);
     }
 
     [Fact]

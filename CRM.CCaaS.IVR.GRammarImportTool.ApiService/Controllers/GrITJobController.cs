@@ -1,29 +1,26 @@
-﻿using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
+﻿using System.Net;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.GptChat;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.Background;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.Store;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util.Logging;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Validation;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Controllers;
 [ApiController]
 [Route("/grit-async/tasks")]
-public class GrITControllerAsync : ControllerBase
+public class GrITJobController(IBackgroundTaskQueue queue, JobTracker tracker, IServiceProvider serviceProvider, FileValidator fileValidator) : ControllerBase
 {
-    private readonly IBackgroundTaskQueue _queue;
-    private readonly JobTracker _tracker;
-    private readonly ILogger<GrITControllerAsync> _logger = GrITLoggerFactory.CreateLogger<GrITControllerAsync>();
-    private readonly IServiceProvider _serviceProvider;
-
-    public GrITControllerAsync(IBackgroundTaskQueue queue, JobTracker tracker, IServiceProvider serviceProvider)
-    {
-        _queue = queue;
-        _tracker = tracker;
-        _serviceProvider = serviceProvider;
-    }
+    private readonly IBackgroundTaskQueue _queue = queue;
+    private readonly JobTracker _tracker = tracker;
+    private readonly ILogger<GrITJobController> _logger = GrITLoggerFactory.CreateLogger<GrITJobController>();
+    private readonly IServiceProvider _serviceProvider = serviceProvider;
+    private readonly FileValidator _fileValidator = fileValidator;
 
     [HttpPost]
     [Route("zip")]
@@ -39,10 +36,22 @@ public class GrITControllerAsync : ControllerBase
         ArgumentOutOfRangeException.ThrowIfZero(file.Length, nameof(file.Length));
         ArgumentOutOfRangeException.ThrowIfGreaterThan(file.Length, gptPrompterConfiguration.Value.AllowedUploadFileSizeRangeBytes, nameof(file.Length));
 
-        var hashedZipFileName = HashHelper.HashSha256Hex(file.FileName);
+        var hashEnabled = gptPrompterConfiguration.Value.HashFileNameInLogs;
+        var fileNameToLog = hashEnabled ? HashHelper.HashSha256Hex(file.FileName) : file.FileName;
+        var fileNameLogLabel = hashEnabled ? "HashedFileName" : "FileName";
 
-        _logger.LogInformation("[AddZipTask] Received ZIP file upload request. HashedFileName={FileName}, Size={FileSizeBytes}",
-            hashedZipFileName, file.Length);
+        var validationResult = await _fileValidator.ValidateUploadedFileAsync(file);
+        if (!validationResult.IsValid)
+        {
+            _logger.LogWarning("[PostGritZipResponse] File validation failed. {fileNameLogLabel}={FileName}, Reason={Reason}",
+                fileNameLogLabel, fileNameToLog, validationResult.ErrorMessage);
+
+            var errorMessage = validationResult.ErrorMessage ?? "Error validating input";
+            return StatusCode(StatusCodes.Status400BadRequest, errorMessage);
+        }
+
+        _logger.LogInformation("[AddZipTask] Received ZIP file upload request. {fileNameLogLabel}={FileName}, Size={FileSizeBytes}",
+            fileNameLogLabel, fileNameToLog, file.Length);
 
         var memoryStream = new MemoryStream();
         await file.CopyToAsync(memoryStream, cancellationToken);
@@ -65,7 +74,7 @@ public class GrITControllerAsync : ControllerBase
         }
         catch (OperationCanceledException ex)
         {
-            _logger.LogError(ex, "[AddZipTask] Request was cancelled while processing ZIP file. HashedFileName={FileName}", hashedZipFileName);
+            _logger.LogError(ex, "[AddZipTask] Request was cancelled while processing ZIP file. {fileNameLogLabel}={FileName}", fileNameLogLabel, fileNameToLog);
             return StatusCode(StatusCodes.Status408RequestTimeout, "Request was cancelled");
         }
         finally
@@ -88,10 +97,21 @@ public class GrITControllerAsync : ControllerBase
         ArgumentOutOfRangeException.ThrowIfZero(file.Length, nameof(file.Length));
         ArgumentOutOfRangeException.ThrowIfGreaterThan(file.Length, gptPrompterConfiguration.Value.AllowedUploadFileSizeRangeBytes, nameof(file.Length));
 
-        var hashedGrxmlFileName = HashHelper.HashSha256Hex(file.FileName);
+        var hashEnabled = gptPrompterConfiguration.Value.HashFileNameInLogs;
+        var fileNameToLog = hashEnabled ? HashHelper.HashSha256Hex(file.FileName) : file.FileName;
+        var fileNameLogLabel = hashEnabled ? "HashedFileName" : "FileName";
 
-        _logger.LogInformation("[AddGrxmlTask] Received GRXML file upload request. HashedFileName={FileName}, Size={FileSizeBytes}",
-            hashedGrxmlFileName, file.Length);
+        _logger.LogInformation("[AddGrxmlTask] Received GRXML file upload request. {fileNameLogLabel}={FileName}, Size={FileSizeBytes}",
+            fileNameLogLabel, fileNameToLog, file.Length);
+
+        var validationResult = await _fileValidator.ValidateUploadedFileAsync(file, true);
+        if (!validationResult.IsValid)
+        {
+            _logger.LogWarning("[PostGritGrxmlResponse] File validation failed. {logFileNameLabel}={FileName}, Reason={Reason}",
+                fileNameLogLabel, fileNameToLog, validationResult.ErrorMessage);
+            var errorMessage = validationResult.ErrorMessage ?? "Error validating input";
+            return StatusCode(StatusCodes.Status400BadRequest, errorMessage);
+        }
 
         try
         {
@@ -114,7 +134,7 @@ public class GrITControllerAsync : ControllerBase
         }
         catch (OperationCanceledException ex)
         {
-            _logger.LogError(ex, "[AddGrxmlTask] Request was cancelled while processing GRXML file. HashedFileName={FileName}", hashedGrxmlFileName);
+            _logger.LogError(ex, "[AddGrxmlTask] Request was cancelled while processing GRXML file. {fileNameLogLabel}={FileName}", fileNameLogLabel, fileNameToLog);
             return StatusCode(StatusCodes.Status408RequestTimeout, "Request was cancelled");
         }
     }
@@ -136,8 +156,10 @@ public class GrITControllerAsync : ControllerBase
 
     [HttpGet]
     [Route("results/{jobId}/{format?}")]
-    public async Task<IActionResult> GetResultsAsync(string jobId, string format = "json")
+    public async Task<IActionResult> GetResultsAsync(string jobId, IOptions<GptChatGrxmlConfiguration> gptPrompterConfiguration, string format = "json")
     {
+        ArgumentNullException.ThrowIfNull(gptPrompterConfiguration);
+
         _logger.LogInformation("[GetResultsAsync] Retrieving results for job {JobId} with format {Format}", jobId, format);
         var status = _tracker.GetStatus(jobId);
         if (status == null)
@@ -148,13 +170,13 @@ public class GrITControllerAsync : ControllerBase
 
         if (status == JobStatus.Completed)
         {
-            var store = _serviceProvider.GetRequiredKeyedService<IConversionResultsStore>(InMemoryConversionResultsStore.SERVICE_KEY);
+            var store = _serviceProvider.GetRequiredKeyedService<IConversionResultsStore>(gptPrompterConfiguration.Value.JobResultsStoreInterface);
             var results = await store.GetResultAsync(jobId);
 
-            if (results == null)
+            if (results == null || results.ResultData.IsEmpty)
             {
-                _logger.LogWarning("[GetResultsAsync] No results found for job {JobId}. Returning null.", jobId);
-                return Ok(new { JobId = jobId, Results = "null" });
+                _logger.LogWarning("[GetResultsAsync] No results found for job {JobId}. Returning 404.", jobId);
+                return NotFound(new { JobId = jobId, Results = "Job completed, no results published" });
             }
 
             _logger.LogInformation("[GetResultsAsync] Job {JobId} completed successfully. Results count: {Count}", jobId, results.ResultData.Count);

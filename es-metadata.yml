@@ -1,0 +1,8 @@
+schemaVersion: 0.0.1
+isProduction: false
+accountableOwners:
+  service: a0591c0f-a54c-4850-8afe-db7ae82e7867
+routing:
+  defaultAreaPath:
+    org: dynamicscrm
+    path: OneCRM\CXA Portfolio\Eng-CES-UCP\Voice Agents\Grammar Import

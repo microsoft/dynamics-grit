@@ -1,6 +1,6 @@
 # Grammar Import Tool (GrIT)
 
-GrIT is a tool for converting GRXML (Grammar XML) files to YAML format compatible with Microsoft Copilot Studio. It helps streamline the migration process from traditional voice recognition grammar files to modern conversational AI platforms.
+GrIT is an LLM-powered tool for converting GRXML (Grammar XML) files to YAML format compatible with Microsoft Copilot Studio. It helps streamline the migration process from traditional voice recognition grammar files to modern conversational AI platforms. It sends prompts to an underlying LLM (Azure/OpenAI) to perform the conversion.
 
 ## Overview
 
@@ -146,19 +146,6 @@ await connection.InvokeAsync("GrxmlConvert", fileBytes);
 
 For more detailed examples, see the [SignalR client example](CRM.CCaaS.IVR.GRammarImportTool.ApiService/Docs/websocketClient/README.md) included in the repository.
 
-## Fine-tuning
-
-Fine-tuning adapts a base LLM to your domain by training it on task-specific examples. It can improve consistency, enforce output formats, and reduce prompt complexity for repeated tasks (for example, converting certain GRXML patterns to standardized YAML entities).
-
-- Dataset: A curated JSONL dataset is provided at:
-  CRM.CCaaS.IVR.GRammarImportTool/CRM.CCaaS.IVR.GRammarImportTool.ApiService/Docs/finetuning/fine-tune-PS-data.jsonl
-- How to use: Create a fine-tuning job in your Azure OpenAI resource using this dataset and a supported base model, wait for training to complete, then deploy the resulting fine-tuned model and update GptChat:Grxml:AzureOpenAIDeploymentName to the new deployment.
-- Notes:
-  - Evaluate the fine-tuned model against your validation GRXML files before adopting it in production.
-  - Keep datasets clean, representative, and consistent to avoid overfitting or regressions.
-  - Fine-tuning incurs extra cost and latency during training.
-  - However, it is not necessary to do fine-tuning when using the gpt-5 model.
-
 ## Running Tests
 
 ### Unit Tests (L0)
@@ -201,6 +188,48 @@ Contributions are welcome! Here's how you can contribute:
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
+
+## Responsible AI Disclaimer
+
+This repository includes AI guardrails and safety mechanisms designed to reduce risks associated with automated decision-making. However, these measures are **not exhaustive**, and **end users remain responsible for ensuring safe and compliant deployment**.
+
+By using this code, you acknowledge that:
+
+- AI systems can produce **unintended, biased, or harmful outputs**.
+- Compliance with **laws, regulations, and ethical standards** is your responsibility.
+- Additional **testing, monitoring, and human oversight** are strongly recommended before production use.
+
+**This repository is provided "as is" without warranties or guarantees. Use at your own risk.**
+
+---
+
+### Deployment Best Practices
+
+To help mitigate risks when deploying AI systems based on this repository:
+
+1. **Perform Risk Assessment**
+   - Identify potential misuse scenarios and failure modes.
+   - Evaluate impact on privacy, security, and fairness.
+
+2. **Enable Human Oversight**
+   - Keep humans in the loop for critical decisions.
+   - Implement escalation paths for unexpected outputs.
+
+3. **Validate and Test**
+   - Use representative datasets to test for bias and accuracy.
+   - Conduct adversarial testing to uncover vulnerabilities.
+
+4. **Monitor Continuously**
+   - Track system performance and user feedback post-deployment.
+   - Set up alerts for anomalies or harmful outputs.
+
+5. **Document and Communicate**
+   - Maintain clear documentation of model limitations and intended use.
+   - Inform stakeholders about risks and mitigation strategies.
+
+6. **Comply with Regulations**
+   - Ensure adherence to data protection laws (e.g., GDPR, CCPA).
+   - Follow organizational Responsible AI guidelines.
 
 ## Acknowledgments
 
