@@ -3,7 +3,6 @@ using System.Data;
 using System.Runtime.CompilerServices;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util.Logging;
-using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.Extensions.Options;
 using OpenAI;
 using OpenAI.Chat;
@@ -27,13 +26,7 @@ public sealed class OpenAIChatService : IChatService
         {
             throw new ArgumentException("One of the OpenAI configuration parameters is missing or contains only whitespace.");
         }
-        _chatClient = new(
-            credential: new ApiKeyCredential(options.OpenAI_ApiKey),
-            model: options.OpenAI_Model,
-            options: new OpenAIClientOptions()
-            {
-                Endpoint = new($"{options.AzureOpenAIEndpoint}"),
-            });
+        _chatClient = new ChatClient(options.OpenAI_Model, options.OpenAI_ApiKey);
     }
 
     private static List<ChatMessage> ToMessages(IEnumerable<ChatTurn> turns)

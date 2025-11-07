@@ -24,6 +24,7 @@ public class IntegrationTests : IDisposable
     private readonly ITestOutputHelper _output;
     private readonly TestConsoleWriter _converter;
     private const string SIGNALR_GRIT_HUB = "grithub";
+    private readonly Random _random = new Random();
 
     public IntegrationTests(BaseTest testD, ITestOutputHelper output)
     {
@@ -359,6 +360,116 @@ public class IntegrationTests : IDisposable
 
         // Clear the pending error state to prevent state leakage across tests
         Stubs.Program.ClearPendingErrors();
+    }
+
+    [Theory]
+    [Trait("Category", "Negative")]
+    [InlineData("grit-test-data-1.zip", 5)]
+    public async Task When_upload_zip_file_to_post_and_disconnect_Then_error_reported(string zipFileName,
+        int loops)
+    {
+        _converter.WriteLine("StubTaskId " + _baseTest.GetStubId());
+        var t1 = Task.Run(async () =>
+        {
+            for (int i = 0; i < loops; i++)
+            {
+                _converter.WriteLine($"Loop {i + 1} of {loops}");
+                var httpClient = new HttpClient(_baseTest.GetHttpHandler())
+                {
+                    BaseAddress = new Uri("http://localhost:5003")
+                };
+                httpClient.Timeout = TimeSpan.FromMinutes(60);
+
+                string collectedLines = string.Empty;
+                using var form = new MultipartFormDataContent();
+
+                var fileStream = File.OpenRead(Path.Combine(AppContext.BaseDirectory, "Data", zipFileName));
+                using var fileContent = new StreamContent(fileStream);
+                fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/zip");
+
+                form.Add(fileContent, "file", Path.GetFileName(zipFileName));
+
+                var response = await httpClient.PostAsync("grit/zip", form);
+
+                using var stream = await response.Content.ReadAsStreamAsync();
+                using var reader = new StreamReader(stream);
+
+                while (!reader.EndOfStream)
+                {
+                    var line = await reader.ReadLineAsync();
+                    collectedLines += line + Environment.NewLine;
+                }
+                _converter.WriteLine(collectedLines);
+                Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+                _converter.WriteLine($"Loop {i + 1} of {loops} done");
+            }
+        });
+
+        await Task.Delay(_random.Next(2000, 5000)); // Wait for some time to let the first upload start
+        _baseTest.StubsStop();
+
+        await t1;
+        Assert.True(TestForError(_converter.GetLines()));
+        _baseTest.StubsRestart();
+    }
+
+    [Theory]
+    [Trait("Category", "Negative")]
+    [InlineData("grit-test-data-1.zip", 5)]
+    public async Task When_upload_zip_file_to_post_and_disconnect_connect_Then_convesion_success(string zipFileName,
+         int loops)
+    {
+        _converter.WriteLine("StubTaskId " + _baseTest.GetStubId());
+        var t1 = Task.Run(async () =>
+        {
+            for (int i = 0; i < loops; i++)
+            {
+                _converter.WriteLine($"Loop {i + 1} of {loops}");
+                var httpClient = new HttpClient(_baseTest.GetHttpHandler())
+                {
+                    BaseAddress = new Uri("http://localhost:5003")
+                };
+                httpClient.Timeout = TimeSpan.FromMinutes(60);
+
+                string collectedLines = string.Empty;
+                using var form = new MultipartFormDataContent();
+
+                var fileStream = File.OpenRead(Path.Combine(AppContext.BaseDirectory, "Data", zipFileName));
+                using var fileContent = new StreamContent(fileStream);
+                fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/zip");
+
+                form.Add(fileContent, "file", Path.GetFileName(zipFileName));
+
+                var response = await httpClient.PostAsync("grit/zip", form);
+
+                using var stream = await response.Content.ReadAsStreamAsync();
+                using var reader = new StreamReader(stream);
+
+                while (!reader.EndOfStream)
+                {
+                    var line = await reader.ReadLineAsync();
+                    collectedLines += line + Environment.NewLine;
+                }
+                _converter.WriteLine(collectedLines);
+                Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+                _converter.WriteLine($"Loop {i + 1} of {loops} done");
+            }
+        });
+
+        await Task.Delay(_random.Next(3000, 6000)); // Wait for some time to let the first upload start
+        _converter.WriteLine("Simulating stubs server restart to cause disconnects.");
+        for (int i = 0; i < loops / 2; i++)
+        {
+            if (t1.IsCompleted)
+                break;
+            Console.WriteLine("Restarting stub...");
+            _baseTest.StubsRestart();
+            await Task.Delay(_random.Next(1000, 3000)); // Wait for some time to let client reconnect
+            _converter.WriteLine("StubTaskId " + _baseTest.GetStubId());
+        }
+
+        await t1;
+        Assert.False(TestForError(_converter.GetLines()));
     }
 
     [Theory]

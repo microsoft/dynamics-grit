@@ -75,10 +75,12 @@ public static class Program
         App.Run();
     }
 
-    public static void Stop()
+    public static async Task Stop()
     {
-        App?.StopAsync(CancellationToken.None).Wait(TimeSpan.FromSeconds(5));
-        App?.DisposeAsync().AsTask().Wait();
+        if (App == null)
+            return;
+        await App.StopAsync(TimeSpan.FromSeconds(5));
+        App.DisposeAsync().AsTask().Wait();
         App = null;
     }
 }
