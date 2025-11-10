@@ -14,6 +14,13 @@ The Grammar Import Tool (GrIT) provides a web service with REST API endpoints an
 - RESTful API endpoints for easy integration
 - Support for both synchronous and asynchronous processing
 
+### Limitations
+GrIT currently does not support the following:
+
+- Conversion of ECMAscipt
+- Subgrammar processing
+- Creation of Constrained Speech object in Microsoft Copilot Studio
+
 ## Architecture
 
 The repository consists of several components:
