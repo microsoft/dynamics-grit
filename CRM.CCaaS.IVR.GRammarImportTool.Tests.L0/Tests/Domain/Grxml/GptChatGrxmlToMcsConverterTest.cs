@@ -610,8 +610,6 @@ indeed invalid"));
     [Fact]
     public async Task When_ConvertZipAsync_SingleFileTimeout_Then_ErrorIsLogged()
     {
-        _baseTest.LogProvider.Logger.Clear();
-
         var zipStream = CreateZipStream(new List<string> { "timeout5000.grxml" }, "<root>test</root>");
 
         var resultsChannel = Channel.CreateBounded<KeyValuePair<string, string>>(_baseTest.GptChatGrxmlTestConfiguration.ResultStreamChannelCapacity);
@@ -661,8 +659,6 @@ indeed invalid"));
     [Fact]
     public async Task When_ConvertZipAsync_NonSeekableZip_Then_WarningIsLogged()
     {
-        _baseTest.LogProvider.Logger.Clear();
-
         var seekableZip = CreateZipStream(new List<string> { "timeout5000.grxml" }, "<root>test</root>");
         var zipBytes = seekableZip.ToArray();
         using Stream zipStream = new NonSeekableReadStream(zipBytes);
@@ -677,8 +673,6 @@ indeed invalid"));
     [Fact]
     public async Task When_ConvertZipAsync_TooManyEntries_Then_InvalidDataExceptionThrown()
     {
-        _baseTest.LogProvider.Logger.Clear();
-
         // Create a zip stream with more than the maximum allowed number of entries (from configuration)
         var maxEntries = _baseTest.GptChatGrxmlTestConfiguration.MaxEntryCount;
         var zipStream = new MemoryStream();
@@ -717,8 +711,6 @@ indeed invalid"));
         // 7. Invoke ConvertZipAsync on refreshed converter and assert InvalidDataException is thrown.
         // 8. Assert exception message indicates entry size violation.
         // 9. Assert logs contain size violation message.
-
-        _baseTest.LogProvider.Logger.Clear();
 
         // Set small size to avoid large allocations and force violation quickly.
         var saveMaxEntrySize = _baseTest.GptChatGrxmlTestConfiguration.MaxEntrySize;
@@ -765,8 +757,6 @@ indeed invalid"));
     [Fact]
     public async Task When_ConvertZipAsync_TooLargeUncompressedZip_Then_InvalidDataExceptionThrown()
     {
-        _baseTest.LogProvider.Logger.Clear();
-
         // Configure limits so that individual entries are fine but total uncompressed size exceeds the limit.
         // Because _converter was created in the test fixture ctor (before we change the config here),
         // we must create a new converter instance with the updated configuration; otherwise the old
@@ -808,14 +798,14 @@ indeed invalid"));
             ex.Message.Contains("large", StringComparison.OrdinalIgnoreCase),
             $"Unexpected exception message: {ex.Message}");
 
+        _baseTest.GptChatGrxmlTestConfiguration.MaxTotalUncompressedSize = saveMaxTotalUncompressedSize; // restore original value
+        _baseTest.GptChatGrxmlTestConfiguration.MaxEntrySize = saveMaxEntrySize; // restore original value
+
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
         Assert.Contains(logMessages, m =>
             (m.Contains("total", StringComparison.OrdinalIgnoreCase) ||
              m.Contains("uncompressed", StringComparison.OrdinalIgnoreCase)) &&
             m.Contains("size", StringComparison.OrdinalIgnoreCase));
-
-        _baseTest.GptChatGrxmlTestConfiguration.MaxTotalUncompressedSize = saveMaxTotalUncompressedSize; // restore original value
-        _baseTest.GptChatGrxmlTestConfiguration.MaxEntrySize = saveMaxEntrySize; // restore original value
     }
 
     [Fact]
