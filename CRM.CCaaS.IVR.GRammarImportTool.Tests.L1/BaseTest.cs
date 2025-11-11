@@ -20,21 +20,14 @@ public class BaseTest : IDisposable
     private readonly HttpClientHandler _handler;
     private readonly HttpClient _httpClient;
     private readonly List<string> _events = new List<string>();
-    private readonly Task _stub;
+    private Task? _stub;
     private readonly Task _main;
-    private readonly CancellationTokenSource _testCancelationTokenSource = new CancellationTokenSource();
+    private CancellationTokenSource? _testCancelationTokenSource;
     private static readonly string[] Args = ["--environment=Test"];
 
     public BaseTest()
     {
-        _stub = Task.Run(() =>
-        {
-            Stubs.Program.Main([""]);
-
-        }, _testCancelationTokenSource.Token);
-
-        Console.WriteLine($"Stub application started. {_stub.Id}");
-
+        StubsRestart();
         _main = Task.Run(() =>
         {
             var logger = LoggerFactory.Create(builder =>
@@ -70,6 +63,59 @@ public class BaseTest : IDisposable
         Console.WriteLine($"Main application started. {_main.Id}");
     }
 
+    public int GetStubId()
+    {
+        if (_stub == null)
+            return 0;
+        return _stub.Id;
+    }
+    public int StubsRestart()
+    {
+        if (_stub != null)
+        {
+            if (_testCancelationTokenSource != null)
+                _testCancelationTokenSource.Cancel();
+            Stubs.Program.Stop();
+
+            while (Stubs.Program.App != null)
+            {
+                Console.WriteLine("Waiting for stub to stop...");
+                Task.Delay(500).Wait();
+            }
+        }
+
+        _testCancelationTokenSource = new CancellationTokenSource();
+        _stub = Task.Run(() =>
+        {
+            Stubs.Program.Main([""]);
+        }, _testCancelationTokenSource.Token);
+
+        while (Stubs.Program.App == null)
+        {
+            Console.WriteLine("Waiting for stub to start...");
+            Task.Delay(500).Wait();
+        }
+
+        Console.WriteLine($"Stub application running. {_stub.Id}");
+        return _stub.Id;
+    }
+
+    public void StubsStop()
+    {
+        if (_stub != null)
+        {
+            if (_testCancelationTokenSource != null)
+                _testCancelationTokenSource.Cancel();
+            Stubs.Program.Stop();
+
+            while (Stubs.Program.App != null)
+            {
+                Console.WriteLine("Waiting for stub to stop...");
+                Task.Delay(500).Wait();
+            }
+        }
+    }
+
     public HttpClient GetHttpClient()
     {
         return _httpClient;
@@ -98,10 +144,11 @@ public class BaseTest : IDisposable
             {
                 _httpClient.Dispose();
                 _handler.Dispose();
-                _testCancelationTokenSource.Cancel();
+                if (_testCancelationTokenSource != null)
+                    _testCancelationTokenSource.Cancel();
                 Stubs.Program.Stop();
-                _stub.Wait(TimeSpan.FromSeconds(10));
-                _testCancelationTokenSource.Dispose();
+                if (_testCancelationTokenSource != null)
+                    _testCancelationTokenSource.Dispose();
                 // TODO: dispose managed state (managed objects)
             }
 

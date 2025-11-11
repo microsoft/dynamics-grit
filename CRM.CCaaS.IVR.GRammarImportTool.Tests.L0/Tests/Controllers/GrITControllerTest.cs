@@ -18,7 +18,8 @@ using Xunit;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L0.Tests.Controllers;
 
-public class GrITControllerTest : IClassFixture<BaseTest>, IDisposable
+[Collection("BaseTestCollection")]
+public class GrITControllerTest : IDisposable
 {
     private readonly BaseTest _baseTest;
 
@@ -37,6 +38,8 @@ public class GrITControllerTest : IClassFixture<BaseTest>, IDisposable
     private readonly Mock<IFormFile> _fileMockZip = new();
     private readonly Mock<IFormFile> _fileMockEmptyZip = new();
     private readonly Mock<IFormFile> _fileMockTooBigZip = new();
+    private readonly Mock<IFormFile> _fileMockBadGrxml = new();
+    private readonly Mock<IFormFile> _fileMockBadZip = new();
 
     private readonly Mock<IFormFile> _fileMockGrxml = new();
 
@@ -72,6 +75,14 @@ public class GrITControllerTest : IClassFixture<BaseTest>, IDisposable
         _fileMockGrxml.Setup(f => f.OpenReadStream()).Returns(stream);
         _fileMockGrxml.Setup(f => f.FileName).Returns("test.grxml");
 
+        _fileMockBadGrxml.Setup(f => f.Length).Returns(grxmlContent.Length);
+        _fileMockBadGrxml.Setup(f => f.OpenReadStream()).Returns(stream);
+        _fileMockBadGrxml.Setup(f => f.FileName).Returns("bad.grxml");
+
+        _fileMockBadZip.Setup(f => f.Length).Returns(grxmlContent.Length);
+        _fileMockBadZip.Setup(f => f.OpenReadStream()).Returns(stream);
+        _fileMockBadZip.Setup(f => f.FileName).Returns("bad.zip");
+
         _optionsMock.Setup(o => o.Value).Returns(_config);
         _baseTest.LogProvider.Logger.Clear();
 
@@ -87,7 +98,7 @@ public class GrITControllerTest : IClassFixture<BaseTest>, IDisposable
 
     private GrITController SetupGritController()
     {
-        var controller = new GrITController();
+        var controller = new GrITController(_baseTest.FileValidatorMock.Object);
         controller.ControllerContext = new ControllerContext { HttpContext = _httpContext };
         return controller;
     }
@@ -109,7 +120,7 @@ public class GrITControllerTest : IClassFixture<BaseTest>, IDisposable
         await controller.PostGritZipResponse(_fileMockZip.Object, _gptChatMock.Object, _optionsMock.Object);
 
         var responseText = await GetResponseTextAsync();
-        Assert.Contains("file.yaml", responseText, StringComparison.CurrentCultureIgnoreCase);
+        Assert.Contains("file.yaml", responseText, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("yaml: content", responseText, StringComparison.InvariantCultureIgnoreCase);
     }
 
@@ -120,6 +131,26 @@ public class GrITControllerTest : IClassFixture<BaseTest>, IDisposable
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
             controller.PostGritZipResponse(_fileMockEmptyZip.Object, _gptChatMock.Object, _optionsMock.Object));
+    }
+
+    [Fact]
+    public async Task When_PostGritZipResponse_WithBadZipInput_Then_ValidationFails()
+    {
+        var controller = SetupGritController();
+
+        await controller.PostGritZipResponse(_fileMockBadZip.Object, _gptChatMock.Object, _optionsMock.Object);
+        var responseText = await GetResponseTextAsync();
+        Assert.Contains("Invalid GRXML in the zip", responseText, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task When_PostGritZipResponse_WithBadGrxmlInput_Then_ValidationFails()
+    {
+        var controller = SetupGritController();
+
+        await controller.PostGritGrxmlResponse(_fileMockBadGrxml.Object, _gptChatMock.Object, _optionsMock.Object);
+        var responseText = await GetResponseTextAsync();
+        Assert.Contains("Invalid GRXML format in file.", responseText, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

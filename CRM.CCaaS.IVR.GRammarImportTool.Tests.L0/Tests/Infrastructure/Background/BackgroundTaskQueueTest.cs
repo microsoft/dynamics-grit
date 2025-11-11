@@ -19,7 +19,8 @@ using Xunit;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L0.Tests.Infrastructure.Background;
 
-public class BackgroundTaskQueueTest : IClassFixture<BaseTest>, IDisposable
+[Collection("BaseTestCollection")]
+public class BackgroundTaskQueueTest : IDisposable
 {
     private bool _disposedValue;
     private readonly BackgroundTaskQueue _queue;

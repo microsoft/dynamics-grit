@@ -12,7 +12,7 @@ using Azure.AI.OpenAI;
 using Azure.Core;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
-using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.AzureOpenAI;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.OpenAIChat;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util.Logging;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
@@ -20,15 +20,15 @@ using Microsoft.Extensions.Options;
 [assembly: InternalsVisibleTo("CRM.CCaaS.IVR.GRammarImportTool.Tests.L0")]
 namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.GptChat;
 
-public abstract class GptChatBase(IAzureOpenAIClientFactory azureOpenAIClientFactory, GptChatGrxmlConfiguration? gptChatGrxmlConfiguration = null) : IGptChat
+public abstract class GptChatBase(IChatService openAIChatService, GptChatGrxmlConfiguration gptChatGrxmlConfiguration) : IGptChat
 {
     public abstract Task<Stream> ConvertZipAsync(Stream zipStream, Func<int, string, Task> progressCallback, Func<byte[], Task> completedCallback);
     public abstract Task<string> ConvertFileAsync(string stringFile, Func<int, string, Task> progressCallback, Func<string, Task> completedCallback);
     public abstract Task<string> ConvertZipAsync(Stream zipStream, Channel<KeyValuePair<string, string>> results);
     public abstract Task<string> ConvertFileAsync(string stringFile);
 
-    public IAzureOpenAIClientFactory AzureOpenAIClientFactory { get; } = azureOpenAIClientFactory;
-    protected GptChatGrxmlConfiguration? GptChatGrxmlConfiguration { get; } = gptChatGrxmlConfiguration;
+    public IChatService OpenAIChatService { get; } = openAIChatService;
+    protected GptChatGrxmlConfiguration GptChatGrxmlConfiguration { get; } = gptChatGrxmlConfiguration;
 
     private readonly ILogger<GptChatBase> _logger = GrITLoggerFactory.CreateLogger<GptChatBase>();
     private const int DefaultBufferSize = 8192;

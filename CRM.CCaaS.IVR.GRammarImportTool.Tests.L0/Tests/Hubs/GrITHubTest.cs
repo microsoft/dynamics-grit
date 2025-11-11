@@ -16,7 +16,8 @@ using Xunit;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L0.Tests.Hubs;
 
-public class GrITHubTest : IClassFixture<BaseTest>, IDisposable
+[Collection("BaseTestCollection")]
+public class GrITHubTest : IDisposable
 {
     static readonly byte[] TEST_XML_STRING = Encoding.UTF8.GetBytes("<test>test</test>");
     static readonly string TEST_CONNECTION_ID = "test-connection-id";

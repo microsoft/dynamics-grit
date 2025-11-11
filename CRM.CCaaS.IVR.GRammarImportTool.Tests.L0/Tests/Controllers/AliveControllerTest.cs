@@ -2,7 +2,8 @@
 using Microsoft.AspNetCore.Mvc;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L0.Tests.Controllers;
-public class AliveControllerTest : IClassFixture<BaseTest>
+[Collection("BaseTestCollection")]
+public class AliveControllerTest
 {
     private readonly BaseTest _baseTest;
     public AliveControllerTest(BaseTest baseTest)

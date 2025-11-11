@@ -15,7 +15,8 @@ using Xunit;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L0.Tests.Infrastructure.Background;
 
-public class GrxmlConversionServiceTest : IClassFixture<BaseTest>, IDisposable
+[Collection("BaseTestCollection")]
+public class GrxmlConversionServiceTest : IDisposable
 {
     private bool _disposedValue;
     private readonly BaseTest _baseTest;

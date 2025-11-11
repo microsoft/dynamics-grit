@@ -3,12 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.AzureOpenAI;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.OpenAIChat;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L0.Tests.Domain.Grxml;
-public class AzureOpenAIClientFactoryTest : IClassFixture<BaseTestAzureOpenAIClientFactory>
+[Collection("BaseTestOpenAICollection")]
+public class AzureOpenAIClientFactoryTest
 {
     private readonly BaseTestAzureOpenAIClientFactory _baseTest;
     private readonly IAzureOpenAIClientFactory _azureOpenAIClientFactory;

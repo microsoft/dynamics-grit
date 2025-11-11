@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.IO.Compression;
+using System.Linq;
 using System.Text;
 using System.Threading.Channels;
 using Castle.Components.DictionaryAdapter.Xml;
@@ -7,8 +8,9 @@ using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Controllers;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.GptChat;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
-using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.AzureOpenAI;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.OpenAIChat;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Validation;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -19,7 +21,8 @@ using YamlDotNet.Core;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L0.Tests.Domain.Grxml;
 
-public class GptChatGrxmlToMcsConverterTest : IClassFixture<BaseTest>, IDisposable
+[Collection("BaseTestCollection")]
+public class GptChatGrxmlToMcsConverterTest : IDisposable
 {
     private const string TestValidXml = @"<grammar version=""1.0""
 xml:lang=""en-US""
@@ -77,7 +80,9 @@ tag-format=""semantics/1.0"">
 
         _converter = new GptChatGrxmlToMcsConverter(
             _baseTest.ServiceProvider.GetRequiredService<IOptions<GptChatGrxmlConfiguration>>(),
-            _baseTest.ServiceProvider.GetRequiredService<IAzureOpenAIClientFactory>());
+            _baseTest.ServiceProvider.GetRequiredService<IChatService>(),
+            _baseTest.ServiceProvider.GetRequiredService<AiContentValidator>(),
+            _baseTest.ServiceProvider.GetRequiredService<TokenValidator>());
 
         _baseTest.LogProvider.Logger.Clear();
     }
@@ -108,8 +113,9 @@ tag-format=""semantics/1.0"">
         return zipStream;
     }
 
-    private static MemoryStream CreateZipStream(List<string> fileNames, string content)
+    public static MemoryStream CreateZipStream(List<string> fileNames, string content)
     {
+        ArgumentNullException.ThrowIfNull(fileNames);
         var zipStream = new MemoryStream();
         using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, true))
         {
@@ -136,11 +142,11 @@ tag-format=""semantics/1.0"">
     }
 
     [Fact]
-    public void When_GetIAzureOpenAIClientFactory_Then_ReturnsNotNull()
+    public void When_GetOpenAIChatService_Then_ReturnsNotNull()
     {
-        var factory = _converter.AzureOpenAIClientFactory;
+        var factory = _converter.OpenAIChatService;
         Assert.NotNull(factory);
-        Assert.IsType<IAzureOpenAIClientFactory>(factory, exactMatch: false);
+        Assert.IsType<IChatService>(factory, exactMatch: false);
     }
 
     [Fact]
@@ -212,7 +218,7 @@ indeed invalid"));
         var result = _converter.TryReadXmlContent("good.xml", TestValidXml, out var stripped);
 
         Assert.True(result);
-        Assert.Contains("</grammar>", stripped, StringComparison.CurrentCultureIgnoreCase);
+        Assert.Contains("</grammar>", stripped, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("<!--", stripped, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -295,6 +301,16 @@ indeed invalid"));
         Assert.NotNull(result);
         Assert.Contains("Error:", result, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Failed to process badYaml.grxml", result, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task When_ProcessSingleFileAsync_ValidationFails_Then_ReturnError()
+    {
+        var result = await _converter.ProcessSingleFileAsync("badGrxml.grxml", "<grammar>hello</grammar>");
+
+        Assert.NotNull(result);
+        Assert.Contains("Error:", result, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Error validating AI prompt content", result, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -386,7 +402,7 @@ indeed invalid"));
         Assert.NotNull(entryResult);
         using var reader = new StreamReader(entryResult.Open());
         var content = reader.ReadToEnd();
-        Assert.Contains("Error: Unexpected error occured", content, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Error: Unknown exception occurred during processing", content, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -410,7 +426,7 @@ indeed invalid"));
         Assert.NotNull(entryResult);
         using var reader = new StreamReader(entryResult.Open());
         var content = reader.ReadToEnd();
-        Assert.Contains("Error: Processing cancelled", content, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Error: Processing timeout for timeout5000.grxml", content, StringComparison.OrdinalIgnoreCase);
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
         Assert.Contains(logMessages, m => m.Contains("[ProcessSingleFileAsync] Cancelled", StringComparison.OrdinalIgnoreCase));
@@ -609,12 +625,10 @@ indeed invalid"));
         Assert.Contains(logMessages, m => m.Contains("[ProcessSingleFileAsync] Cancelled | Reason=Timeout", StringComparison.OrdinalIgnoreCase));
     }
 
-    private sealed class NonSeekableReadStream : Stream
+    private sealed class NonSeekableReadStream(byte[] data) : Stream
     {
-        private readonly byte[] _data;
+        private readonly byte[] _data = data ?? throw new ArgumentNullException(nameof(data));
         private int _position;
-
-        public NonSeekableReadStream(byte[] data) => _data = data ?? throw new ArgumentNullException(nameof(data));
 
         public override bool CanRead => true;
         public override bool CanSeek => false;
@@ -713,7 +727,9 @@ indeed invalid"));
         // Create a refreshed converter so new MaxEntrySize is honored.
         var refreshedConverter = new GptChatGrxmlToMcsConverter(
             Options.Create(_baseTest.GptChatGrxmlTestConfiguration),
-            _converter.AzureOpenAIClientFactory);
+            _converter.OpenAIChatService,
+            _converter.AiContentValidator,
+            _converter.TokenValidator);
 
         var oversizedLength = _baseTest.GptChatGrxmlTestConfiguration.MaxEntrySize + 1000;
         var largeContent = new string('A', (int)oversizedLength);
@@ -762,7 +778,9 @@ indeed invalid"));
 
         var refreshedConverter = new GptChatGrxmlToMcsConverter(
             Options.Create(_baseTest.GptChatGrxmlTestConfiguration),
-            _converter.AzureOpenAIClientFactory);
+            _converter.OpenAIChatService,
+            _converter.AiContentValidator,
+            _converter.TokenValidator);
 
         // Create multiple small entries whose combined size exceeds MaxTotalUncompressedSize
         var entryContent = new string('A', 60); // each 60 bytes (ASCII)
@@ -844,7 +862,7 @@ indeed invalid"));
         var result = await _converter.ConvertFileAsync("</root><child></root>");
 
         Assert.NotNull(result);
-        Assert.Contains("Error: Failed to parse as XML", result, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Can't parse this XML", result, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -854,6 +872,16 @@ indeed invalid"));
         Assert.Throws<ArgumentException>(() => HashHelper.HashSha256Hex(emptyString));
 
         Assert.Throws<ArgumentException>(() => HashHelper.HashSha256Hex(null!));
+    }
+
+    [Fact]
+    public async Task When_ConvertFileAsync_WithinTokenLimit_Then_ProcessesSuccessfully()
+    {
+        // Use the existing TestValidXml which should be well within the token limit
+        var result = await _converter.ConvertFileAsync(TestValidXml);
+
+        Assert.NotNull(result);
+        Assert.DoesNotContain("Error: Token count", result);
     }
 
     protected virtual void Dispose(bool disposing)

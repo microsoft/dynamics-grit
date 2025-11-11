@@ -8,6 +8,7 @@ using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Hubs;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util.Logging;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Validation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
@@ -23,9 +24,10 @@ namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Controllers;
 /// </summary>
 [ApiController]
 [Route("/grit")]
-public class GrITController() : ControllerBase
+public class GrITController(FileValidator fileValidator) : ControllerBase
 {
     private readonly ILogger<GrITController> _logger = GrITLoggerFactory.CreateLogger<GrITController>();
+    private readonly FileValidator _fileValidator = fileValidator;
 
     [HttpPost]
     [Route("zip")]
@@ -43,6 +45,20 @@ public class GrITController() : ControllerBase
         var hashEnabled = gptPrompterConfiguration.Value.HashFileNameInLogs;
         var fileNameToLog = hashEnabled ? HashHelper.HashSha256Hex(file.FileName) : file.FileName;
         var fileNameLogLabel = hashEnabled ? "HashedFileName" : "FileName";
+
+        var validationResult = await _fileValidator.ValidateUploadedFileAsync(file);
+        if (!validationResult.IsValid)
+        {
+            _logger.LogWarning("[PostGritZipResponse] File validation failed. {fileNameLogLabel}={FileName}, Reason={Reason}",
+                fileNameLogLabel, fileNameToLog, validationResult.ErrorMessage);
+
+            Response.StatusCode = StatusCodes.Status400BadRequest;
+            Response.ContentType = "text/plain";
+            var errorMessage = validationResult.ErrorMessage ?? "Error validating input";
+            await Response.WriteAsync(errorMessage);
+            await Response.Body.FlushAsync();
+            return;
+        }
 
         _logger.LogInformation("[PostGritZipResponse] Received ZIP file upload request. {fileNameLogLabel}={FileName}, Size={FileSizeBytes}",
             fileNameLogLabel, fileNameToLog, file.Length);
@@ -134,6 +150,16 @@ public class GrITController() : ControllerBase
         var logFileNameLabel = hashEnabled ? "HashedFileName" : "FileName";
 
         _logger.LogInformation("[PostGritGrxmlResponse] Received Grxml file upload request. {logFileNameLabel}={FileName}, Size={FileSizeBytes}", logFileNameLabel, fileNameToLog, file.Length);
+
+        var validationResult = await _fileValidator.ValidateUploadedFileAsync(file, true);
+        if (!validationResult.IsValid)
+        {
+            _logger.LogWarning("[PostGritGrxmlResponse] File validation failed. {logFileNameLabel}={FileName}, Reason={Reason}",
+                logFileNameLabel, fileNameToLog, validationResult.ErrorMessage);
+            var errorMessage = validationResult.ErrorMessage ?? "Error validating input";
+            WriteErrorResponse(Response, errorMessage, HttpStatusCode.BadRequest);
+            return;
+        }
 
         try
         {

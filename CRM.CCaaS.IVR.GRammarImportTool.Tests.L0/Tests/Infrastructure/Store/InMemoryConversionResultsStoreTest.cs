@@ -13,7 +13,8 @@ using Xunit;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L0.Tests.Infrastructure.Store;
 
-public class InMemoryConversionResultsStoreTest : IClassFixture<BaseTest>, IDisposable
+[Collection("BaseTestCollection")]
+public class InMemoryConversionResultsStoreTest : IDisposable
 {
     private readonly BaseTest _baseTest;
     private bool _disposedValue;
@@ -31,7 +32,7 @@ public class InMemoryConversionResultsStoreTest : IClassFixture<BaseTest>, IDisp
     {
         var config = new GptChatGrxmlConfiguration
         {
-            ConversationResultsStoreInMemoryMaxItems = maxItems
+            InMemoryConversionResultsStoreMaxItems = maxItems
         };
         return new InMemoryConversionResultsStore(
             Options.Create(config),

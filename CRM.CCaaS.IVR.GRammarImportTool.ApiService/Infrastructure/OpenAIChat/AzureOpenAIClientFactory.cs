@@ -1,9 +1,10 @@
 ﻿using Azure;
 using Azure.AI.OpenAI;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.OpenAIChat;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util.Logging;
 using Microsoft.Extensions.AI;
 
-namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.AzureOpenAI;
+namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.OpenAIChat;
 
 public class AzureOpenAIClientFactory : IAzureOpenAIClientFactory
 {

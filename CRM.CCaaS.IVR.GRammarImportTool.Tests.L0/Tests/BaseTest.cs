@@ -9,9 +9,10 @@ using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Controllers;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.GptChat;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
-using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.AzureOpenAI;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.OpenAIChat;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.Background;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.Store;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Validation;
 using CRM.CCaaS.IVR.GRammarImportTool.Tests.L0.Common;
 using CRM.CCaaS.IVR.GRammarImportTool.Tests.L0.Tests.Domain.Configuration;
 using CRM.CCaaS.IVR.GRammarImportTool.Tests.L0.Tests.Domain.Grxml;
@@ -40,7 +41,14 @@ public class BaseTest : IDisposable
 
     public Mock<JobTracker> JobTrackerMock { get; private set; } = new Mock<JobTracker>();
 
+    public Mock<FileValidator> FileValidatorMock { get => _fileValidatorMock; }
+    public Mock<AiContentValidator> AiContentValidatorMock { get => _aiContentValidatorMock; }
+    public Mock<TokenValidator> TokenValidatorMock { get => _tokenValidatorMock; }
+
     private bool _disposedValue;
+    private readonly Mock<FileValidator> _fileValidatorMock;
+    private readonly Mock<AiContentValidator> _aiContentValidatorMock;
+    private readonly Mock<TokenValidator> _tokenValidatorMock;
 
     public BaseTest()
     {
@@ -50,6 +58,9 @@ public class BaseTest : IDisposable
         });
         ApiService.Util.Logging.GrITLoggerFactory.Instance = logger;
 
+        _fileValidatorMock = new Mock<FileValidator>(Options.Create(GptChatGrxmlTestConfiguration));
+        _aiContentValidatorMock = new Mock<AiContentValidator>(Options.Create(GptChatGrxmlTestConfiguration));
+        _tokenValidatorMock = new Mock<TokenValidator>(Options.Create(GptChatGrxmlTestConfiguration));
         SetupMocks();
     }
 
@@ -116,11 +127,38 @@ public class BaseTest : IDisposable
 
         QueueMock.Setup(q => q.EnqueueAsync(It.IsAny<JobTask>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
 
+        FileValidatorMock.Setup(fv => fv.ValidateUploadedFileAsync(It.IsAny<Microsoft.AspNetCore.Http.IFormFile>(), It.IsAny<bool>()))
+            .ReturnsAsync(ValidationResult.Success());
+        FileValidatorMock.Setup(fv => fv.ValidateUploadedFileAsync(It.Is<Microsoft.AspNetCore.Http.IFormFile>(f => f.FileName.Contains("bad.grxml")), It.IsAny<bool>()))
+            .ReturnsAsync(ValidationResult.Failure("Invalid GRXML format in file."));
+        FileValidatorMock.Setup(fv => fv.ValidateUploadedFileAsync(It.Is<Microsoft.AspNetCore.Http.IFormFile>(f => f.FileName.Contains("bad.zip")), It.IsAny<bool>()))
+            .ReturnsAsync(ValidationResult.Failure("Invalid GRXML in the zip."));
+        FileValidatorMock.Setup(fv => fv.ValidateXmlContentsAsync(It.IsAny<Stream>()))
+            .ReturnsAsync(ValidationResult.Success());
+        FileValidatorMock.Setup(fv => fv.ValidateZipContentsAsync(It.IsAny<Stream>()))
+            .ReturnsAsync(ValidationResult.Success());
+
+        AiContentValidatorMock.Setup(fv => fv.ValidateAiPromptAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(ValidationResult.Success);
+        AiContentValidatorMock.Setup(fv => fv.ValidateAiPromptAsync(It.IsAny<string>(), It.Is<string>(s => s.Contains("badGrxml", StringComparison.OrdinalIgnoreCase))))
+            .ReturnsAsync(ValidationResult.Failure("Error validating AI prompt content"));
+
+        TokenValidatorMock.Setup(tv => tv.ValidateTokenCount(It.IsAny<string>(), It.IsAny<string>()))
+            .Returns(ValidationResult.Success());
+        TokenValidatorMock.Setup(tv => tv.MaxTokenLimit)
+            .Returns(10000);
+
         services.AddSingleton<IHostEnvironment>(new UnitTestHostEnvironment { EnvironmentName = "Development" });
         services.AddKeyedSingleton(InMemoryConversionResultsStore.SERVICE_KEY, ResultsStoreMock.Object);
         services.AddSingleton(QueueMock.Object);
+        services.AddSingleton(provider => AzureOpenAIClientFactoryMock.Object);
+        services.AddSingleton(provider =>
+        {
+            var config = provider.GetRequiredService<IOptions<GptChatGrxmlConfiguration>>();
+            var azureFactory = provider.GetRequiredService<IAzureOpenAIClientFactory>();
+            return ChatServiceFactory.Create(config, azureFactory);
+        });
         services.AddKeyedTransient<IGptChat, GptChatGrxmlToMcsConverter>(GptChatGrxmlToMcsConverter.SERVICE_KEY);
-        services.AddTransient(provider => AzureOpenAIClientFactoryMock.Object);
         services.AddControllers().AddApplicationPart(typeof(HealthController).Assembly);
         services.AddControllers().AddApplicationPart(typeof(GrITController).Assembly);
 
@@ -129,6 +167,7 @@ public class BaseTest : IDisposable
         GptChatGrxmlTestConfiguration.AzureOpenAIKey = "test-key";
         GptChatGrxmlTestConfiguration.MaxAllowedConversionTimeSingleFileSec = 5;
         GptChatGrxmlTestConfiguration.MaxAllowedConversionTimeTotalSec = 10;
+        GptChatGrxmlTestConfiguration.AllowedUploadFileSizeRangeBytes = 50;
         GptChatGrxmlTestConfiguration.DegreeParallelism = 2;
         GptChatGrxmlTestConfiguration.BackgroundTasksQueueCapacity = 2;
         GptChatGrxmlTestConfiguration.InitialChatHistory = new List<GPTMessage>
@@ -137,6 +176,10 @@ public class BaseTest : IDisposable
         };
         GptChatGrxmlTestConfiguration.RetryDelaySec = 1;
         services.AddSingleton(Options.Create(GptChatGrxmlTestConfiguration));
+
+        services.AddTransient(provider => FileValidatorMock.Object);
+        services.AddTransient(provider => AiContentValidatorMock.Object);
+        services.AddTransient(provider => TokenValidatorMock.Object);
 
         services.AddLogging(builder =>
         {

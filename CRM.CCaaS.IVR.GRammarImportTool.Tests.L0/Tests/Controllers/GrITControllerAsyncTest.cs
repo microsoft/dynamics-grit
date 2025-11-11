@@ -14,12 +14,14 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Microsoft.VisualStudio.TestPlatform.PlatformAbstractions.Interfaces;
 using Moq;
 using Xunit;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L0.Tests.Controllers;
 
-public class GrITControllerAsyncTest : IClassFixture<BaseTest>, IDisposable
+[Collection("BaseTestCollection")]
+public class GrITControllerAsyncTest : IDisposable
 {
     private readonly BaseTest _baseTest;
     private readonly Mock<IBackgroundTaskQueue> _queueMock = new();
@@ -35,6 +37,8 @@ public class GrITControllerAsyncTest : IClassFixture<BaseTest>, IDisposable
 
     private readonly Mock<IFormFile> _fileMockZip = new();
     private readonly Mock<IFormFile> _fileMockGrxml = new();
+    private readonly Mock<IFormFile> _fileMockBadGrxml = new();
+    private readonly Mock<IFormFile> _fileMockBadZip = new();
     private readonly HttpContext _httpContext = new DefaultHttpContext();
     private readonly MemoryStream _responseBody = new();
     private bool _disposedValue;
@@ -58,6 +62,12 @@ public class GrITControllerAsyncTest : IClassFixture<BaseTest>, IDisposable
             .Returns<Stream, CancellationToken>(grxmlStream.CopyToAsync);
         _fileMockGrxml.Setup(f => f.FileName).Returns("test.grxml");
 
+        _fileMockBadGrxml.Setup(f => f.Length).Returns(grxmlContent.Length);
+        _fileMockBadGrxml.Setup(f => f.FileName).Returns("bad.grxml");
+
+        _fileMockBadZip.Setup(f => f.Length).Returns(grxmlContent.Length);
+        _fileMockBadZip.Setup(f => f.FileName).Returns("bad.zip");
+
         _optionsMock.Setup(o => o.Value).Returns(_config);
         _baseTest.LogProvider.Logger.Clear();
 
@@ -71,9 +81,9 @@ public class GrITControllerAsyncTest : IClassFixture<BaseTest>, IDisposable
         return await reader.ReadToEndAsync();
     }
 
-    private GrITControllerAsync SetupController()
+    private GrITJobController SetupController()
     {
-        var controller = new GrITControllerAsync(_queueMock.Object, _trackerMock.Object, _baseTest.ServiceProvider!);
+        var controller = new GrITJobController(_queueMock.Object, _trackerMock.Object, _baseTest.ServiceProvider!, _baseTest.FileValidatorMock.Object);
         controller.ControllerContext = new ControllerContext { HttpContext = _httpContext };
         return controller;
     }
@@ -145,6 +155,34 @@ public class GrITControllerAsyncTest : IClassFixture<BaseTest>, IDisposable
     }
 
     [Fact]
+    public async Task When_AddZiplTask_WithBadZipInput_Then_ValidationFails()
+    {
+        var controller = SetupController();
+
+        var result = await controller.AddZipTask(_fileMockBadZip.Object, _gptChatMock.Object, _optionsMock.Object, new CancellationToken());
+        var objectResult = result as ObjectResult;
+
+        Assert.NotNull(objectResult);
+        Assert.NotNull(objectResult.Value);
+        Assert.Equal(400, objectResult.StatusCode);
+        Assert.Contains("Invalid GRXML in the zip", objectResult.Value.ToString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task When_AddGrxmlTask_WithBadGrxmlInput_Then_ValidationFails()
+    {
+        var controller = SetupController();
+
+        var result = await controller.AddGrxmlTask(_fileMockBadGrxml.Object, _gptChatMock.Object, _optionsMock.Object, new CancellationToken());
+        var objectResult = result as ObjectResult;
+
+        Assert.NotNull(objectResult);
+        Assert.NotNull(objectResult.Value);
+        Assert.Equal(400, objectResult.StatusCode);
+        Assert.Contains("Invalid GRXML format in file", objectResult.Value.ToString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void When_GetStatus_JobExists_Then_ReturnsOkWithStatus()
     {
         _trackerMock.Setup(t => t.GetStatus("job123")).Returns(JobStatus.Pending);
@@ -176,11 +214,11 @@ public class GrITControllerAsyncTest : IClassFixture<BaseTest>, IDisposable
 
         var controller = SetupController();
 
-        var result = await controller.GetResultsAsync("job123", "pretty");
+        var result = await controller.GetResultsAsync("job123", _optionsMock.Object, "pretty");
 
         var okResult = Assert.IsType<OkObjectResult>(result);
-        Assert.Contains("file.yaml", okResult.Value?.ToString(), StringComparison.CurrentCultureIgnoreCase);
-        Assert.Contains("yaml: content", okResult.Value?.ToString(), StringComparison.CurrentCultureIgnoreCase);
+        Assert.Contains("file.yaml", okResult.Value?.ToString(), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("yaml: content", okResult.Value?.ToString(), StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -190,11 +228,10 @@ public class GrITControllerAsyncTest : IClassFixture<BaseTest>, IDisposable
 
         var controller = SetupController();
 
-        var result = await controller.GetResultsAsync("jobResultIsNull", "json");
+        var result = await controller.GetResultsAsync("jobResultIsNull", _optionsMock.Object, "json");
 
-        var okResult = Assert.IsType<OkObjectResult>(result);
-        Assert.Contains(@"{""JobId"":""jobResultIsNull"",""Results"":{""ResultData"":{},""CreatedAt"":",
-            JsonSerializer.Serialize(okResult?.Value), StringComparison.OrdinalIgnoreCase);
+        var notFoundResult = Assert.IsType<NotFoundObjectResult>(result);
+        Assert.Contains("Job completed, no results published", notFoundResult.Value?.ToString(), StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -204,10 +241,10 @@ public class GrITControllerAsyncTest : IClassFixture<BaseTest>, IDisposable
 
         var controller = SetupController();
 
-        var result = await controller.GetResultsAsync("job123", "json");
+        var result = await controller.GetResultsAsync("job123", _optionsMock.Object, "json");
 
         var okResult = Assert.IsType<OkObjectResult>(result);
-        Assert.Contains("Pending", okResult.Value?.ToString(), StringComparison.CurrentCultureIgnoreCase);
+        Assert.Contains("Pending", okResult.Value?.ToString(), StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -217,7 +254,7 @@ public class GrITControllerAsyncTest : IClassFixture<BaseTest>, IDisposable
 
         var controller = SetupController();
 
-        var result = await controller.GetResultsAsync("job123", "json");
+        var result = await controller.GetResultsAsync("job123", _optionsMock.Object, "json");
 
         Assert.IsType<NotFoundResult>(result);
     }

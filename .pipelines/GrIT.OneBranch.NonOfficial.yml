@@ -59,6 +59,10 @@ extends:
       # artifacts:
       #  - drop_linux_stage_linux_job
     globalSdl:  # https://aka.ms/obpipelines/sdl
+      codeql:
+        compiled: 
+          enabled: true
+        tsaEnabled: true
       tsa:
         enabled: false  # onebranch publish all SDL results to TSA. If TSA is disabled all SDL tools will forced into 'break' build mode.
       # credscan:

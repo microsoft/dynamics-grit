@@ -51,6 +51,38 @@ public class ChatController(ChatGptService chatGptService, ILogger<ChatGptServic
                 }
             }
 
+            if (Program.GetPendingError() is KeyValuePair<string, string> pendingError)
+            {
+                _logger.LogWarning("Sending pending error for request: {ErrorKey}", pendingError.Key);
+                var baseErrorKey = GetErrorType(pendingError.Key);
+                switch (baseErrorKey)
+                {
+                    case "timeout":
+                        await Task.Delay(15000); // Simulate timeout
+                        break;
+                    case "disconnect":
+                        Response.Body.Close(); // Simulate disconnection
+                        return;
+                    case "401":
+                        Response.StatusCode = 401; // Unauthorized
+                        break;
+                    case "404":
+                        Response.StatusCode = 404;
+                        break;
+                    case "429":
+                        Response.StatusCode = 429;
+                        break;
+                    case "corrupted-json":
+                        await Response.WriteAsync("Invalid Json");
+                        return;
+                    default:
+                        break;
+                }
+                await Response.WriteAsync($"data: Error: {pendingError.Value}\n\n");
+                await Response.Body.FlushAsync();
+                return;
+            }
+            // Simulate streaming a valid response
             foreach (var chunk in _chatGptService.StreamChatAsyncStub(ChatData.YAML_REPLY_DATA[Random.Shared.Next(ChatData.YAML_REPLY_DATA.Length)]))
             {
                 await Response.WriteAsync($"data: {chunk}\n\n");
@@ -78,5 +110,11 @@ public class ChatController(ChatGptService chatGptService, ILogger<ChatGptServic
             _logger.LogWarning("Invalid XML format detected.");
             return false;
         }
+    }
+    public static string GetErrorType(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key)) return key;
+        var withoutIndex = key.Split(Program.PendingErrorSeparator)[0];
+        return withoutIndex;
     }
 }

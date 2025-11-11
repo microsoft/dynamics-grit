@@ -144,6 +144,6 @@ public class GrITHub(
         if (string.IsNullOrEmpty(Path.GetExtension(fileName)))
             return message;
 
-        return message.Replace(fileName, HashHelper.HashSha256Hex(fileName), StringComparison.CurrentCulture);
+        return message.Replace(fileName, HashHelper.HashSha256Hex(fileName), StringComparison.OrdinalIgnoreCase);
     }
 }
