@@ -14,6 +14,13 @@ The Grammar Import Tool (GrIT) provides a web service with REST API endpoints an
 - RESTful API endpoints for easy integration
 - Support for both synchronous and asynchronous processing
 
+### Limitations
+GrIT currently does not support the following:
+
+- Conversion of ECMAscipt
+- Subgrammar processing
+- Creation of Constrained Speech object in Microsoft Copilot Studio
+
 ## Architecture
 
 The repository consists of several components:
@@ -235,3 +242,6 @@ To help mitigate risks when deploying AI systems based on this repository:
 
 - This project uses Azure OpenAI for intelligent GRXML conversion
 - Built with ASP.NET Core and SignalR for real-time communication
+
+## Trademarks 
+This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft trademarks or logos is subject to and must follow [Microsoft’s Trademark & Brand Guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks/usage/general). Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship. Any use of third-party trademarks or logos are subject to those third-party’s policies.
