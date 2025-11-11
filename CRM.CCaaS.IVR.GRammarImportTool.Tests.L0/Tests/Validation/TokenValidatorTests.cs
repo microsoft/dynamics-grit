@@ -6,12 +6,19 @@ using Xunit;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L0.Tests.Validation;
 
+[Collection("BaseTestCollection")]
 public class TokenValidatorTests
 {
     private readonly TokenValidator _tokenValidator;
+    private readonly BaseTest _baseTest;
 
-    public TokenValidatorTests()
+    public TokenValidatorTests(BaseTest baseTest)
     {
+        _baseTest = baseTest ?? throw new ArgumentNullException(nameof(baseTest));
+        if (_baseTest.ServiceProvider == null)
+            throw new InvalidOperationException("ServiceProvider is not initialized.");
+
+        _baseTest.LogProvider.Logger.Clear();
         var configuration = new GptChatGrxmlConfiguration
         {
             MaxTokenLimit = 10000
