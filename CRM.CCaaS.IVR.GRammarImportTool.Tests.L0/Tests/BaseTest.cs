@@ -88,7 +88,7 @@ public class BaseTest : IDisposable
 
                 if (chatHistory.Any(y => y.Text.Contains("timeout5000", StringComparison.OrdinalIgnoreCase)))
                 {
-                    Thread.Sleep(5000); // Simulate a timeout
+                    Thread.Sleep(5100); // Simulate a timeout
                     throw new OperationCanceledException("Operation timed out.");
                 }
 

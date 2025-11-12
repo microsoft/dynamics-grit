@@ -211,8 +211,9 @@ public class FileValidatorTests : IDisposable
         _baseTest.GptChatGrxmlTestConfiguration.MaxTotalUncompressedSize = 10;
 
         var result = await _validator.ValidateZipContentsAsync(zipStream);
-        Assert.False(result.IsValid);
         _baseTest.GptChatGrxmlTestConfiguration.MaxTotalUncompressedSize = save;
+
+        Assert.False(result.IsValid);
     }
 
     private static IFormFile CreateMockFormFile(string content, string fileName, string contentType)

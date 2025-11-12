@@ -18,7 +18,6 @@ public class TokenValidatorTests
         if (_baseTest.ServiceProvider == null)
             throw new InvalidOperationException("ServiceProvider is not initialized.");
 
-        _baseTest.LogProvider.Logger.Clear();
         var configuration = new GptChatGrxmlConfiguration
         {
             MaxTokenLimit = 10000

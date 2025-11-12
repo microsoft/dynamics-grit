@@ -37,42 +37,41 @@ public class TestLoggerProvider : ILoggerProvider
         Dispose(true);
         GC.SuppressFinalize(this);
     }
+}
+public class TestLogger : ILogger
+{
+    private readonly List<string> _loggedMessages = [];
 
-    public class TestLogger : ILogger
+    public IDisposable? BeginScope<TState>(TState state) => null;
+
+    public bool IsEnabled(LogLevel logLevel) => true;
+    public void Clear()
     {
-        private readonly List<string> _loggedMessages = [];
+        lock (_loggedMessages)
+        {
+            _loggedMessages.Clear();
+        }
+    }
 
-        public IDisposable? BeginScope<TState>(TState state) => null;
-
-        public bool IsEnabled(LogLevel logLevel) => true;
-        public void Clear()
+    public IEnumerable<string> LoggedMessages
+    {
+        get
         {
             lock (_loggedMessages)
             {
-                _loggedMessages.Clear();
+                return [.. _loggedMessages]; // Return a copy of the logged messages. This is to avoid exception if new message is logged while iteration.
             }
         }
+    }
 
-        public IEnumerable<string> LoggedMessages
+    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+    {
+        if (formatter != null)
         {
-            get
+            var message = formatter(state, exception);
+            lock (_loggedMessages)
             {
-                lock (_loggedMessages)
-                {
-                    return [.. _loggedMessages]; // Return a copy of the logged messages. This is to avoid exception if new message is logged while iteration.
-                }
-            }
-        }
-
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
-        {
-            if (formatter != null)
-            {
-                var message = formatter(state, exception);
-                lock (_loggedMessages)
-                {
-                    _loggedMessages.Add($"{logLevel} - {message}");
-                }
+                _loggedMessages.Add($"{logLevel} - {message}");
             }
         }
     }
