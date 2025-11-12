@@ -34,7 +34,8 @@ public class GrITController(FileValidator fileValidator) : ControllerBase
     public async Task PostGritZipResponse(
         [FromForm] IFormFile file,
         [FromKeyedServices(GptChatGrxmlToMcsConverter.SERVICE_KEY)] IGptChat gptGrxmlChat,
-        IOptions<GptChatGrxmlConfiguration> gptPrompterConfiguration)
+        IOptions<GptChatGrxmlConfiguration> gptPrompterConfiguration,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(gptGrxmlChat, nameof(gptGrxmlChat));
         ArgumentNullException.ThrowIfNull(gptPrompterConfiguration, nameof(gptPrompterConfiguration));
@@ -55,8 +56,8 @@ public class GrITController(FileValidator fileValidator) : ControllerBase
             Response.StatusCode = StatusCodes.Status400BadRequest;
             Response.ContentType = "text/plain";
             var errorMessage = validationResult.ErrorMessage ?? "Error validating input";
-            await Response.WriteAsync(errorMessage);
-            await Response.Body.FlushAsync();
+            await Response.WriteAsync(errorMessage, cancellationToken);
+            await Response.Body.FlushAsync(cancellationToken);
             return;
         }
 
@@ -67,12 +68,14 @@ public class GrITController(FileValidator fileValidator) : ControllerBase
 
         // Copy the file to a MemoryStream outside the background task
         var memoryStream = new MemoryStream();
-        await file.CopyToAsync(memoryStream);
+        await file.CopyToAsync(memoryStream, cancellationToken);
         memoryStream.Position = 0;
 
         try
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(gptPrompterConfiguration.Value.MaxAllowedConversionTimeTotalSec));
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, cancellationToken);
+
             var resultsChannel = Channel.CreateBounded<KeyValuePair<string, string>>(gptPrompterConfiguration.Value.ResultStreamChannelCapacity);
             // Do NOT dispose memoryStream here; let it be GC'd after task completes
 
@@ -82,12 +85,12 @@ public class GrITController(FileValidator fileValidator) : ControllerBase
                 try
                 {
                     SetContentType(Response, "application/x-yaml");
-                    await foreach (var partialResult in resultsChannel.Reader.ReadAllAsync(cts.Token))
+                    await foreach (var partialResult in resultsChannel.Reader.ReadAllAsync(linkedCts.Token))
                     {
                         var keyToLog = hashEnabled ? HashHelper.HashSha256Hex(partialResult.Key) : partialResult.Key;
                         _logger.LogInformation("[PostGritZipResponse] Processed entry. HashedKey={Key}", keyToLog);
-                        await Response.WriteAsync($"---\n#{partialResult.Key}\n{YamlHelper.SerializeYaml(partialResult.Value)}\n");
-                        await Response.Body.FlushAsync();
+                        await Response.WriteAsync($"---\n#{partialResult.Key}\n{YamlHelper.SerializeYaml(partialResult.Value)}\n", linkedCts.Token);
+                        await Response.Body.FlushAsync(linkedCts.Token);
                     }
                 }
                 catch (OperationCanceledException)
@@ -95,7 +98,7 @@ public class GrITController(FileValidator fileValidator) : ControllerBase
                     _logger.LogInformation("[PostGritZipResponse] Dequeue task was cancelled");
                 }
                 _logger.LogInformation("[PostGritZipResponse] Finished results dequeue task");
-            }, cts.Token);
+            }, linkedCts.Token);
 
             var conversionResult = await gptGrxmlChat.ConvertZipAsync(
                 memoryStream,
@@ -105,8 +108,8 @@ public class GrITController(FileValidator fileValidator) : ControllerBase
             stopwatch.Stop();
 
             SetContentType(Response, "text/plain");
-            await Response.WriteAsync($"{conversionResult}");
-            await Response.Body.FlushAsync();
+            await Response.WriteAsync($"{conversionResult}", linkedCts.Token);
+            await Response.Body.FlushAsync(linkedCts.Token);
             _logger.LogInformation("[PostGritZipResponse] File processing completed. Result={Result}, DurationMs={Duration}", conversionResult, stopwatch.ElapsedMilliseconds);
 
             await deQueueTask;
@@ -115,19 +118,19 @@ public class GrITController(FileValidator fileValidator) : ControllerBase
         {
             _logger.LogError(ex, "[PostGritZipResponse] Cancellation exception. HashedFileName={FileName}", fileNameToLog);
             SetContentType(Response, "text/plain");
-            await Response.WriteAsync("File processing was cancelled.");
-            await Response.Body.FlushAsync();
+            await Response.WriteAsync("File processing was cancelled.", cancellationToken);
+            await Response.Body.FlushAsync(cancellationToken);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "[PostGritZipResponse] An error occurred while processing file. HashedFileName={FileName}, Size={FileSizeBytes}", fileNameToLog, file.Length);
             SetContentType(Response, "text/plain");
-            await Response.WriteAsync("An error occurred while processing the file.");
-            await Response.Body.FlushAsync();
+            await Response.WriteAsync("An error occurred while processing the file.", cancellationToken);
+            await Response.Body.FlushAsync(cancellationToken);
         }
         finally
         {
-            await Response.Body.FlushAsync();
+            await Response.Body.FlushAsync(cancellationToken);
             memoryStream.Dispose();
         }
     }
@@ -137,7 +140,8 @@ public class GrITController(FileValidator fileValidator) : ControllerBase
     public async Task PostGritGrxmlResponse(
         [FromForm] IFormFile file,
         [FromKeyedServices(GptChatGrxmlToMcsConverter.SERVICE_KEY)] IGptChat gptGrxmlChat,
-        IOptions<GptChatGrxmlConfiguration> gptPrompterConfiguration)
+        IOptions<GptChatGrxmlConfiguration> gptPrompterConfiguration,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(gptGrxmlChat, nameof(gptGrxmlChat));
         ArgumentNullException.ThrowIfNull(gptPrompterConfiguration, nameof(gptPrompterConfiguration));
@@ -157,7 +161,7 @@ public class GrITController(FileValidator fileValidator) : ControllerBase
             _logger.LogWarning("[PostGritGrxmlResponse] File validation failed. {logFileNameLabel}={FileName}, Reason={Reason}",
                 logFileNameLabel, fileNameToLog, validationResult.ErrorMessage);
             var errorMessage = validationResult.ErrorMessage ?? "Error validating input";
-            WriteErrorResponse(Response, errorMessage, HttpStatusCode.BadRequest);
+            await WriteErrorResponse(Response, errorMessage, HttpStatusCode.BadRequest, cancellationToken);
             return;
         }
 
@@ -174,7 +178,7 @@ public class GrITController(FileValidator fileValidator) : ControllerBase
             if (string.IsNullOrEmpty(converted) || converted.StartsWith("Error:"))
             {
                 _logger.LogError("[PostGritGrxmlResponse] Conversion returned empty result. HashedFileName={FileName}, ContentLength={Length}", fileNameToLog, grxmlContent?.Length ?? 0);
-                WriteErrorResponse(Response, $"Conversion failed: {converted}", HttpStatusCode.InternalServerError);
+                await WriteErrorResponse(Response, $"Conversion failed: {converted}", HttpStatusCode.InternalServerError, cancellationToken);
                 return;
             }
             if (HttpContext.RequestAborted.IsCancellationRequested)
@@ -185,23 +189,23 @@ public class GrITController(FileValidator fileValidator) : ControllerBase
             SetContentType(Response, "application/x-yaml");
             _logger.LogInformation("[PostGritGrxmlResponse] Conversion success. HashedFileName={FileName}, OutputLength={Length}", fileNameToLog, converted?.Length ?? 0);
             Response.StatusCode = StatusCodes.Status200OK;
-            await Response.WriteAsync($"---\n#{file.FileName}\n{YamlHelper.SerializeYaml(converted)}");
+            await Response.WriteAsync($"---\n#{file.FileName}\n{YamlHelper.SerializeYaml(converted)}", cancellationToken);
         }
         catch (OperationCanceledException ex)
         {
             _logger.LogError(ex, "[PostGritGrxmlResponse] Cancellation exception while processing GRXML file. HashedFileName={FileName}", fileNameToLog);
             SetContentType(Response, "text/plain");
-            WriteErrorResponse(Response, "File processing was cancelled.", HttpStatusCode.RequestTimeout);
+            await WriteErrorResponse(Response, "File processing was cancelled.", HttpStatusCode.RequestTimeout, cancellationToken);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "[PostGritGrxmlResponse] Unexpected error occurred while processing GRXML file. HashedFileName={FileName}", fileNameToLog);
             SetContentType(Response, "text/plain");
-            WriteErrorResponse(Response, "Unexpected error occurred while processing the GRXML file.", HttpStatusCode.InternalServerError);
+            await WriteErrorResponse(Response, "Unexpected error occurred while processing the GRXML file.", HttpStatusCode.InternalServerError, cancellationToken);
         }
         finally
         {
-            await Response.Body.FlushAsync();
+            await Response.Body.FlushAsync(cancellationToken);
         }
     }
 
@@ -213,11 +217,11 @@ public class GrITController(FileValidator fileValidator) : ControllerBase
         }
     }
 
-    private static void WriteErrorResponse(HttpResponse response, string message, HttpStatusCode statusCode)
+    private static async Task WriteErrorResponse(HttpResponse response, string message, HttpStatusCode statusCode, CancellationToken cancellationToken)
     {
         SetContentType(response, "text/plain");
         response.StatusCode = (int)statusCode;
-        response.WriteAsync(message).GetAwaiter().GetResult();
-        response.Body.FlushAsync().GetAwaiter().GetResult();
+        await response.WriteAsync(message, cancellationToken);
+        await response.Body.FlushAsync(cancellationToken);
     }
 }
