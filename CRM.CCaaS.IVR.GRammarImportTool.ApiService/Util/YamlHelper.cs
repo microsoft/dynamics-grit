@@ -1,4 +1,6 @@
-﻿namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util;
 
 public static class YamlHelper
 {

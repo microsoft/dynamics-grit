@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 using System;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.Background;
 using Xunit;

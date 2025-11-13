@@ -1,4 +1,6 @@
-﻿namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util.Logging;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util.Logging;
 
 public static class GrITLoggerFactory
 {

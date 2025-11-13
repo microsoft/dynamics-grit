@@ -1,4 +1,6 @@
-﻿using System.Net;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+using System.Net;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.GptChat;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
@@ -12,6 +14,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Controllers;
+
 [ApiController]
 [Route("/grit-async/tasks")]
 public class GrITJobController(IBackgroundTaskQueue queue, JobTracker tracker, IServiceProvider serviceProvider, FileValidator fileValidator) : ControllerBase

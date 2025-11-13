@@ -1,4 +1,6 @@
-﻿using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Controllers;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Controllers;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L0.Tests.Controllers;

@@ -1,4 +1,6 @@
-﻿using System.ClientModel;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+using System.ClientModel;
 using System.Data;
 using System.Runtime.CompilerServices;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;

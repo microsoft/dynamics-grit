@@ -35,7 +35,7 @@ The repository consists of several components:
 
 - [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
 - [Visual Studio 2022](https://visualstudio.microsoft.com/vs/) (recommended) or any other IDE supporting .NET development
-- Azure OpenAI service access (for the conversion functionality)
+- Azure OpenAI service access (for the conversion functionality). GrIT performs better with OpenAI GPT-5 and GPT-5-mini.
 
 ## Getting Started
 

@@ -1,4 +1,6 @@
-﻿using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util.Logging;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util.Logging;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

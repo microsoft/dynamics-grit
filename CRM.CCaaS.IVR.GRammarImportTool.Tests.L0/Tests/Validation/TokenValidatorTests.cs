@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Validation;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
 using Microsoft.Extensions.Options;

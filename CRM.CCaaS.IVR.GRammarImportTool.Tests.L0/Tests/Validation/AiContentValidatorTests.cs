@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 using System;
 using System.Threading.Tasks;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;

@@ -1,4 +1,6 @@
-﻿namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.Store;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.Store;
 
 public interface IConversionResultsStore
 {

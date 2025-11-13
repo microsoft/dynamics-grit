@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 using System.Collections.Concurrent;
 using System.Net;
 using CRM.CCaaS.IVR.GRammarImportTool.Stubs.Controllers;

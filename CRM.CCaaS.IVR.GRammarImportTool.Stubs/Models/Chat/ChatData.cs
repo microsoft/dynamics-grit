@@ -1,4 +1,6 @@
-﻿namespace CRM.CCaaS.IVR.GRammarImportTool.Stubs.Models.Chat;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+namespace CRM.CCaaS.IVR.GRammarImportTool.Stubs.Models.Chat;
 
 public static class ChatData
 {

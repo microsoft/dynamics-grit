@@ -1,4 +1,6 @@
-﻿using System;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+using System;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
 using Microsoft.Extensions.Options;
 
@@ -12,7 +14,7 @@ public static class ChatServiceFactory
         return provider switch
         {
             GptChatGrxmlConfiguration.OpenAIProvider_AzureOpenAI => new AzureOpenAIChatService(gptChatConfiguration!, azureOpenAIClientFactory),
-            GptChatGrxmlConfiguration.OpenAIProvider_OpenAI => new OpenAIChatService(gptChatConfiguration!),   // v2.4.x
+            GptChatGrxmlConfiguration.OpenAIProvider_OpenAI => new OpenAIChatService(gptChatConfiguration!),
             _ => throw new NotSupportedException($"Unknown provider: {provider}")
         };
     }

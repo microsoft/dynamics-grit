@@ -1,4 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+using System.ComponentModel.DataAnnotations;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.Store;
 using Microsoft.Extensions.AI;
 
