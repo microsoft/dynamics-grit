@@ -117,7 +117,7 @@ public class GrITControllerTest : IDisposable
 
         var controller = SetupGritController();
 
-        await controller.PostGritZipResponse(_fileMockZip.Object, _gptChatMock.Object, _optionsMock.Object);
+        await controller.PostGritZipResponse(_fileMockZip.Object, _gptChatMock.Object, _optionsMock.Object, new CancellationToken());
 
         var responseText = await GetResponseTextAsync();
         Assert.Contains("file.yaml", responseText, StringComparison.OrdinalIgnoreCase);
@@ -130,7 +130,7 @@ public class GrITControllerTest : IDisposable
         var controller = SetupGritController();
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
-            controller.PostGritZipResponse(_fileMockEmptyZip.Object, _gptChatMock.Object, _optionsMock.Object));
+            controller.PostGritZipResponse(_fileMockEmptyZip.Object, _gptChatMock.Object, _optionsMock.Object, new CancellationToken()));
     }
 
     [Fact]
@@ -138,7 +138,7 @@ public class GrITControllerTest : IDisposable
     {
         var controller = SetupGritController();
 
-        await controller.PostGritZipResponse(_fileMockBadZip.Object, _gptChatMock.Object, _optionsMock.Object);
+        await controller.PostGritZipResponse(_fileMockBadZip.Object, _gptChatMock.Object, _optionsMock.Object, new CancellationToken());
         var responseText = await GetResponseTextAsync();
         Assert.Contains("Invalid GRXML in the zip", responseText, StringComparison.OrdinalIgnoreCase);
     }
@@ -148,7 +148,7 @@ public class GrITControllerTest : IDisposable
     {
         var controller = SetupGritController();
 
-        await controller.PostGritGrxmlResponse(_fileMockBadGrxml.Object, _gptChatMock.Object, _optionsMock.Object);
+        await controller.PostGritGrxmlResponse(_fileMockBadGrxml.Object, _gptChatMock.Object, _optionsMock.Object, new CancellationToken());
         var responseText = await GetResponseTextAsync();
         Assert.Contains("Invalid GRXML format in file.", responseText, StringComparison.OrdinalIgnoreCase);
     }
@@ -159,7 +159,7 @@ public class GrITControllerTest : IDisposable
         var controller = SetupGritController();
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
-            controller.PostGritZipResponse(_fileMockTooBigZip.Object, _gptChatMock.Object, _optionsMock.Object));
+            controller.PostGritZipResponse(_fileMockTooBigZip.Object, _gptChatMock.Object, _optionsMock.Object, new CancellationToken()));
     }
 
     [Fact]
@@ -170,7 +170,7 @@ public class GrITControllerTest : IDisposable
 
         var controller = SetupGritController();
 
-        await controller.PostGritZipResponse(_fileMockZip.Object, _gptChatMock.Object, _optionsMock.Object);
+        await controller.PostGritZipResponse(_fileMockZip.Object, _gptChatMock.Object, _optionsMock.Object, new CancellationToken());
 
         var responseText = await GetResponseTextAsync();
         Assert.Contains("An error occurred while processing the file", responseText, StringComparison.OrdinalIgnoreCase);
@@ -184,7 +184,7 @@ public class GrITControllerTest : IDisposable
 
         var controller = SetupGritController();
 
-        await controller.PostGritZipResponse(_fileMockZip.Object, _gptChatMock.Object, _optionsMock.Object);
+        await controller.PostGritZipResponse(_fileMockZip.Object, _gptChatMock.Object, _optionsMock.Object, new CancellationToken());
 
         var responseText = await GetResponseTextAsync();
         Assert.Contains("File processing was cancelled", responseText, StringComparison.OrdinalIgnoreCase);
@@ -199,7 +199,7 @@ public class GrITControllerTest : IDisposable
 
         var controller = SetupGritController();
 
-        await controller.PostGritGrxmlResponse(_fileMockGrxml.Object, _gptChatMock.Object, _optionsMock.Object);
+        await controller.PostGritGrxmlResponse(_fileMockGrxml.Object, _gptChatMock.Object, _optionsMock.Object, new CancellationToken());
 
         var responseText = await GetResponseTextAsync();
         Assert.Contains("test.grxml", responseText, StringComparison.OrdinalIgnoreCase);
@@ -219,7 +219,7 @@ public class GrITControllerTest : IDisposable
 
         var controller = SetupGritController();
         controller.HttpContext.RequestAborted = new CancellationTokenSource(TimeSpan.FromSeconds(1)).Token;
-        await controller.PostGritGrxmlResponse(_fileMockGrxml.Object, _gptChatMock.Object, _optionsMock.Object);
+        await controller.PostGritGrxmlResponse(_fileMockGrxml.Object, _gptChatMock.Object, _optionsMock.Object, new CancellationToken());
 
         var logMessages = _baseTest.LogProvider.Logger.LoggedMessages;
         var fileNameLogLabel = _config.HashFileNameInLogs ? "HashedFileName" : "FileName";
@@ -234,7 +234,7 @@ public class GrITControllerTest : IDisposable
 
         var controller = SetupGritController();
 
-        await controller.PostGritGrxmlResponse(_fileMockGrxml.Object, _gptChatMock.Object, _optionsMock.Object);
+        await controller.PostGritGrxmlResponse(_fileMockGrxml.Object, _gptChatMock.Object, _optionsMock.Object, new CancellationToken());
 
         var responseText = await GetResponseTextAsync();
         Assert.Contains("Conversion failed", responseText, StringComparison.OrdinalIgnoreCase);
@@ -247,7 +247,7 @@ public class GrITControllerTest : IDisposable
         var controller = SetupGritController();
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
-            controller.PostGritGrxmlResponse(_fileMockEmptyZip.Object, _gptChatMock.Object, _optionsMock.Object));
+            controller.PostGritGrxmlResponse(_fileMockEmptyZip.Object, _gptChatMock.Object, _optionsMock.Object, new CancellationToken()));
     }
 
     [Fact]
@@ -256,7 +256,7 @@ public class GrITControllerTest : IDisposable
         var controller = SetupGritController();
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
-            controller.PostGritGrxmlResponse(_fileMockTooBigZip.Object, _gptChatMock.Object, _optionsMock.Object));
+            controller.PostGritGrxmlResponse(_fileMockTooBigZip.Object, _gptChatMock.Object, _optionsMock.Object, new CancellationToken()));
     }
 
     [Fact]
@@ -267,7 +267,7 @@ public class GrITControllerTest : IDisposable
 
         var controller = SetupGritController();
 
-        await controller.PostGritGrxmlResponse(_fileMockGrxml.Object, _gptChatMock.Object, _optionsMock.Object);
+        await controller.PostGritGrxmlResponse(_fileMockGrxml.Object, _gptChatMock.Object, _optionsMock.Object, new CancellationToken());
 
         var responseText = await GetResponseTextAsync();
         Assert.Contains("Unexpected error occurred", responseText, StringComparison.OrdinalIgnoreCase);
@@ -282,7 +282,7 @@ public class GrITControllerTest : IDisposable
 
         var controller = SetupGritController();
 
-        await controller.PostGritGrxmlResponse(_fileMockGrxml.Object, _gptChatMock.Object, _optionsMock.Object);
+        await controller.PostGritGrxmlResponse(_fileMockGrxml.Object, _gptChatMock.Object, _optionsMock.Object, new CancellationToken());
 
         var responseText = await GetResponseTextAsync();
         Assert.Contains("File processing was cancelled", responseText, StringComparison.OrdinalIgnoreCase);
