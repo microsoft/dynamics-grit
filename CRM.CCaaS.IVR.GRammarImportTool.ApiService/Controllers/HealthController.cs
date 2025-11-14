@@ -1,4 +1,6 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util.Logging;
 using Microsoft.AspNetCore.Authorization;

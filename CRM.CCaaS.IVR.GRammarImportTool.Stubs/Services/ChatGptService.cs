@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+using System.Collections.Generic;
 using System.Data;
 using System.Net.Http.Headers;
 using System.Text.Json;
@@ -25,7 +27,7 @@ public class ChatGptService(IConfiguration config, ILogger<ChatGptService> logge
         {
             var chunk = new
             {
-                choices = new[]
+                choices = new[] 
                 {
                     new
                     {

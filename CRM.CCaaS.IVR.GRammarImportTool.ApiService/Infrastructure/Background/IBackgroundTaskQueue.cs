@@ -1,4 +1,7 @@
-﻿namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.Background;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.Background;
 
 public interface IBackgroundTaskQueue
 {

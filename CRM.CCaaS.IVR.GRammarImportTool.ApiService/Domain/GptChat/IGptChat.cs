@@ -1,4 +1,6 @@
-﻿using System.Collections.Concurrent;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+using System.Collections.Concurrent;
 using System.Threading.Channels;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.GptChat;

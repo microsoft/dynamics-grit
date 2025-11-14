@@ -1,4 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+using System.ComponentModel.DataAnnotations;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
 

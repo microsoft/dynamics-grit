@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 using System;
 using System.Collections.Concurrent;
 using System.Linq;
@@ -8,14 +10,6 @@ using Xunit;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L0.Tests.Infrastructure.Store;
 
-/// <summary>
-/// Unit tests for ConversionResult.
-/// These tests assume:
-///  - A constructor ConversionResult(ConcurrentDictionary<string,string>? resultData = null)
-///  - Public property ConcurrentDictionary<string,string> ResultData { get; }
-///  - Public DateTime CreatedAt { get; set; }
-/// Adjust if the actual signature differs.
-/// </summary>
 public class ConversionResultTest
 {
     private static ConversionResult Create(params (string key, string value)[] pairs)

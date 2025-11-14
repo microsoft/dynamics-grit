@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 using System.Xml.Linq;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
 using Xunit;

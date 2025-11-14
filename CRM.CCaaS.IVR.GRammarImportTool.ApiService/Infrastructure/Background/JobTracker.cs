@@ -1,4 +1,6 @@
-﻿using System.Collections.Concurrent;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+using System.Collections.Concurrent;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.Background;
 

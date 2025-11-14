@@ -1,4 +1,6 @@
-﻿using Azure;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+using Azure;
 using Azure.AI.OpenAI;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.OpenAIChat;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util.Logging;

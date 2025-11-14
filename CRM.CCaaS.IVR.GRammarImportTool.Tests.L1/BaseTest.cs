@@ -1,4 +1,6 @@
-﻿using System.IO.Compression;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+using System.IO.Compression;
 using System.Security.Cryptography;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService;
 using CRM.CCaaS.IVR.GRammarImportTool.Tests.L1.Common;

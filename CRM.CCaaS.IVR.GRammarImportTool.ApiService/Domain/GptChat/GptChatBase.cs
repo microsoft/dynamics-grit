@@ -1,4 +1,7 @@
-﻿using System.Collections.Concurrent;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+using System.Collections.Concurrent;
 using System.IO.Compression;
 using System.Runtime.CompilerServices;
 using System.Security;

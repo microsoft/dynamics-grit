@@ -1,4 +1,7 @@
-﻿using System.ComponentModel;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+using System.ComponentModel;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util.Logging;
