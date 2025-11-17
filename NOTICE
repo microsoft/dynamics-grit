@@ -1,0 +1,25 @@
+NOTICE
+
+This project includes or depends upon the following third-party open source software components. Each component is licensed under its own terms. The full license texts can be found in the respective project repositories or NuGet packages.
+
+1. Azure.AI.OpenAI (Microsoft) - Provides Azure OpenAI client SDK.
+2. Azure.Identity (Microsoft) - Azure identity and credential helpers.
+3. Microsoft.AspNetCore.OpenApi (Microsoft) - ASP.NET Core OpenAPI/Swagger support.
+4. Microsoft.AspNetCore.SignalR.Client (Microsoft) - SignalR .NET client for real-time communication.
+5. Microsoft.Extensions.AI.Abstractions (Microsoft) - Abstractions for AI service integrations.
+6. Microsoft.Extensions.AI.OpenAI (Microsoft) - OpenAI provider implementation for Microsoft.Extensions.AI.
+7. Microsoft.ML.Tokenizers / Microsoft.ML.Tokenizers.Data.Cl100kBase (Microsoft) - Tokenization utilities.
+8. OpenAI (OpenAI) - Official OpenAI .NET client SDK.
+9. Swashbuckle.AspNetCore (Third-party) - Swagger/OpenAPI generation for ASP.NET Core.
+10. YamlDotNet (Antoine Aubry and contributors) - YAML parser and serializer for .NET.
+11. coverlet.collector (Contributors to Coverlet) - Code coverage collector for .NET.
+12. Microsoft.NET.Test.Sdk (Microsoft) - Test framework infrastructure.
+13. Moq (Claudio Bernasconi and contributors) - Mocking framework for .NET.
+14. Microsoft.QualityTools.Testing.Fakes (Microsoft) - Microsoft Fakes isolation framework.
+15. xunit / xunit.runner.visualstudio (xUnit.net authors) - Testing framework and VS runner.
+16. Microsoft.AspNetCore.Mvc.Testing (Microsoft) - ASP.NET Core integration test helpers.
+17. Microsoft.Extensions.Configuration.Abstractions (Microsoft) - Configuration abstractions.
+18. Microsoft.Extensions.AI.Evaluation (Microsoft) - AI evaluation utilities.
+19. Microsoft.VisualStudio.Azure.Containers.Tools.Targets (Microsoft) - Container tools targets for Visual Studio.
+
+If any source files directly incorporate code from these dependencies, attribution and license reproduction is required per their terms. This NOTICE file is provided for informational purposes and does not modify any licensing obligations.
