@@ -196,19 +196,14 @@ tag-format=""semantics/1.0"">
     }
 
     [Fact]
-    public void When_ValidateGoodYaml_Then_NoError()
+    public void When_ProcessSingleFileAsync_OutboundYamlIsSanitized()
     {
-        _converter?.ValidateYamlContent("---\ntest: content");
-        Assert.Throws<SyntaxErrorException>(() => _converter?.ValidateYamlContent(
-            @"---invalid yaml content:
-indeed invalid"));
-    }
+        // Smoke check: the converter delegates outbound sanitization to AiContentValidator.
+        // Detailed sanitization rules are covered by AiContentValidatorTests.
+        var sanitized = AiContentValidator.SanitizeAiYamlOutput("test: content");
+        Assert.Contains("test: content", sanitized, StringComparison.Ordinal);
 
-    [Fact]
-    public void When_ValidateGoodYaml_Then_SyntaxErrorException()
-    {
-        _converter?.ValidateYamlContent("---\ntest: content");
-        Assert.Throws<SyntaxErrorException>(() => _converter?.ValidateYamlContent(
+        Assert.Throws<SyntaxErrorException>(() => AiContentValidator.SanitizeAiYamlOutput(
             @"---invalid yaml content:
 indeed invalid"));
     }

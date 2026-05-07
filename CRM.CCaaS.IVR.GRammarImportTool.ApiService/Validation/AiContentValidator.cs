@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -9,6 +10,9 @@ using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util.Logging;
 using Microsoft.Extensions.Options;
+using YamlDotNet.Core;
+using YamlDotNet.Core.Events;
+using YamlDotNet.RepresentationModel;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Validation;
 
@@ -116,6 +120,156 @@ public partial class AiContentValidator(IOptions<GptChatGrxmlConfiguration> conf
         sanitized = SystemUserAssistantPromptPattern2().Replace(sanitized, "[REMOVED]");
 
         return sanitized;
+    }
+
+    // Defense-in-depth limits for outbound YAML. Copilot Studio entity definitions
+    // are shallow (≤4 levels) with hundreds of items at most; these caps leave
+    // generous headroom while bounding YAML-bomb / pathological-document blast radius.
+    internal const int MaxYamlDepth = 32;
+    internal const int MaxYamlNodeCount = 10_000;
+
+    /// <summary>
+    /// Sanitizes outbound YAML produced by the AI model before it is returned to the client.
+    /// Performs a strict whitelist validation pass over the YAML event stream
+    /// (rejects explicit tags, anchors, aliases, multi-document streams, control characters,
+    /// and pathological depth/node counts), then re-serializes the parsed representation
+    /// to canonical YAML. Throws <see cref="YamlException"/> on any policy violation.
+    /// </summary>
+    /// <param name="yaml">The raw YAML text returned by the model.</param>
+    /// <returns>Canonical, sanitized YAML safe to forward to the client.</returns>
+    public static string SanitizeAiYamlOutput(string yaml)
+    {
+        if (string.IsNullOrWhiteSpace(yaml))
+        {
+            return yaml ?? string.Empty;
+        }
+
+        // Up-front scan of raw bytes: YamlDotNet's scanner can fail on certain control
+        // characters (e.g. NUL inside a quoted scalar) with a generic syntax error,
+        // and other terminal-injection bytes (ESC, BEL) survive as-is. We surface them
+        // all with a consistent, intent-revealing error before the parser runs.
+        RejectControlCharacters(yaml);
+
+        ValidateYamlEventStream(yaml);
+
+        // Re-emit canonical YAML from the representation model.
+        // assignAnchors:false guarantees we don't introduce anchors during emit
+        // (we already proved the input has none).
+        var stream = new YamlStream();
+        using (var reader = new StringReader(yaml))
+        {
+            stream.Load(reader);
+        }
+        using var writer = new StringWriter();
+        stream.Save(writer, assignAnchors: false);
+        return writer.ToString();
+    }
+
+    /// <summary>
+    /// Walks the YAML event stream without materializing the document, rejecting
+    /// any construct that could be an injection vector for a downstream consumer.
+    /// Must run BEFORE <see cref="YamlStream.Load"/> so that pathological
+    /// alias-expansions never reach the representation model.
+    /// </summary>
+    private static void ValidateYamlEventStream(string yaml)
+    {
+        using var reader = new StringReader(yaml);
+        var parser = new Parser(reader);
+
+        int documentCount = 0;
+        int depth = 0;
+        int nodeCount = 0;
+
+        while (parser.MoveNext())
+        {
+            var current = parser.Current;
+            switch (current)
+            {
+                case StreamStart:
+                case StreamEnd:
+                case DocumentEnd:
+                case Comment:
+                    break;
+
+                case DocumentStart:
+                    documentCount++;
+                    if (documentCount > 1)
+                    {
+                        throw new YamlException("Outbound YAML must contain a single document.");
+                    }
+                    break;
+
+                case AnchorAlias alias:
+                    throw new YamlException($"YAML aliases are not permitted in outbound content (found '*{alias.Value}').");
+
+                case MappingStart mapping:
+                    RejectExplicitTagOrAnchor(mapping.Tag, mapping.Anchor);
+                    depth++;
+                    nodeCount++;
+                    EnforceLimits(depth, nodeCount);
+                    break;
+
+                case SequenceStart sequence:
+                    RejectExplicitTagOrAnchor(sequence.Tag, sequence.Anchor);
+                    depth++;
+                    nodeCount++;
+                    EnforceLimits(depth, nodeCount);
+                    break;
+
+                case MappingEnd:
+                case SequenceEnd:
+                    depth--;
+                    break;
+
+                case Scalar scalar:
+                    RejectExplicitTagOrAnchor(scalar.Tag, scalar.Anchor);
+                    RejectControlCharacters(scalar.Value);
+                    nodeCount++;
+                    EnforceLimits(depth, nodeCount);
+                    break;
+            }
+        }
+    }
+
+    private static void RejectExplicitTagOrAnchor(TagName tag, AnchorName anchor)
+    {
+        if (!tag.IsEmpty)
+        {
+            throw new YamlException($"Explicit YAML tags are not permitted in outbound content (found '{tag.Value}').");
+        }
+        if (!anchor.IsEmpty)
+        {
+            throw new YamlException($"YAML anchors are not permitted in outbound content (found '&{anchor.Value}').");
+        }
+    }
+
+    private static void RejectControlCharacters(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return;
+        }
+        foreach (var ch in value)
+        {
+            // Allow tab, newline, and carriage return; reject every other control codepoint.
+            // This covers ANSI escapes (ESC = 0x1B), NUL, and other terminal-injection vectors.
+            if (char.IsControl(ch) && ch != '\t' && ch != '\n' && ch != '\r')
+            {
+                throw new YamlException($"Outbound YAML scalar contains a disallowed control character (U+{(int)ch:X4}).");
+            }
+        }
+    }
+
+    private static void EnforceLimits(int depth, int nodeCount)
+    {
+        if (depth > MaxYamlDepth)
+        {
+            throw new YamlException($"Outbound YAML nesting depth exceeds the allowed maximum ({MaxYamlDepth}).");
+        }
+        if (nodeCount > MaxYamlNodeCount)
+        {
+            throw new YamlException($"Outbound YAML node count exceeds the allowed maximum ({MaxYamlNodeCount}).");
+        }
     }
 
     /// <summary>
