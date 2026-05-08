@@ -196,6 +196,15 @@ Contributions are welcome! Here's how you can contribute:
 
 This project is licensed under the [MIT License](LICENSE).
 
+## Security
+
+To report a vulnerability, see [`SECURITY.md`](SECURITY.md).
+
+For an overview of the security tooling, dependency-inventory practices, SBOM
+generation, secret scanning, branch-protection rules, and the items that are
+intentionally out of scope (container scanning, DAST), see
+[`docs/security-posture.md`](docs/security-posture.md).
+
 ## Responsible AI Disclaimer
 
 This repository includes AI guardrails and safety mechanisms designed to reduce risks associated with automated decision-making. However, these measures are **not exhaustive**, and **end users remain responsible for ensuring safe and compliant deployment**.
