@@ -108,4 +108,16 @@ steps:
       failTaskOnFailedTests: false
   condition: always()
 
+# Generate a Software Bill of Materials (SPDX 2.2) for the build output so the
+# exact set of NuGet packages and runtime artifacts shipped with each build is
+# auditable. The manifest is written under _manifest/spdx_2.2/ inside the
+# output directory and is uploaded together with build artifacts.
+- task: ManifestGeneratorTask@0
+  displayName: Generate SBOM (SPDX)
+  condition: succeeded()
+  inputs:
+    BuildDropPath: '$(Build.SourcesDirectory)\out'
+    PackageName: 'CRM.CCaaS.IVR.GRammarImportTool'
+    PackageVersion: '$(Build.BuildNumber)'
+
 - template: debug-environment.yml
