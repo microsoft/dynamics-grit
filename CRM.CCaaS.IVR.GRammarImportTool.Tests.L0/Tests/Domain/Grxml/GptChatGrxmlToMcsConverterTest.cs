@@ -19,7 +19,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Xunit;
 using Xunit.Abstractions;
-using YamlDotNet.Core;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L0.Tests.Domain.Grxml;
 
@@ -193,24 +192,6 @@ tag-format=""semantics/1.0"">
 
         var converter = _baseTest.ServiceProvider.GetKeyedService<IGptChat>(GptChatGrxmlToMcsConverter.SERVICE_KEY);
         Assert.NotNull(converter);
-    }
-
-    [Fact]
-    public void When_ValidateGoodYaml_Then_NoError()
-    {
-        _converter?.ValidateYamlContent("---\ntest: content");
-        Assert.Throws<SyntaxErrorException>(() => _converter?.ValidateYamlContent(
-            @"---invalid yaml content:
-indeed invalid"));
-    }
-
-    [Fact]
-    public void When_ValidateGoodYaml_Then_SyntaxErrorException()
-    {
-        _converter?.ValidateYamlContent("---\ntest: content");
-        Assert.Throws<SyntaxErrorException>(() => _converter?.ValidateYamlContent(
-            @"---invalid yaml content:
-indeed invalid"));
     }
 
     [Fact]

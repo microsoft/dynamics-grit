@@ -18,8 +18,6 @@ using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Validation;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
 using YamlDotNet.Core;
-using YamlDotNet.Serialization;
-using YamlDotNet.Serialization.NamingConventions;
 
 [assembly: InternalsVisibleTo("CRM.CCaaS.IVR.GRammarImportTool.Tests.L0")]
 namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
@@ -205,9 +203,9 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
         string prompt = $"Convert the file {fileName} to Microsoft Copilot Studio Yaml: {fileContent}";
 
         // If AI content validator is available, use it to validate and sanitize the prompt
-        if (AiContentValidator != null)
+        if (this.AiContentValidator != null)
         {
-            var validationResult = await AiContentValidator.ValidateAiPromptAsync(prompt, fileName);
+            var validationResult = await this.AiContentValidator.ValidateAiPromptAsync(prompt, fileName);
             if (!validationResult.IsValid)
             {
                 _logger.LogWarning("[ProcessSingleFileAsync] AI prompt validation failed | HashedFileName={FileName} | Reason={Reason}",
@@ -216,7 +214,7 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
             }
 
             // Sanitize the prompt to ensure it cannot be used for prompt injection
-            prompt = AiContentValidator.SanitizeAiPrompt(prompt);
+            prompt = Validation.AiContentValidator.SanitizeAiPrompt(prompt);
         }
 
         if (!IsTokenCountValid(prompt, fileNameToLog, out var tokenError))
@@ -229,9 +227,7 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
             new ChatTurn("user", prompt)
         };
 
-        var response = string.IsNullOrWhiteSpace(_disclaimerAI)
-            ? string.Empty
-            : $"\n#{_disclaimerAI}\n\n";
+        var modelOutput = new StringBuilder();
 
         // Create a timeout CTS and link with external token
         using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(_gptPrompterConfiguration.MaxAllowedConversionTimeSingleFileSec));
@@ -242,13 +238,17 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
         {
             try
             {
+                modelOutput.Clear();
                 await foreach (var item in OpenAIChatService.StreamAsync(chatHistory, linkedCts.Token))
                 {
-                    response += item;
+                    modelOutput.Append(item);
                 }
                 _logger.LogInformation("[ProcessSingleFileAsync] Success | HashedFileName={FileName}", fileNameToLog);
-                ValidateYamlContent(response);
-                return response;
+                // Strict outbound sanitization: rejects YAML injection vectors (tags, anchors,
+                // aliases, multi-doc, control chars, pathological depth/count) and re-emits
+                // canonical YAML. Throws YamlException on violation, which triggers retry below.
+                var sanitizedYaml = Validation.AiContentValidator.SanitizeAiYamlOutput(modelOutput.ToString());
+                return PrependDisclaimer(sanitizedYaml);
             }
             catch (System.ClientModel.ClientResultException ex)
             {
@@ -264,19 +264,19 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
                     ? "Timeout"
                     : "Cancelled";
                 _logger.LogWarning(ex, "[ProcessSingleFileAsync] Cancelled | Reason={Reason} | HashedFileName={FileName}", reason, fileNameToLog);
-                response += $"Error: Processing {reason.ToLowerInvariant()} for {fileName}";
-                return response;
+                return PrependDisclaimer($"Error: Processing {reason.ToLowerInvariant()} for {fileName}");
             }
 
-            response = string.Empty;
             retries++;
             await Task.Delay(TimeSpan.FromSeconds(_gptPrompterConfiguration.RetryDelaySec * retries), cancellationToken);
         }
 
         _logger.LogError("[ProcessSingleFileAsync] MaxRetriesExceeded | HashedFileName={FileName} | Retries={Retries}", fileNameToLog, _gptPrompterConfiguration.MaxRetries);
-        response += $"Error: Failed to process {fileName} after {_gptPrompterConfiguration.MaxRetries} retries.";
-        return response;
+        return PrependDisclaimer($"Error: Failed to process {fileName} after {_gptPrompterConfiguration.MaxRetries} retries.");
     }
+
+    private string PrependDisclaimer(string body)
+        => string.IsNullOrWhiteSpace(_disclaimerAI) ? body : $"#{_disclaimerAI}\n{body}";
 
     /// <summary>
     /// Loads the initial chat history from configuration.
@@ -294,18 +294,6 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
             }
         }
         return initialChatHistory;
-    }
-
-    /// <summary>
-    /// Validates the provided YAML content by attempting to deserialize it.
-    /// Throws a YamlException if the content is invalid.
-    /// </summary>
-    internal virtual void ValidateYamlContent(string yamlContent)
-    {
-        var deserializer = new DeserializerBuilder()
-         .WithNamingConvention(CamelCaseNamingConvention.Instance)
-         .Build();
-        _ = deserializer.Deserialize<object>(yamlContent);
     }
 
     public override async Task<string> ConvertZipAsync(Stream zipStream, Channel<KeyValuePair<string, string>> results)
