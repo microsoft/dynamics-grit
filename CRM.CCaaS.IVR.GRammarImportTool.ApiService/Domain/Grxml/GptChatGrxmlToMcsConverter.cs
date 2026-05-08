@@ -227,7 +227,7 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
             new ChatTurn("user", prompt)
         };
 
-        var modelOutput = string.Empty;
+        var modelOutput = new StringBuilder();
 
         // Create a timeout CTS and link with external token
         using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(_gptPrompterConfiguration.MaxAllowedConversionTimeSingleFileSec));
@@ -238,16 +238,16 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
         {
             try
             {
-                modelOutput = string.Empty;
+                modelOutput.Clear();
                 await foreach (var item in OpenAIChatService.StreamAsync(chatHistory, linkedCts.Token))
                 {
-                    modelOutput += item;
+                    modelOutput.Append(item);
                 }
                 _logger.LogInformation("[ProcessSingleFileAsync] Success | HashedFileName={FileName}", fileNameToLog);
                 // Strict outbound sanitization: rejects YAML injection vectors (tags, anchors,
                 // aliases, multi-doc, control chars, pathological depth/count) and re-emits
                 // canonical YAML. Throws YamlException on violation, which triggers retry below.
-                var sanitizedYaml = AiContentValidator.SanitizeAiYamlOutput(modelOutput);
+                var sanitizedYaml = AiContentValidator.SanitizeAiYamlOutput(modelOutput.ToString());
                 return PrependDisclaimer(sanitizedYaml);
             }
             catch (System.ClientModel.ClientResultException ex)

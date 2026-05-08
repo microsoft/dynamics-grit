@@ -196,7 +196,7 @@ tag-format=""semantics/1.0"">
     }
 
     [Fact]
-    public void When_ProcessSingleFileAsync_OutboundYamlIsSanitized()
+    public void When_AiContentValidator_Then_SanitizesOutboundYaml_Smoke()
     {
         // Smoke check: the converter delegates outbound sanitization to AiContentValidator.
         // Detailed sanitization rules are covered by AiContentValidatorTests.
