@@ -203,9 +203,9 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
         string prompt = $"Convert the file {fileName} to Microsoft Copilot Studio Yaml: {fileContent}";
 
         // If AI content validator is available, use it to validate and sanitize the prompt
-        if (AiContentValidator != null)
+        if (this.AiContentValidator != null)
         {
-            var validationResult = await AiContentValidator.ValidateAiPromptAsync(prompt, fileName);
+            var validationResult = await this.AiContentValidator.ValidateAiPromptAsync(prompt, fileName);
             if (!validationResult.IsValid)
             {
                 _logger.LogWarning("[ProcessSingleFileAsync] AI prompt validation failed | HashedFileName={FileName} | Reason={Reason}",
@@ -214,7 +214,7 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
             }
 
             // Sanitize the prompt to ensure it cannot be used for prompt injection
-            prompt = AiContentValidator.SanitizeAiPrompt(prompt);
+            prompt = Validation.AiContentValidator.SanitizeAiPrompt(prompt);
         }
 
         if (!IsTokenCountValid(prompt, fileNameToLog, out var tokenError))
@@ -247,7 +247,7 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
                 // Strict outbound sanitization: rejects YAML injection vectors (tags, anchors,
                 // aliases, multi-doc, control chars, pathological depth/count) and re-emits
                 // canonical YAML. Throws YamlException on violation, which triggers retry below.
-                var sanitizedYaml = AiContentValidator.SanitizeAiYamlOutput(modelOutput.ToString());
+                var sanitizedYaml = Validation.AiContentValidator.SanitizeAiYamlOutput(modelOutput.ToString());
                 return PrependDisclaimer(sanitizedYaml);
             }
             catch (System.ClientModel.ClientResultException ex)

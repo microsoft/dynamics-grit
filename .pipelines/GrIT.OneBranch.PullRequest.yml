@@ -12,16 +12,22 @@ trigger: # https://aka.ms/obpipelines/triggers
       - main
       - feature/*
   paths:
+    include:
+      - ./*
+      - .pipelines/*
     exclude:
-      - '**/*.md'
+      - ./*.md
 
 pr:
   branches:
     include:
       - main
   paths:
+    include:
+      - ./*
+      - .pipelines/*
     exclude:
-      - '**/*.md'
+      - ./*.md
 
 # global parameteres are configured here and show up in AzDO UI in build queue time. Required for MSBuild and .NET.
 # learn more at https://aka.ms/obpipelines/parameters

@@ -19,7 +19,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Xunit;
 using Xunit.Abstractions;
-using YamlDotNet.Core;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L0.Tests.Domain.Grxml;
 
@@ -193,19 +192,6 @@ tag-format=""semantics/1.0"">
 
         var converter = _baseTest.ServiceProvider.GetKeyedService<IGptChat>(GptChatGrxmlToMcsConverter.SERVICE_KEY);
         Assert.NotNull(converter);
-    }
-
-    [Fact]
-    public void When_AiContentValidator_Then_SanitizesOutboundYaml_Smoke()
-    {
-        // Smoke check: the converter delegates outbound sanitization to AiContentValidator.
-        // Detailed sanitization rules are covered by AiContentValidatorTests.
-        var sanitized = AiContentValidator.SanitizeAiYamlOutput("test: content");
-        Assert.Contains("test: content", sanitized, StringComparison.Ordinal);
-
-        Assert.Throws<SyntaxErrorException>(() => AiContentValidator.SanitizeAiYamlOutput(
-            @"---invalid yaml content:
-indeed invalid"));
     }
 
     [Fact]
