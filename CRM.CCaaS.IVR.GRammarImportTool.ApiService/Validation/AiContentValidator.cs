@@ -191,11 +191,27 @@ public partial class AiContentValidator(IOptions<GptChatGrxmlConfiguration> conf
                 case Comment:
                     break;
 
-                case DocumentStart:
+                case DocumentStart documentStart:
                     documentCount++;
                     if (documentCount > 1)
                     {
                         throw new YamlException("Outbound YAML must contain a single document.");
+                    }
+                    if (documentStart.Version != null)
+                    {
+                        throw new YamlException(
+                            $"YAML version directives are not permitted in outbound content (found '%YAML {documentStart.Version.Version}').");
+                    }
+                    if (documentStart.Tags != null)
+                    {
+                        foreach (var tagDirective in documentStart.Tags)
+                        {
+                            if (!IsDefaultTagDirective(tagDirective))
+                            {
+                                throw new YamlException(
+                                    $"YAML tag directives are not permitted in outbound content (found '%TAG {tagDirective.Handle} {tagDirective.Prefix}').");
+                            }
+                        }
                     }
                     break;
 
@@ -219,6 +235,10 @@ public partial class AiContentValidator(IOptions<GptChatGrxmlConfiguration> conf
                 case MappingEnd:
                 case SequenceEnd:
                     depth--;
+                    if (depth < 0)
+                    {
+                        throw new YamlException("Malformed YAML structure: container end event without matching start.");
+                    }
                     break;
 
                 case Scalar scalar:
@@ -229,6 +249,18 @@ public partial class AiContentValidator(IOptions<GptChatGrxmlConfiguration> conf
                     break;
             }
         }
+    }
+
+    /// <summary>
+    /// Default tag directives that YamlDotNet attaches to every <see cref="DocumentStart"/>
+    /// even when the source contains no explicit %TAG directive: the primary handle ('!' -> '!')
+    /// and the secondary handle ('!!' -> 'tag:yaml.org,2002:'). Anything else is an explicit
+    /// directive that we want to reject.
+    /// </summary>
+    private static bool IsDefaultTagDirective(YamlDotNet.Core.Tokens.TagDirective tagDirective)
+    {
+        return (tagDirective.Handle == "!" && tagDirective.Prefix == "!")
+            || (tagDirective.Handle == "!!" && tagDirective.Prefix == "tag:yaml.org,2002:");
     }
 
     private static void RejectExplicitTagOrAnchor(TagName tag, AnchorName anchor)
