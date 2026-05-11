@@ -60,12 +60,15 @@ to users with write access and is logged.
 
 ## Software Bill of Materials (SBOM)
 
-Each pipeline run generates an **SPDX 2.2 SBOM** for the build output via the
-`ManifestGeneratorTask@0` step in `.pipelines/templates/post-build-steps.yml`.
-The manifest is written under `out/_manifest/spdx_2.2/` and uploaded as part
-of the build artifacts so that downstream consumers (release pipelines, audit
-tooling) have a signed, machine-readable inventory of every binary and package
-shipped with that build.
+Each **successful** pipeline run generates an **SPDX 2.2 SBOM** for the build
+output via the `ManifestGeneratorTask@0` step in
+`.pipelines/templates/post-build-steps.yml` (the step is gated on
+`succeeded()` so a manifest is only produced when the build output it
+describes is itself valid; failed builds intentionally do not publish an
+SBOM). The manifest is written under `out/_manifest/spdx_2.2/` and uploaded
+as part of the build artifacts so that downstream consumers (release
+pipelines, audit tooling) have a signed, machine-readable inventory of every
+binary and package shipped with that build.
 
 ## Branch protection and merge gating
 

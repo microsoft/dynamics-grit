@@ -41,7 +41,7 @@
       },
       "Microsoft.Extensions.Configuration.Abstractions": {
         "type": "Direct",
-        "requested": "[8.0.2, )",
+        "requested": "[9.0.0, )",
         "resolved": "9.0.0",
         "contentHash": "lqvd7W3FGKUO1+ZoUEMaZ5XDJeWvjpy2/M/ptCGz3tXLD4HWVaSzjufsAsjemasBEg+2SxXVtYVvGt5r2nKDlg==",
         "dependencies": {
@@ -601,7 +601,7 @@
           "Microsoft.ML.Tokenizers.Data.Cl100kBase": "[1.0.2, )",
           "Microsoft.VisualStudio.Azure.Containers.Tools.Targets": "[1.21.0, )",
           "OpenAI": "[2.4.0, )",
-          "Swashbuckle.AspNetCore": "[6.2.1, )",
+          "Swashbuckle.AspNetCore": "[6.4.0, )",
           "YamlDotNet": "[16.3.0, )"
         }
       },
@@ -754,7 +754,7 @@
       },
       "Swashbuckle.AspNetCore": {
         "type": "CentralTransitive",
-        "requested": "[6.2.1, )",
+        "requested": "[6.4.0, )",
         "resolved": "6.4.0",
         "contentHash": "eUBr4TW0up6oKDA5Xwkul289uqSMgY0xGN4pnbOIBqCcN9VKGGaPvHX3vWaG/hvocfGDP+MGzMA0bBBKz2fkmQ==",
         "dependencies": {

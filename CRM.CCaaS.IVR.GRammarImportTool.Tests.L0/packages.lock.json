@@ -413,7 +413,7 @@
           "Microsoft.ML.Tokenizers.Data.Cl100kBase": "[1.0.2, )",
           "Microsoft.VisualStudio.Azure.Containers.Tools.Targets": "[1.21.0, )",
           "OpenAI": "[2.4.0, )",
-          "Swashbuckle.AspNetCore": "[6.2.1, )",
+          "Swashbuckle.AspNetCore": "[6.4.0, )",
           "YamlDotNet": "[16.3.0, )"
         }
       },
@@ -528,7 +528,7 @@
       },
       "Swashbuckle.AspNetCore": {
         "type": "CentralTransitive",
-        "requested": "[6.2.1, )",
+        "requested": "[6.4.0, )",
         "resolved": "6.4.0",
         "contentHash": "eUBr4TW0up6oKDA5Xwkul289uqSMgY0xGN4pnbOIBqCcN9VKGGaPvHX3vWaG/hvocfGDP+MGzMA0bBBKz2fkmQ==",
         "dependencies": {
