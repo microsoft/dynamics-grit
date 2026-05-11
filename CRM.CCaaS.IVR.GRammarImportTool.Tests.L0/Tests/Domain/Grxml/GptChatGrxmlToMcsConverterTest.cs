@@ -854,7 +854,7 @@ tag-format=""semantics/1.0"">
         var result = await _converter.ConvertFileAsync(TestValidXml);
 
         Assert.NotNull(result);
-        Assert.DoesNotContain("Error: Token count", result);
+        Assert.DoesNotContain("Error: Token count", result, StringComparison.Ordinal);
     }
 
     protected virtual void Dispose(bool disposing)

@@ -24,7 +24,6 @@ namespace CRM.CCaaS.IVR.GRammarImportTool.Tests.L0.Tests.Infrastructure.OpenAICh
 public class OpenAIChatServiceTest
 {
     private readonly BaseTest _baseTest;
-    private static readonly string[] ExpectedStreamOrder = ["You are a helpful assistant", "Hello", "Hi there"];
 
     public OpenAIChatServiceTest(BaseTest baseTest)
     {
