@@ -205,6 +205,24 @@ generation, secret scanning, branch-protection rules, and the items that are
 intentionally out of scope (container scanning, DAST), see
 [`docs/security-posture.md`](docs/security-posture.md).
 
+### Production authentication (Azure OpenAI)
+
+The service supports three authentication modes against the Azure OpenAI /
+Azure AI Foundry endpoint, controlled by `GptChat:Grxml:AzureOpenAIAuthMode`:
+
+- `ApiKey` (default — backward-compatible) — uses a static API key. Acceptable
+  for local development only.
+- `ManagedIdentity` — **recommended for production**. Uses the workload's
+  managed identity; grant it the `Cognitive Services OpenAI User` role on
+  the Azure OpenAI resource. Set `AzureOpenAIManagedIdentityClientId` for
+  user-assigned identities.
+- `DefaultAzureCredential` — chains managed identity, Azure CLI, Visual
+  Studio sign-in, etc. Useful for mixed dev/prod hosts.
+
+If `AzureOpenAIAuthMode=ApiKey` is left in place in a non-dev environment,
+the host logs a warning at startup pointing back to the migration steps in
+[`docs/security-posture.md`](docs/security-posture.md#authentication-to-azure-openai).
+
 ## Responsible AI Disclaimer
 
 This repository includes AI guardrails and safety mechanisms designed to reduce risks associated with automated decision-making. However, these measures are **not exhaustive**, and **end users remain responsible for ensuring safe and compliant deployment**.

@@ -30,9 +30,17 @@ public sealed class AzureOpenAIChatService : IChatService
         _gptChatConfiguration = gptChatConfiguration;
         var options = _gptChatConfiguration.Value;
 
-        _chatClient = azureOpenAIClientFactory.CreateChatClient(options.AzureOpenAIEndpoint, options.AzureOpenAIDeploymentName, options.AzureOpenAIKey);
+        _chatClient = azureOpenAIClientFactory.CreateChatClient(options);
         _logger = GrITLoggerFactory.CreateLogger<AzureOpenAIChatService>();
-        _logger.LogInformation("AzureOpenAIChatService created with endpoint: {Endpoint}, deployment: {Deployment}", options.AzureOpenAIEndpoint, options.AzureOpenAIDeploymentName);
+        // ConfiguredAuthMode reflects what AzureOpenAIAuthMode says in config.
+        // The factory may resolve to a different effective credential (e.g.
+        // ApiKey + empty key -> DefaultAzureCredential) and logs that decision
+        // itself in CreateChatClient; this log line is the configuration view.
+        _logger.LogInformation(
+            "AzureOpenAIChatService created with endpoint: {Endpoint}, deployment: {Deployment}, configuredAuthMode: {ConfiguredAuthMode}",
+            options.AzureOpenAIEndpoint,
+            options.AzureOpenAIDeploymentName,
+            options.AzureOpenAIAuthMode);
     }
 
     private static List<ChatMessage> ToMessages(IEnumerable<ChatTurn> turns)

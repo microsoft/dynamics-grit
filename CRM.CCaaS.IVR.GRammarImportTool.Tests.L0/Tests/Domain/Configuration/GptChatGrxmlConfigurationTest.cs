@@ -92,7 +92,7 @@ public class GptChatGrxmlConfigurationTest : IDisposable
         Assert.Contains(results, r => r.ErrorMessage?.Contains("Initial Chat history is required", StringComparison.OrdinalIgnoreCase) == true);
         Assert.Contains(results, r => r.ErrorMessage?.Contains("AzureOpenAIEndpoint is required when AzureOpenAI_Provider is set to AzureOpenAI", StringComparison.OrdinalIgnoreCase) == true);
         Assert.Contains(results, r => r.ErrorMessage?.Contains("AzureOpenAIDeploymentName is required when AzureOpenAI_Provider is set to AzureOpenAI", StringComparison.OrdinalIgnoreCase) == true);
-        Assert.Contains(results, r => r.ErrorMessage?.Contains("AzureOpenAIKey is required when AzureOpenAI_Provider is set to AzureOpenAI", StringComparison.OrdinalIgnoreCase) == true);
+        Assert.Contains(results, r => r.ErrorMessage?.Contains("AzureOpenAIKey is required when OpenAI_Provider=AzureOpenAI and AzureOpenAIAuthMode=ApiKey", StringComparison.OrdinalIgnoreCase) == true);
 
        var configOpenAI = new GptChatGrxmlConfiguration
         {

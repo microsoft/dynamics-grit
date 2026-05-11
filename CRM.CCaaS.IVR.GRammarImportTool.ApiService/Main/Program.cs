@@ -83,6 +83,27 @@ public static class Program
             var azureFactory = provider.GetRequiredService<IAzureOpenAIClientFactory>();
             return ChatServiceFactory.Create(config, azureFactory);
         });
+
+        // Surface a loud, non-blocking warning when the deployment is configured
+        // to authenticate to Azure OpenAI with a static API key in a non-dev /
+        // non-test environment. The audit guidance is that production should
+        // use EntraID / Managed Identity; this log gives operators a clear
+        // signal without breaking existing deployments. The warning is suppressed
+        // when AzureOpenAIKey is empty because in that case the factory silently
+        // promotes the credential to DefaultAzureCredential (and logs a separate
+        // warning of its own), so the effective auth mode is no longer ApiKey.
+        var gptChatConfig = builder.Configuration.GetSection(GptChatGrxmlConfiguration.SectionName)
+            .Get<GptChatGrxmlConfiguration>();
+        if (gptChatConfig != null
+            && string.Equals(gptChatConfig.OpenAI_Provider, GptChatGrxmlConfiguration.OpenAIProvider_AzureOpenAI, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(gptChatConfig.AzureOpenAIAuthMode, GptChatGrxmlConfiguration.AzureOpenAIAuthMode_ApiKey, StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(gptChatConfig.AzureOpenAIKey)
+            && !builder.Environment.IsTestOrDev())
+        {
+            startUpLogger.LogWarning(
+                "AzureOpenAIAuthMode=ApiKey in environment '{Environment}'. Static API keys are discouraged for production. Set GptChat:Grxml:AzureOpenAIAuthMode to 'ManagedIdentity' (recommended) or 'DefaultAzureCredential' and grant the workload's identity the 'Cognitive Services OpenAI User' role on the Azure OpenAI resource. See docs/security-posture.md for details.",
+                builder.Environment.EnvironmentName);
+        }
         // Add file validation and AI content validation services
         builder.Services.AddTransient<FileValidator>();
         builder.Services.AddTransient<AiContentValidator>();
