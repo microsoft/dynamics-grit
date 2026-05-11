@@ -171,6 +171,17 @@ public static class Program
             });
         }
 
+        // Transport encryption: in non-dev/non-test environments, advertise
+        // HSTS (so browsers refuse plain-HTTP to this host for a year) and
+        // upgrade any incoming HTTP request to HTTPS. Test/Dev keep plain HTTP
+        // available so integration tests and the local stub can still talk to
+        // the service over http://localhost.
+        if (!app.Environment.IsTestOrDev())
+        {
+            app.UseHsts();
+            app.UseHttpsRedirection();
+        }
+
         app.UseMiddleware<ExceptionMiddleware>();
         app.UseRouting();
         app.MapControllers();
@@ -262,6 +273,25 @@ public static class Program
                 {
                     listenOptions.UseHttps(httpsOptions =>
                     {
+                        // Constrain Kestrel to TLS 1.2 / TLS 1.3 only. Older
+                        // protocol versions (SSL 3, TLS 1.0, TLS 1.1) are
+                        // disallowed by the transport-encryption policy. The
+                        // actual cipher suite (ECDHE-based with NIST P-256/P-384
+                        // curves) is selected from the OS-level TLS stack:
+                        //   - Linux: managed via CipherSuitesPolicy / OpenSSL config
+                        //   - Windows: managed via SCHANNEL policy
+                        // and is the deployment platform's responsibility (App
+                        // Gateway / Ingress / OS). See docs/security-posture.md.
+                        //
+                        // CA5398 suggests SslProtocols.None to let the OS pick a
+                        // version. The audit policy here is the opposite:
+                        // protocols MUST be pinned explicitly so a future OS /
+                        // runtime can never silently re-enable TLS 1.0 / 1.1.
+                        // Suppression is intentional and reviewed.
+#pragma warning disable CA5398
+                        httpsOptions.SslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13;
+#pragma warning restore CA5398
+
                         if (builder.Configuration.GetValue("Main:UseSelfSignedCertificate", true))
                         {
                             logger.LogInformation("Using one time self-signed certificate for HTTPS.");

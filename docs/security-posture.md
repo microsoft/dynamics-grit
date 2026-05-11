@@ -98,6 +98,57 @@ through `AzureOpenAIClientFactory`, which honours
 * The static API key path is still supported indefinitely for unit tests
   and disconnected local development against the `Stubs` mock service.
 
+## Transport encryption
+
+All inbound HTTP traffic to GrIT is constrained to encrypted protocols.
+
+**Enforced in code** (`Main/Program.cs`):
+
+* **TLS 1.2 / TLS 1.3 only** — Kestrel's `HttpsConnectionAdapterOptions.SslProtocols`
+  is set to `SslProtocols.Tls12 | SslProtocols.Tls13`. SSL 3.0 and TLS 1.0 /
+  1.1 are refused at handshake time.
+* **HTTPS listener (`Main:HttpSslPort`, default `8443`)** is always
+  configured.
+* **Plain HTTP listener (`Main:HttpPlainTextPort`)** defaults to `-1` in the
+  production `appsettings.json`, which disables the HTTP socket entirely.
+  Test/Dev configs open `5003` for local debugging and integration tests
+  only.
+* **HSTS** (`UseHsts`) and **HTTP → HTTPS redirection** (`UseHttpsRedirection`)
+  are wired into the pipeline whenever the runtime environment is **not**
+  `Development`, `Test`, or `Local`. Browsers therefore receive
+  `Strict-Transport-Security` for the production host and any straggler
+  plain-HTTP request is upgraded automatically.
+
+**Integration tests over plain HTTP** — `Tests.L1` deliberately runs against
+`http://localhost:5003`. The HTTPS-only enforcement above is gated on
+`!IsTestOrDev()` precisely so the L1 suite can exercise the service through
+the in-memory stub without provisioning trust for a self-signed cert. The
+plain-HTTP listener is **never** opened in any non-test/non-dev
+configuration shipped from this repository.
+
+**Cipher suites (ECDHE-based with NIST P-256 / P-384 curves)** are
+**delegated to the deployment platform**:
+
+| Hosting target | Where the policy lives |
+|----------------|------------------------|
+| Azure App Service / Container Apps | App Service minimum TLS version + Microsoft-managed cipher suite list (Defender for Cloud verifies compliance) |
+| AKS / Kubernetes | Ingress controller (e.g. nginx, App Gateway Ingress) — `ssl-protocols`, `ssl-ciphers` annotations on the ingress object |
+| Azure Front Door / Application Gateway | Front Door / App Gateway TLS profile / policy (recommend `TLS_AES_256_GCM_SHA384`, `TLS_AES_128_GCM_SHA256`, `TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384`, `TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384`) |
+| Windows host (bare VM) | SCHANNEL registry policy under `HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL` |
+| Linux host (bare VM) | `/etc/ssl/openssl.cnf` + .NET `CipherSuitesPolicy` if required |
+
+The deployment owner is responsible for confirming the front-door TLS
+profile selects only ECDHE-based suites over P-256 / P-384 curves. The
+application's own TLS-version constraint above means that even if a host
+exposes weaker suites, the handshake itself cannot fall below TLS 1.2.
+
+**Self-signed certificate** — when `Main:UseSelfSignedCertificate=true`
+(default for Development), Kestrel mints an RSA 2048 self-signed cert at
+startup via `CreateTempCerts()`. This path is **not** intended for
+production; production deployments must supply a real CA-issued certificate
+through the platform (App Service binding, AKS secret, etc.) and set
+`UseSelfSignedCertificate=false`.
+
 ## Dependency inventory and supply chain
 
 * **Central Package Management** — every NuGet dependency version lives in
@@ -173,5 +224,6 @@ their current state in this repository:
 | Static code analysis is not consistently enabled | **Closed** | CodeQL default setup + Roslyn `AnalysisModeSecurity=All` + 1ES PT BinSkim/PoliCheck/Guardian on every build |
 | Secret scanning is disabled | **Closed** | GitHub Secret Protection (push protection on) + 1ES Secret Scanning in pipeline |
 | Static API keys used by default; no documented guidance for EntraID / managed identity | **Closed** | `AzureOpenAIAuthMode` (ApiKey / ManagedIdentity / DefaultAzureCredential) in `AzureOpenAIClientFactory` + secure-by-default fallback + production warning + this document's *Authentication to Azure OpenAI* section |
+| Transport encryption is not enforced (HTTPS / HSTS / compliant TLS versions / cipher suites) | **Closed** | TLS 1.2/1.3 pinned in Kestrel (`SslProtocols.Tls12 \| SslProtocols.Tls13`); HSTS + HTTPS redirection enabled in non-dev environments; plain HTTP disabled by default (`HttpPlainTextPort = -1` in production `appsettings.json`); HTTP URLs removed from README; cipher-suite expectations and deployment-platform responsibility documented in this section |
 | Container image scanning is missing | **N/A** | No production container image; see *Out of scope* above |
 | Dynamic analysis is not performed | **Tracked separately** | DAST roadmap; see *Out of scope* above |
