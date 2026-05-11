@@ -14,13 +14,16 @@ namespace CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
 /// </summary>
 public sealed class RequireWhenAzureOpenAIApiKeyAuth : ValidationAttribute
 {
-    protected override ValidationResult IsValid(object? value, ValidationContext validationContext)
+    protected override ValidationResult? IsValid(object? value, ValidationContext validationContext)
     {
         ArgumentNullException.ThrowIfNull(validationContext);
 
         if (validationContext.ObjectInstance is GptChatGrxmlConfiguration gptChatGrxmlConfiguration)
         {
-            var isAzureProvider = gptChatGrxmlConfiguration.OpenAI_Provider == GptChatGrxmlConfiguration.OpenAIProvider_AzureOpenAI;
+            var isAzureProvider = string.Equals(
+                gptChatGrxmlConfiguration.OpenAI_Provider,
+                GptChatGrxmlConfiguration.OpenAIProvider_AzureOpenAI,
+                StringComparison.OrdinalIgnoreCase);
             var isApiKeyAuth = string.Equals(
                 gptChatGrxmlConfiguration.AzureOpenAIAuthMode,
                 GptChatGrxmlConfiguration.AzureOpenAIAuthMode_ApiKey,
@@ -30,11 +33,14 @@ public sealed class RequireWhenAzureOpenAIApiKeyAuth : ValidationAttribute
                 && isApiKeyAuth
                 && (value is null || string.IsNullOrWhiteSpace(value.ToString())))
             {
-                return new ValidationResult($"{validationContext.MemberName} is required when AzureOpenAI_Provider is set to AzureOpenAI.");
+                // Always go through FormatErrorMessage so the caller's
+                // ErrorMessage (set on the attribute usage) takes effect; the
+                // base implementation falls back to the framework default
+                // when no explicit ErrorMessage is provided.
+                var memberName = validationContext.DisplayName ?? validationContext.MemberName ?? string.Empty;
+                return new ValidationResult(FormatErrorMessage(memberName));
             }
         }
-#pragma warning disable CS8603 // Possible null reference return.
         return ValidationResult.Success;
-#pragma warning restore CS8603 // Possible null reference return.
     }
 }

@@ -82,7 +82,8 @@ public class GptChatGrxmlConfiguration
     /// the workload's identity the <c>Cognitive Services OpenAI User</c> role
     /// on the Azure OpenAI resource — then this value can be left empty.
     /// </summary>
-    [RequireWhenAzureOpenAIApiKeyAuth(ErrorMessage = "Azure OpenAI key is required when AuthMode is ApiKey")]
+    [RequireWhenAzureOpenAIApiKeyAuth(
+        ErrorMessage = "AzureOpenAIKey is required when OpenAI_Provider=AzureOpenAI and AzureOpenAIAuthMode=ApiKey.")]
     public string AzureOpenAIKey { get; set; } = string.Empty;
 
     /// <summary>

@@ -88,12 +88,16 @@ public static class Program
         // to authenticate to Azure OpenAI with a static API key in a non-dev /
         // non-test environment. The audit guidance is that production should
         // use EntraID / Managed Identity; this log gives operators a clear
-        // signal without breaking existing deployments.
+        // signal without breaking existing deployments. The warning is suppressed
+        // when AzureOpenAIKey is empty because in that case the factory silently
+        // promotes the credential to DefaultAzureCredential (and logs a separate
+        // warning of its own), so the effective auth mode is no longer ApiKey.
         var gptChatConfig = builder.Configuration.GetSection(GptChatGrxmlConfiguration.SectionName)
             .Get<GptChatGrxmlConfiguration>();
         if (gptChatConfig != null
             && string.Equals(gptChatConfig.OpenAI_Provider, GptChatGrxmlConfiguration.OpenAIProvider_AzureOpenAI, StringComparison.OrdinalIgnoreCase)
             && string.Equals(gptChatConfig.AzureOpenAIAuthMode, GptChatGrxmlConfiguration.AzureOpenAIAuthMode_ApiKey, StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(gptChatConfig.AzureOpenAIKey)
             && !builder.Environment.IsTestOrDev())
         {
             startUpLogger.LogWarning(
