@@ -75,11 +75,13 @@ dotnet run --project CRM.CCaaS.IVR.GRammarImportTool.ApiService
 By default, the service will be available at:
 - HTTPS: `https://localhost:8443` (default; serves all production traffic)
 - HTTP: `http://localhost:5003` — **Development/Test only** (controlled by
-  `Main:HttpPlainTextPort`; the production `appsettings.json` ships with
-  `HttpPlainTextPort = -1`, which disables the plain-HTTP listener entirely).
-  In any environment other than `Development`/`Test`/`Local` the service
-  also enables HSTS and HTTP→HTTPS redirection, so plain HTTP is never an
-  intentional production surface. See
+  `Main:HttpPlainTextPort`; the root `AppSettings.json` loaded by
+  `Program.cs` ships with `HttpPlainTextPort = -1`, which disables the
+  plain-HTTP listener entirely, and environment overrides
+  `AppSettings.{Environment}.json` only re-enable HTTP for `Development`
+  and `Test`). In any environment other than `Development`/`Test`/`Local`
+  the service also enables HSTS and HTTP→HTTPS redirection, so plain HTTP
+  is never an intentional production surface. See
   [`docs/security-posture.md`](docs/security-posture.md#transport-encryption)
   for the full transport-encryption policy.
 

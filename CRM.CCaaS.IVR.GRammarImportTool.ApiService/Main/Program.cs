@@ -19,6 +19,7 @@ using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.Store;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Util.Logging;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Validation;
 using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.AspNetCore.OpenApi;
@@ -60,6 +61,26 @@ public static class Program
         var httpPort = builder.Configuration.GetValue<int>("Main:HttpPlainTextPort");
         var httpsPort = builder.Configuration.GetValue<int>("Main:HttpSslPort");
         ConfigureListeningPortsProtocolsCertsAndLimits(builder, httpPort, httpsPort, startUpLogger);
+
+        // HSTS policy: 365-day max-age and includeSubDomains. The header is
+        // only emitted in the non-Test/Dev pipeline branch below.
+        builder.Services.Configure<HstsOptions>(options =>
+        {
+            options.MaxAge = TimeSpan.FromDays(365);
+            options.IncludeSubDomains = true;
+        });
+
+        // HTTPS redirection target: the middleware otherwise cannot infer the
+        // HTTPS port from Kestrel's ListenAnyIP endpoints and falls back to
+        // 443, producing broken redirects. Pin it to the configured HTTPS port
+        // (and skip wiring redirection when no HTTPS port is configured).
+        if (httpsPort >= 0 && httpsPort <= 65535)
+        {
+            builder.Services.Configure<HttpsRedirectionOptions>(options =>
+            {
+                options.HttpsPort = httpsPort;
+            });
+        }
 
         startUpLogger.LogInformation("Configuring MVC, Swagger, and Application Parts...");
         builder.Services.AddControllers().AddApplicationPart(typeof(HealthController).Assembly);
@@ -172,10 +193,11 @@ public static class Program
         }
 
         // Transport encryption: in non-dev/non-test environments, advertise
-        // HSTS (so browsers refuse plain-HTTP to this host for a year) and
-        // upgrade any incoming HTTP request to HTTPS. Test/Dev keep plain HTTP
-        // available so integration tests and the local stub can still talk to
-        // the service over http://localhost.
+        // HSTS so browsers refuse plain-HTTP to this host for the configured
+        // max-age (365 days; configured above on HstsOptions) and upgrade any
+        // incoming HTTP request to HTTPS using the explicit HttpsRedirection
+        // target port. Test/Dev keep plain HTTP available so integration tests
+        // and the local stub can still talk to the service over http://localhost.
         if (!app.Environment.IsTestOrDev())
         {
             app.UseHsts();

@@ -110,14 +110,18 @@ All inbound HTTP traffic to GrIT is constrained to encrypted protocols.
 * **HTTPS listener (`Main:HttpSslPort`, default `8443`)** is always
   configured.
 * **Plain HTTP listener (`Main:HttpPlainTextPort`)** defaults to `-1` in the
-  production `appsettings.json`, which disables the HTTP socket entirely.
-  Test/Dev configs open `5003` for local debugging and integration tests
-  only.
+  root `AppSettings.json` loaded by `Program.cs`, which disables the HTTP
+  socket entirely. The `AppSettings.Development.json` and
+  `AppSettings.Test.json` environment overrides re-enable port `5003` for
+  local debugging and integration tests only; no production-shaped
+  environment opens the plain-HTTP listener.
 * **HSTS** (`UseHsts`) and **HTTP → HTTPS redirection** (`UseHttpsRedirection`)
   are wired into the pipeline whenever the runtime environment is **not**
-  `Development`, `Test`, or `Local`. Browsers therefore receive
-  `Strict-Transport-Security` for the production host and any straggler
-  plain-HTTP request is upgraded automatically.
+  `Development`, `Test`, or `Local`. HSTS is configured with a 365-day
+  `max-age` and `includeSubDomains` so browsers refuse plain-HTTP to this
+  host for a full year after the first response. `HttpsRedirectionOptions.HttpsPort`
+  is pinned to `Main:HttpSslPort` so the middleware can resolve the right
+  target instead of falling back to `443`.
 
 **Integration tests over plain HTTP** — `Tests.L1` deliberately runs against
 `http://localhost:5003`. The HTTPS-only enforcement above is gated on
