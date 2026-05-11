@@ -30,9 +30,13 @@ public sealed class AzureOpenAIChatService : IChatService
         _gptChatConfiguration = gptChatConfiguration;
         var options = _gptChatConfiguration.Value;
 
-        _chatClient = azureOpenAIClientFactory.CreateChatClient(options.AzureOpenAIEndpoint, options.AzureOpenAIDeploymentName, options.AzureOpenAIKey);
+        _chatClient = azureOpenAIClientFactory.CreateChatClient(options);
         _logger = GrITLoggerFactory.CreateLogger<AzureOpenAIChatService>();
-        _logger.LogInformation("AzureOpenAIChatService created with endpoint: {Endpoint}, deployment: {Deployment}", options.AzureOpenAIEndpoint, options.AzureOpenAIDeploymentName);
+        _logger.LogInformation(
+            "AzureOpenAIChatService created with endpoint: {Endpoint}, deployment: {Deployment}, authMode: {AuthMode}",
+            options.AzureOpenAIEndpoint,
+            options.AzureOpenAIDeploymentName,
+            options.AzureOpenAIAuthMode);
     }
 
     private static List<ChatMessage> ToMessages(IEnumerable<ChatTurn> turns)

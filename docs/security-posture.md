@@ -40,6 +40,64 @@ Push protection means the audit trail is not "secrets were caught later" but
 "secrets cannot enter the repository in the first place". Bypass is restricted
 to users with write access and is logged.
 
+## Authentication to Azure OpenAI
+
+The service authenticates to the Azure OpenAI / Azure AI Foundry endpoint
+through `AzureOpenAIClientFactory`, which honours
+`GptChat:Grxml:AzureOpenAIAuthMode`. Three modes are supported:
+
+| Mode | Recommended for | Credential used |
+|------|-----------------|------------------|
+| `ApiKey` (default — legacy) | Local development and tests only | `AzureKeyCredential(AzureOpenAIKey)` |
+| `ManagedIdentity` | **Production deployments on Azure** (App Service, AKS, Container Apps, VMSS) | `ManagedIdentityCredential` (user-assigned if `AzureOpenAIManagedIdentityClientId` is set, otherwise system-assigned) |
+| `DefaultAzureCredential` | Mixed dev/prod environments where the active credential differs by host | `DefaultAzureCredential` (chains MI, Azure CLI, Visual Studio, etc.) |
+
+### Production setup (recommended)
+
+1. Create or pick a managed identity attached to the workload (system- or
+   user-assigned).
+2. On the target Azure OpenAI resource, grant that identity the
+   **`Cognitive Services OpenAI User`** RBAC role (or `Contributor` if your
+   policy demands it — narrower role preferred).
+3. Set the following in your environment's `AppSettings.{Env}.json` or via
+   the `GPTPrompter_GptChat__Grxml__*` environment variables:
+
+   ```json
+   {
+     "GptChat": {
+       "Grxml": {
+         "OpenAI_Provider": "AzureOpenAI",
+         "AzureOpenAIEndpoint": "https://<your-resource>.openai.azure.com/",
+         "AzureOpenAIDeploymentName": "<your-deployment>",
+         "AzureOpenAIAuthMode": "ManagedIdentity",
+         "AzureOpenAIManagedIdentityClientId": "<optional user-assigned MI client id>",
+         "AzureOpenAIKey": ""
+       }
+     }
+   }
+   ```
+
+4. Confirm in pod / app logs that startup prints
+   `AzureOpenAIChatService created with endpoint: ..., authMode: ManagedIdentity`
+   and that the `AzureOpenAIAuthMode=ApiKey in environment '<Production>'`
+   warning is **not** emitted.
+
+### Safety nets
+
+* If `AzureOpenAIAuthMode` is left at the default `ApiKey` **but no
+  `AzureOpenAIKey` is provided**, the factory silently promotes the
+  credential to `DefaultAzureCredential` (and logs a warning) instead of
+  starting up with an empty key. Missing key → secure-by-default fallback,
+  not a runtime failure or insecure call.
+* On startup, if the resolved configuration has
+  `AzureOpenAIAuthMode = ApiKey` while the environment is **not** `Test`,
+  `Local`, or `Development`, the host logs a clearly-flagged warning
+  pointing operators back to this document. The warning is informational
+  (does not block startup) so existing deployments keep running while the
+  migration to managed identity is in progress.
+* The static API key path is still supported indefinitely for unit tests
+  and disconnected local development against the `Stubs` mock service.
+
 ## Dependency inventory and supply chain
 
 * **Central Package Management** — every NuGet dependency version lives in
@@ -114,5 +172,6 @@ their current state in this repository:
 | Dependency inventory is incomplete (no lock files / snapshots) | **Closed** | `RestorePackagesWithLockFile=true` in `Directory.Build.props` + committed `packages.lock.json` per project |
 | Static code analysis is not consistently enabled | **Closed** | CodeQL default setup + Roslyn `AnalysisModeSecurity=All` + 1ES PT BinSkim/PoliCheck/Guardian on every build |
 | Secret scanning is disabled | **Closed** | GitHub Secret Protection (push protection on) + 1ES Secret Scanning in pipeline |
+| Static API keys used by default; no documented guidance for EntraID / managed identity | **Closed** | `AzureOpenAIAuthMode` (ApiKey / ManagedIdentity / DefaultAzureCredential) in `AzureOpenAIClientFactory` + secure-by-default fallback + production warning + this document's *Authentication to Azure OpenAI* section |
 | Container image scanning is missing | **N/A** | No production container image; see *Out of scope* above |
 | Dynamic analysis is not performed | **Tracked separately** | DAST roadmap; see *Out of scope* above |

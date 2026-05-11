@@ -77,6 +77,9 @@ public class AzureOpenAIChatServiceTest
                 It.IsAny<string>(),
                 It.IsAny<string>()))
             .Returns(chatClientMock.Object);
+        factoryMock
+            .Setup(f => f.CreateChatClient(It.IsAny<GptChatGrxmlConfiguration>()))
+            .Returns(chatClientMock.Object);
 
         var service = new AzureOpenAIChatService(CreateOptions(), factoryMock.Object);
         return (service, factoryMock, chatClientMock);

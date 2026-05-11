@@ -106,6 +106,9 @@ public class BaseTest : IDisposable
         AzureOpenAIClientFactoryMock
             .Setup(x => x.CreateChatClient(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .Returns(ChatClientMock.Object);
+        AzureOpenAIClientFactoryMock
+            .Setup(x => x.CreateChatClient(It.IsAny<GptChatGrxmlConfiguration>()))
+            .Returns(ChatClientMock.Object);
     }
 
     protected void BuildServiceProvider(ServiceCollection services)

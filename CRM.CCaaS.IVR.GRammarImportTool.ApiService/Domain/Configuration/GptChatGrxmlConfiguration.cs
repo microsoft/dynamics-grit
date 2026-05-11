@@ -14,6 +14,29 @@ public class GptChatGrxmlConfiguration
     public const string OpenAIProvider_OpenAI = "OpenAI";
     public const string OpenAIProvider_AzureOpenAI = "AzureOpenAI";
 
+    /// <summary>
+    /// Static API key (AzureKeyCredential). Kept for backward compatibility and
+    /// local development. Production deployments should prefer ManagedIdentity
+    /// or DefaultAzureCredential instead.
+    /// </summary>
+    public const string AzureOpenAIAuthMode_ApiKey = "ApiKey";
+
+    /// <summary>
+    /// Azure Managed Identity (system-assigned by default, user-assigned when
+    /// <see cref="AzureOpenAIManagedIdentityClientId"/> is set). This is the
+    /// recommended mode for production deployments on Azure (App Service,
+    /// AKS, Container Apps, VMSS).
+    /// </summary>
+    public const string AzureOpenAIAuthMode_ManagedIdentity = "ManagedIdentity";
+
+    /// <summary>
+    /// Azure.Identity DefaultAzureCredential — tries managed identity, the
+    /// Azure CLI session, Visual Studio credentials, etc. in sequence.
+    /// Useful for environments where the active credential differs between
+    /// dev and prod.
+    /// </summary>
+    public const string AzureOpenAIAuthMode_DefaultAzureCredential = "DefaultAzureCredential";
+
     [Range(1, 100, ErrorMessage = "Degree of parallelism for processing")]
     public int DegreeParallelism { get; set; } = 7; // Degree of parallelism for processing
 
@@ -51,8 +74,35 @@ public class GptChatGrxmlConfiguration
     [RequireWhenAzureOpenAI(ErrorMessage = "Azure OpenAI deployment name is required")]
     public string AzureOpenAIDeploymentName { get; set; } = string.Empty;
 
-    [RequireWhenAzureOpenAI(ErrorMessage = "Azure OpenAI key is required")]
+    /// <summary>
+    /// Static API key for Azure OpenAI. Only consulted when
+    /// <see cref="AzureOpenAIAuthMode"/> is <c>ApiKey</c> (the default for
+    /// backward compatibility). For production, set
+    /// <see cref="AzureOpenAIAuthMode"/> to <c>ManagedIdentity</c> and grant
+    /// the workload's identity the <c>Cognitive Services OpenAI User</c> role
+    /// on the Azure OpenAI resource — then this value can be left empty.
+    /// </summary>
+    [RequireWhenAzureOpenAIApiKeyAuth(ErrorMessage = "Azure OpenAI key is required when AuthMode is ApiKey")]
     public string AzureOpenAIKey { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Authentication mode for the Azure OpenAI client. One of
+    /// <c>ApiKey</c> (default, backward-compatible), <c>ManagedIdentity</c>
+    /// (recommended for production), or <c>DefaultAzureCredential</c>
+    /// (tries managed identity / Azure CLI / VS sign-in in sequence). When
+    /// the value is <c>ApiKey</c> but <see cref="AzureOpenAIKey"/> is empty,
+    /// the factory automatically falls back to <c>DefaultAzureCredential</c>
+    /// so a missing key never produces an insecure "fake" client.
+    /// </summary>
+    public string AzureOpenAIAuthMode { get; set; } = AzureOpenAIAuthMode_ApiKey;
+
+    /// <summary>
+    /// Optional. Client ID of a user-assigned managed identity. When set and
+    /// <see cref="AzureOpenAIAuthMode"/> is <c>ManagedIdentity</c>, the
+    /// factory uses that specific identity; otherwise it uses the
+    /// system-assigned managed identity.
+    /// </summary>
+    public string? AzureOpenAIManagedIdentityClientId { get; set; }
 
     //Public ChatGPT OpenAI settings 
     [RequireWhenOpenAI]

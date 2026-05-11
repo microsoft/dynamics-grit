@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Infrastructure.OpenAIChat;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
@@ -46,5 +47,107 @@ public class AzureOpenAIClientFactoryTest
 
         Assert.NotNull(chatClient);
         Assert.IsAssignableFrom<IChatClient>(chatClient);
+    }
+
+    [Fact]
+    public void When_CreateChatClient_WithApiKeyConfig_Then_ReturnsChatClient()
+    {
+        var configuration = new GptChatGrxmlConfiguration
+        {
+            AzureOpenAIEndpoint = "https://test.openai.azure.com/",
+            AzureOpenAIDeploymentName = "test-deployment",
+            AzureOpenAIKey = "test-key",
+            AzureOpenAIAuthMode = GptChatGrxmlConfiguration.AzureOpenAIAuthMode_ApiKey,
+        };
+
+        var chatClient = _azureOpenAIClientFactory.CreateChatClient(configuration);
+
+        Assert.NotNull(chatClient);
+        Assert.IsAssignableFrom<IChatClient>(chatClient);
+    }
+
+    [Fact]
+    public void When_CreateChatClient_WithManagedIdentityConfig_Then_ReturnsChatClient()
+    {
+        var configuration = new GptChatGrxmlConfiguration
+        {
+            AzureOpenAIEndpoint = "https://test.openai.azure.com/",
+            AzureOpenAIDeploymentName = "test-deployment",
+            AzureOpenAIKey = string.Empty,
+            AzureOpenAIAuthMode = GptChatGrxmlConfiguration.AzureOpenAIAuthMode_ManagedIdentity,
+        };
+
+        var chatClient = _azureOpenAIClientFactory.CreateChatClient(configuration);
+
+        Assert.NotNull(chatClient);
+        Assert.IsAssignableFrom<IChatClient>(chatClient);
+    }
+
+    [Fact]
+    public void When_CreateChatClient_WithDefaultAzureCredentialConfig_Then_ReturnsChatClient()
+    {
+        var configuration = new GptChatGrxmlConfiguration
+        {
+            AzureOpenAIEndpoint = "https://test.openai.azure.com/",
+            AzureOpenAIDeploymentName = "test-deployment",
+            AzureOpenAIKey = string.Empty,
+            AzureOpenAIAuthMode = GptChatGrxmlConfiguration.AzureOpenAIAuthMode_DefaultAzureCredential,
+        };
+
+        var chatClient = _azureOpenAIClientFactory.CreateChatClient(configuration);
+
+        Assert.NotNull(chatClient);
+        Assert.IsAssignableFrom<IChatClient>(chatClient);
+    }
+
+    [Fact]
+    public void When_CreateChatClient_ApiKeyModeButKeyMissing_Then_FallsBackToDefaultAzureCredential()
+    {
+        // Demonstrates the "secure by default when no key is provided" behaviour:
+        // mode is ApiKey, key is empty, but we still get a client (built via
+        // DefaultAzureCredential under the hood).
+        var configuration = new GptChatGrxmlConfiguration
+        {
+            AzureOpenAIEndpoint = "https://test.openai.azure.com/",
+            AzureOpenAIDeploymentName = "test-deployment",
+            AzureOpenAIKey = string.Empty,
+            AzureOpenAIAuthMode = GptChatGrxmlConfiguration.AzureOpenAIAuthMode_ApiKey,
+        };
+
+        var chatClient = _azureOpenAIClientFactory.CreateChatClient(configuration);
+
+        Assert.NotNull(chatClient);
+        Assert.IsAssignableFrom<IChatClient>(chatClient);
+    }
+
+    [Fact]
+    public void When_CreateChatClient_UnknownAuthMode_Then_ThrowsArgumentException()
+    {
+        var configuration = new GptChatGrxmlConfiguration
+        {
+            AzureOpenAIEndpoint = "https://test.openai.azure.com/",
+            AzureOpenAIDeploymentName = "test-deployment",
+            AzureOpenAIKey = "ignored",
+            AzureOpenAIAuthMode = "NotARealMode",
+        };
+
+        Assert.Throws<ArgumentException>(() => _azureOpenAIClientFactory.CreateChatClient(configuration));
+    }
+
+    [Theory]
+    [InlineData(null, "test-deployment")]
+    [InlineData("https://test.openai.azure.com/", null)]
+    public void When_CreateChatClient_ConfigMissingEndpointOrDeployment_Then_ThrowsArgumentException(
+        string? endpoint, string? deployment)
+    {
+        var configuration = new GptChatGrxmlConfiguration
+        {
+            AzureOpenAIEndpoint = endpoint ?? string.Empty,
+            AzureOpenAIDeploymentName = deployment ?? string.Empty,
+            AzureOpenAIKey = "key",
+            AzureOpenAIAuthMode = GptChatGrxmlConfiguration.AzureOpenAIAuthMode_ApiKey,
+        };
+
+        Assert.Throws<ArgumentException>(() => _azureOpenAIClientFactory.CreateChatClient(configuration));
     }
 }
