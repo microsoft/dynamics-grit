@@ -316,13 +316,33 @@ public static class Program
 
                         if (builder.Configuration.GetValue("Main:UseSelfSignedCertificate", true))
                         {
-                            logger.LogInformation("Using one time self-signed certificate for HTTPS.");
+                            logger.LogInformation("Using one time self-signed certificate for HTTPS (dev/demo only).");
                             httpsOptions.ServerCertificate = CreateTempCerts();
                         }
                         else
                         {
-                            //var certificateReloadService = options.ApplicationServices.GetRequiredKeyedService<CertificateReloadService>("tls-grit-svc-cluster-local");
-                            //httpsOptions.ServerCertificateSelector = (context, name) => certificateReloadService.CurrentCertificate();
+                            // Production cert loading via the standard ASP.NET Core
+                            // convention: a PKCS#12 (.pfx) file pointed at by
+                            // Kestrel:Certificates:Default:Path with an optional
+                            // Password. Operators provide both via AppSettings.{Env}.json
+                            // or environment variables (Kestrel__Certificates__Default__Path,
+                            // Kestrel__Certificates__Default__Password). Anything more
+                            // sophisticated (Key Vault, k8s secret hot-reload) is an
+                            // adapter — see docs/security-posture.md → Transport encryption.
+                            var certPath = builder.Configuration["Kestrel:Certificates:Default:Path"];
+                            var certPassword = builder.Configuration["Kestrel:Certificates:Default:Password"];
+                            if (string.IsNullOrWhiteSpace(certPath))
+                            {
+                                throw new InvalidOperationException(
+                                    "Main:UseSelfSignedCertificate is false but Kestrel:Certificates:Default:Path is not configured. " +
+                                    "Provide a PKCS#12 certificate path (and optional Password) in configuration, " +
+                                    "or revert to UseSelfSignedCertificate=true for dev/demo. " +
+                                    "See docs/security-posture.md → Transport encryption for the production setup.");
+                            }
+                            logger.LogInformation("Loading HTTPS certificate from {CertPath} (Kestrel:Certificates:Default).", certPath);
+                            httpsOptions.ServerCertificate = string.IsNullOrEmpty(certPassword)
+                                ? new X509Certificate2(certPath)
+                                : new X509Certificate2(certPath, certPassword);
                         }
                     });
                 });
