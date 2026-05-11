@@ -59,7 +59,7 @@ through `AzureOpenAIClientFactory`, which honours
 2. On the target Azure OpenAI resource, grant that identity the
    **`Cognitive Services OpenAI User`** RBAC role (or `Contributor` if your
    policy demands it — narrower role preferred).
-3. Set the following in your environment's `AppSettings.{Env}.json` or via
+3. Set the following in your environment's `appsettings.{Environment}.json` or via
    the `GPTPrompter_GptChat__Grxml__*` environment variables:
 
    ```json
@@ -112,10 +112,11 @@ only in the `Development`, `Test`, and `Local` environments — exclusively for
 
 * **TLS 1.2 / TLS 1.3 only** — `httpsOptions.SslProtocols` is pinned to
   `SslProtocols.Tls12 | SslProtocols.Tls13` in
-  `Main/Program.cs::ConfigureListeningPortsProtocolsCertsAndLimits`. SSL 3.0
-  and TLS 1.0 / 1.1 are refused at handshake time. CA5398 is suppressed
-  locally with a reviewed justification — the audit policy demands explicit
-  pinning, the opposite of CA5398's "let the OS pick a version" guidance.
+  `CRM.CCaaS.IVR.GRammarImportTool.ApiService/Main/Program.cs::ConfigureListeningPortsProtocolsCertsAndLimits`.
+  SSL 3.0 and TLS 1.0 / 1.1 are refused at handshake time. CA5398 is
+  suppressed locally with a reviewed justification — the audit policy
+  demands explicit pinning, the opposite of CA5398's "let the OS pick a
+  version" guidance.
 * **HSTS** with `max-age = 365 days` and `includeSubDomains`, plus
   **`UseHttpsRedirection`** with `HttpsPort = Main:HttpSslPort`, are wired
   into the pipeline whenever the environment is **not** `Development`,
@@ -139,7 +140,7 @@ only in the `Development`, `Test`, and `Local` environments — exclusively for
    commit it to repo.
 2. Mount the `.pfx` at a known path on the workload (file system, k8s secret
    volume, App Service certificate slot, etc.).
-3. In `AppSettings.Production.json` (or via env vars
+3. In `appsettings.Production.json` (or via env vars
    `Main__UseSelfSignedCertificate`,
    `Kestrel__Certificates__Default__Path`,
    `Kestrel__Certificates__Default__Password`):
@@ -164,7 +165,8 @@ only in the `Development`, `Test`, and `Local` environments — exclusively for
 
 4. Verify on startup that the log line `Loading HTTPS certificate from
    /var/secrets/grit/server.pfx (Kestrel:Certificates:Default)` appears and
-   `Using one time self-signed certificate for HTTPS` does **not**.
+   `Using one-time self-signed certificate for HTTPS (dev/demo only)` does
+   **not**.
 
 ### Cipher suites (ECDHE-based with NIST P-256 / P-384 curves)
 
@@ -178,9 +180,14 @@ handshake — typically the OS or the .NET `CipherSuitesPolicy` (Linux):
 | Windows host | SCHANNEL registry under `HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL` |
 
 Confirm post-deployment that only ECDHE-based suites with P-256 / P-384
-curves negotiate (e.g. via `nmap --script ssl-enum-ciphers`). The
-TLS-version constraint above means even a permissively-configured host can
-never fall below TLS 1.2.
+curves negotiate, for example:
+
+```bash
+nmap --script ssl-enum-ciphers -p 8443 grit.example.com
+```
+
+The TLS-version constraint above means even a permissively-configured host
+can never fall below TLS 1.2.
 
 ### Adapter: behind a TLS-terminating proxy / front door
 
