@@ -8,7 +8,11 @@ steps:
     solution: '$(Build.SourcesDirectory)\CRM.CCaaS.IVR.GRammarImportTool.sln' # This could be a .sln or .csproj file as well
     platform: $(BuildPlatform)
     configuration: $(BuildConfiguration)
-    msbuildArguments: '-t:restore $(AdditionalRestoreArguments)'
+    # ContinuousIntegrationBuild=true engages RestoreLockedMode (see
+    # Directory.Build.props) so any drift between Directory.Packages.props
+    # and the committed packages.lock.json files fails the build instead
+    # of silently resolving newer transitive packages.
+    msbuildArguments: '-t:restore -p:ContinuousIntegrationBuild=true $(AdditionalRestoreArguments)'
     maximumCpuCount: true
     logProjectEvents: true
 

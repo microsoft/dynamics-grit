@@ -41,7 +41,7 @@ steps:
 
       cd "$(Build.SourcesDirectory)"
 
-      dotnet restore .\CRM.CCaaS.IVR.GRammarImportTool.sln
+      dotnet restore .\CRM.CCaaS.IVR.GRammarImportTool.sln -p:ContinuousIntegrationBuild=true
       dotnet build --no-restore .\CRM.CCaaS.IVR.GRammarImportTool.sln -c Release -p:Platform="Any CPU"
 
       dotnet test --verbosity normal --no-build --logger "trx" --collect:"XPlat Code Coverage" `

@@ -66,15 +66,13 @@ public class TestLogger : ILogger
         }
     }
 
-    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string>? formatter)
+    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
     {
-        if (formatter != null)
+        ArgumentNullException.ThrowIfNull(formatter);
+        var message = formatter(state, exception);
+        lock (_loggedMessages)
         {
-            var message = formatter(state, exception);
-            lock (_loggedMessages)
-            {
-                _loggedMessages.Add($"{logLevel} - {message}");
-            }
+            _loggedMessages.Add($"{logLevel} - {message}");
         }
     }
 }

@@ -21,8 +21,12 @@ documents posture, not contact information.
 | Guardian (Code Sign Validation, ESLint, ARMory, Accessibility) | OneBranch pipeline | Suite of additional SDL scans run as part of the standard 1ES PT decorator chain. |
 | Roslyn analyzers (1ES PT pipeline pass) | OneBranch pipeline | Server-side enforcement of analyzer findings beyond the local build. |
 
-Compiled binaries from every official build are also automatically uploaded
-to TSA so that audit history is retained outside the build agent.
+TSA (Trust Services Automation) upload of SDL findings is currently
+**disabled** in this repository's OneBranch pipelines
+(`globalSdl.tsa.enabled: false`); SDL tools therefore run in `break`-build
+mode locally to the pipeline. If/when an official release pipeline is added
+that requires TSA archival, flip `tsa.enabled` to `true` in that pipeline
+and update this section accordingly.
 
 ## Secret detection
 
@@ -47,11 +51,14 @@ to users with write access and is logged.
   capturing the full transitive graph (direct + indirect dependencies, exact
   versions, content hashes). Reviewing these files in a PR shows precisely
   which dependencies are introduced or upgraded.
-* **CI lock enforcement** — when the pipeline sets
-  `ContinuousIntegrationBuild=true`, `dotnet restore` runs in
-  `RestoreLockedMode=true`. Any drift between `Directory.Packages.props` and
-  the committed lock files fails the build instead of silently resolving newer
-  transitive packages.
+* **CI lock enforcement** — the OneBranch restore step in
+  `.pipelines/templates/build-steps.yml` passes
+  `-p:ContinuousIntegrationBuild=true` to MSBuild, which engages
+  `RestoreLockedMode=true` (see `Directory.Build.props`). Any drift between
+  `Directory.Packages.props` and the committed lock files fails the
+  pipeline restore instead of silently resolving newer transitive packages.
+  The same flag is also passed to the `dotnet restore` invocation in
+  `post-build-steps.yml` so the test-coverage rerun honours locked mode too.
 * **Component Governance** — auto-injected `ComponentGovernanceComponentDetection`
   step inventories all detected components (NuGet, npm if any, etc.) and feeds
   them to the org-wide CG portal for vulnerability and license tracking.
