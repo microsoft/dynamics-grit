@@ -48,9 +48,9 @@ public static class Program
         }
         builder.Configuration
             .SetBasePath(AppContext.BaseDirectory)
-            .AddJsonFile("AppSettings.json", optional: false, reloadOnChange: true)
+            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
             .AddUserSecrets(Assembly.GetExecutingAssembly())
-            .AddJsonFile($"AppSettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
+            .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
             .AddEnvironmentVariables(prefix: "GPTPrompter")
             .AddCommandLine(args);
 
@@ -316,13 +316,43 @@ public static class Program
 
                         if (builder.Configuration.GetValue("Main:UseSelfSignedCertificate", true))
                         {
-                            logger.LogInformation("Using one time self-signed certificate for HTTPS.");
+                            logger.LogInformation("Using one-time self-signed certificate for HTTPS (dev/demo only).");
                             httpsOptions.ServerCertificate = CreateTempCerts();
                         }
                         else
                         {
-                            //var certificateReloadService = options.ApplicationServices.GetRequiredKeyedService<CertificateReloadService>("tls-grit-svc-cluster-local");
-                            //httpsOptions.ServerCertificateSelector = (context, name) => certificateReloadService.CurrentCertificate();
+                            // Production cert loading via the standard ASP.NET Core
+                            // convention: a PKCS#12 (.pfx) file pointed at by
+                            // Kestrel:Certificates:Default:Path with an optional
+                            // Password. Operators provide both via
+                            // appsettings.{Environment}.json or environment variables
+                            // (Kestrel__Certificates__Default__Path,
+                            // Kestrel__Certificates__Default__Password). Anything more
+                            // sophisticated (Key Vault, k8s secret hot-reload) is an
+                            // adapter — see docs/security-posture.md → Transport encryption.
+                            var certPath = builder.Configuration["Kestrel:Certificates:Default:Path"];
+                            var certPassword = builder.Configuration["Kestrel:Certificates:Default:Password"];
+                            if (string.IsNullOrWhiteSpace(certPath))
+                            {
+                                throw new InvalidOperationException(
+                                    "Main:UseSelfSignedCertificate is false but Kestrel:Certificates:Default:Path is not configured. " +
+                                    "Provide a PKCS#12 certificate path (and optional Password) in configuration, " +
+                                    "or revert to UseSelfSignedCertificate=true for dev/demo. " +
+                                    "See docs/security-posture.md → Transport encryption for the production setup.");
+                            }
+                            logger.LogInformation("Loading HTTPS certificate from {CertPath} (Kestrel:Certificates:Default).", certPath);
+                            // Always use the PFX overload (empty/null password is valid for
+                            // unprotected files). HasPrivateKey is required to serve TLS —
+                            // fail-fast with an explicit message if the file lacks one,
+                            // instead of letting Kestrel emit an opaque handshake error.
+                            var cert = new X509Certificate2(certPath, certPassword ?? string.Empty);
+                            if (!cert.HasPrivateKey)
+                            {
+                                throw new InvalidOperationException(
+                                    $"HTTPS certificate at '{certPath}' does not contain a private key. " +
+                                    "Re-export as PKCS#12 including the private key, or point Kestrel:Certificates:Default:Path at the correct file.");
+                            }
+                            httpsOptions.ServerCertificate = cert;
                         }
                     });
                 });

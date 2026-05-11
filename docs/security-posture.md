@@ -59,7 +59,7 @@ through `AzureOpenAIClientFactory`, which honours
 2. On the target Azure OpenAI resource, grant that identity the
    **`Cognitive Services OpenAI User`** RBAC role (or `Contributor` if your
    policy demands it — narrower role preferred).
-3. Set the following in your environment's `AppSettings.{Env}.json` or via
+3. Set the following in your environment's `appsettings.{Environment}.json` or via
    the `GPTPrompter_GptChat__Grxml__*` environment variables:
 
    ```json
@@ -100,58 +100,128 @@ through `AzureOpenAIClientFactory`, which honours
 
 ## Transport encryption
 
-All inbound HTTP traffic to GrIT is constrained to encrypted protocols.
+GrIT terminates TLS inside the workload. The default deployment topology is
+straightforward: clients connect directly to Kestrel over HTTPS on
+`Main:HttpSslPort` (default `8443`) and the workload presents a CA-issued
+certificate it loaded from configuration. The plain-HTTP listener
+(`Main:HttpPlainTextPort`) defaults to `-1` (disabled). Plain HTTP is opened
+only in the `Development`, `Test`, and `Local` environments — exclusively for
+`Tests.L1` and local debugging against `http://localhost:5003`.
 
-**Enforced in code** (`Main/Program.cs`):
+### What the code enforces
 
-* **TLS 1.2 / TLS 1.3 only** — Kestrel's `HttpsConnectionAdapterOptions.SslProtocols`
-  is set to `SslProtocols.Tls12 | SslProtocols.Tls13`. SSL 3.0 and TLS 1.0 /
-  1.1 are refused at handshake time.
-* **HTTPS listener (`Main:HttpSslPort`, default `8443`)** is always
-  configured.
-* **Plain HTTP listener (`Main:HttpPlainTextPort`)** defaults to `-1` in the
-  root `AppSettings.json` loaded by `Program.cs`, which disables the HTTP
-  socket entirely. The `AppSettings.Development.json` and
-  `AppSettings.Test.json` environment overrides re-enable port `5003` for
-  local debugging and integration tests only; no production-shaped
-  environment opens the plain-HTTP listener.
-* **HSTS** (`UseHsts`) and **HTTP → HTTPS redirection** (`UseHttpsRedirection`)
-  are wired into the pipeline whenever the runtime environment is **not**
-  `Development`, `Test`, or `Local`. HSTS is configured with a 365-day
-  `max-age` and `includeSubDomains` so browsers refuse plain-HTTP to this
-  host for a full year after the first response. `HttpsRedirectionOptions.HttpsPort`
-  is pinned to `Main:HttpSslPort` so the middleware can resolve the right
-  target instead of falling back to `443`.
+* **TLS 1.2 / TLS 1.3 only** — `httpsOptions.SslProtocols` is pinned to
+  `SslProtocols.Tls12 | SslProtocols.Tls13` in
+  `CRM.CCaaS.IVR.GRammarImportTool.ApiService/Main/Program.cs::ConfigureListeningPortsProtocolsCertsAndLimits`.
+  SSL 3.0 and TLS 1.0 / 1.1 are refused at handshake time. CA5398 is
+  suppressed locally with a reviewed justification — the audit policy
+  demands explicit pinning, the opposite of CA5398's "let the OS pick a
+  version" guidance.
+* **HSTS** with `max-age = 365 days` and `includeSubDomains`, plus
+  **`UseHttpsRedirection`** with `HttpsPort = Main:HttpSslPort`, are wired
+  into the pipeline whenever the environment is **not** `Development`,
+  `Test`, or `Local`.
+* **HTTPS certificate selection** — driven by `Main:UseSelfSignedCertificate`:
+  * `true` (default) → Kestrel mints a one-off RSA-2048 self-signed cert via
+    `CreateTempCerts()`. **Dev / demo only.** Browsers will warn; this path
+    is not safe outside trusted localhost.
+  * `false` → the cert is loaded from the standard ASP.NET Core
+    `Kestrel:Certificates:Default` configuration section (see *Production
+    setup* below). If `UseSelfSignedCertificate=false` and the config is
+    missing, the host throws `InvalidOperationException` at startup with a
+    pointer back to this document — a missing real cert is fail-fast, not
+    fail-silent.
 
-**Integration tests over plain HTTP** — `Tests.L1` deliberately runs against
-`http://localhost:5003`. The HTTPS-only enforcement above is gated on
-`!IsTestOrDev()` precisely so the L1 suite can exercise the service through
-the in-memory stub without provisioning trust for a self-signed cert. The
-plain-HTTP listener is **never** opened in any non-test/non-dev
-configuration shipped from this repository.
+### Production setup (recommended)
 
-**Cipher suites (ECDHE-based with NIST P-256 / P-384 curves)** are
-**delegated to the deployment platform**:
+1. Obtain a CA-issued certificate for the service hostname and export it as
+   PKCS#12 (`.pfx`). For Azure deployments, store the password as a Key
+   Vault secret or an App Service / AKS environment variable; do **not**
+   commit it to repo.
+2. Mount the `.pfx` at a known path on the workload (file system, k8s secret
+   volume, App Service certificate slot, etc.).
+3. In `appsettings.Production.json` (or via env vars
+   `Main__UseSelfSignedCertificate`,
+   `Kestrel__Certificates__Default__Path`,
+   `Kestrel__Certificates__Default__Password`):
 
-| Hosting target | Where the policy lives |
-|----------------|------------------------|
-| Azure App Service / Container Apps | App Service minimum TLS version + Microsoft-managed cipher suite list (Defender for Cloud verifies compliance) |
-| AKS / Kubernetes | Ingress controller (e.g. nginx, App Gateway Ingress) — `ssl-protocols`, `ssl-ciphers` annotations on the ingress object |
-| Azure Front Door / Application Gateway | Front Door / App Gateway TLS profile / policy (recommend `TLS_AES_256_GCM_SHA384`, `TLS_AES_128_GCM_SHA256`, `TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384`, `TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384`) |
-| Windows host (bare VM) | SCHANNEL registry policy under `HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL` |
-| Linux host (bare VM) | `/etc/ssl/openssl.cnf` + .NET `CipherSuitesPolicy` if required |
+   ```jsonc
+   {
+     "Main": {
+       "HttpPlainTextPort": -1,
+       "HttpSslPort": 8443,
+       "UseSelfSignedCertificate": false
+     },
+     "Kestrel": {
+       "Certificates": {
+         "Default": {
+           "Path": "/var/secrets/grit/server.pfx",
+           "Password": "<from-secret-store>"
+         }
+       }
+     }
+   }
+   ```
 
-The deployment owner is responsible for confirming the front-door TLS
-profile selects only ECDHE-based suites over P-256 / P-384 curves. The
-application's own TLS-version constraint above means that even if a host
-exposes weaker suites, the handshake itself cannot fall below TLS 1.2.
+4. Verify on startup that the log line `Loading HTTPS certificate from
+   /var/secrets/grit/server.pfx (Kestrel:Certificates:Default)` appears and
+   `Using one-time self-signed certificate for HTTPS (dev/demo only)` does
+   **not**.
 
-**Self-signed certificate** — when `Main:UseSelfSignedCertificate=true`
-(default for Development), Kestrel mints an RSA 2048 self-signed cert at
-startup via `CreateTempCerts()`. This path is **not** intended for
-production; production deployments must supply a real CA-issued certificate
-through the platform (App Service binding, AKS secret, etc.) and set
-`UseSelfSignedCertificate=false`.
+### Cipher suites (ECDHE-based with NIST P-256 / P-384 curves)
+
+Cipher-suite selection lives in the underlying TLS stack, not in
+`HttpsConnectionAdapterOptions`. Choose suites at the layer that owns the TLS
+handshake — typically the OS or the .NET `CipherSuitesPolicy` (Linux):
+
+| Host | Where the cipher policy lives |
+|------|-------------------------------|
+| Linux container / VM | `/etc/ssl/openssl.cnf` plus an optional .NET `CipherSuitesPolicy` if a tighter whitelist is required than the OS default |
+| Windows host | SCHANNEL registry under `HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL` |
+
+Confirm post-deployment that only ECDHE-based suites with P-256 / P-384
+curves negotiate, for example:
+
+```bash
+nmap --script ssl-enum-ciphers -p 8443 grit.example.com
+```
+
+The TLS-version constraint above means even a permissively-configured host
+can never fall below TLS 1.2.
+
+### Adapter: behind a TLS-terminating proxy / front door
+
+If your deployment puts a TLS terminator in front of GrIT (Azure
+Application Gateway, App Service mTLS frontend, AKS Ingress with cert, Azure
+Front Door, nginx, F5, …), the workload itself usually sees plain HTTP over
+a private network and does **not** need to terminate TLS again. To adapt:
+
+* Set `Main:HttpSslPort = -1` and `Main:HttpPlainTextPort = 8080` (or your
+  chosen inside-port).
+* Register `app.UseForwardedHeaders()` with a `ForwardedHeadersOptions` that
+  trusts your proxy's IP / CIDR ranges, so the app sees the original
+  client's `scheme=https` for `UseHsts`/`UseHttpsRedirection` and absolute
+  URL generation.
+* Leave `Kestrel:Certificates:Default` unset (the HTTPS listener is not
+  created — the cert is moot).
+* The platform's TLS profile is now the source of truth for protocol
+  versions and cipher suites; align that profile with the policy in this
+  document.
+
+This adapter is not shipped as code in this sample — the implementor is
+accountable for the topology change and the corresponding hardening.
+
+### Adapter: Key Vault / k8s-secret hot reload
+
+`Kestrel:Certificates:Default` is a one-shot load at startup. If your
+deployment rotates certs without restarting pods (Azure Key Vault rotation
+hook, k8s `cert-manager` updating a secret), you need an explicit reload
+path — typically a `ServerCertificateSelector` driven by a file-watcher or a
+Key Vault `CertificateClient` callback. See
+[Kestrel docs — Replace the default certificate from configuration](https://learn.microsoft.com/aspnet/core/fundamentals/servers/kestrel/endpoints#replace-the-default-certificate-from-configuration)
+and the
+[Azure Identity / Key Vault samples](https://learn.microsoft.com/dotnet/api/overview/azure/security.keyvault.certificates-readme).
+This adapter is not shipped as code in this sample either.
 
 ## Dependency inventory and supply chain
 
@@ -228,6 +298,6 @@ their current state in this repository:
 | Static code analysis is not consistently enabled | **Closed** | CodeQL default setup + Roslyn `AnalysisModeSecurity=All` + 1ES PT BinSkim/PoliCheck/Guardian on every build |
 | Secret scanning is disabled | **Closed** | GitHub Secret Protection (push protection on) + 1ES Secret Scanning in pipeline |
 | Static API keys used by default; no documented guidance for EntraID / managed identity | **Closed** | `AzureOpenAIAuthMode` (ApiKey / ManagedIdentity / DefaultAzureCredential) in `AzureOpenAIClientFactory` + secure-by-default fallback + production warning + this document's *Authentication to Azure OpenAI* section |
-| Transport encryption is not enforced (HTTPS / HSTS / compliant TLS versions / cipher suites) | **Closed** | TLS 1.2/1.3 pinned in Kestrel (`SslProtocols.Tls12 \| SslProtocols.Tls13`); HSTS + HTTPS redirection enabled in non-dev environments; plain HTTP disabled by default (`HttpPlainTextPort = -1` in production `appsettings.json`); HTTP URLs removed from README; cipher-suite expectations and deployment-platform responsibility documented in this section |
+| Transport encryption is not enforced (HTTPS / HSTS / compliant TLS versions / cipher suites) | **Closed** | TLS 1.2/1.3 pinned in Kestrel (`SslProtocols.Tls12 \| SslProtocols.Tls13`); HSTS (365-day max-age) + HTTPS redirection enabled in non-dev environments; plain HTTP disabled by default (`HttpPlainTextPort = -1`, only re-enabled in Development/Test for local L1); production cert loaded from `Kestrel:Certificates:Default` with fail-fast when `UseSelfSignedCertificate=false` and config missing; cipher-suite policy delegated to the host TLS stack with concrete per-target guidance; adapter notes documented for TLS-terminator-in-front and Key Vault rotation topologies |
 | Container image scanning is missing | **N/A** | No production container image; see *Out of scope* above |
 | Dynamic analysis is not performed | **Tracked separately** | DAST roadmap; see *Out of scope* above |
