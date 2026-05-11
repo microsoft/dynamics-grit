@@ -40,11 +40,14 @@ public class TestLoggerProvider : ILoggerProvider
         GC.SuppressFinalize(this);
     }
 
+    // CA1034: TestLogger is intentionally nested - it is part of the test
+    // infrastructure for TestLoggerProvider and is not consumed independently.
+#pragma warning disable CA1034
     public class TestLogger : ILogger
     {
         private readonly List<string> _loggedMessages = [];
 
-        public IDisposable BeginScope<TState>(TState state)
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull
         {
             return LoggerScope.Push(state);
         }
@@ -69,7 +72,7 @@ public class TestLoggerProvider : ILoggerProvider
             }
         }
 
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string>? formatter)
         {
             if (formatter != null)
             {
@@ -98,4 +101,5 @@ public class TestLoggerProvider : ILoggerProvider
             }
         }
     }
+#pragma warning restore CA1034
 }

@@ -8,9 +8,8 @@ using CRM.CCaaS.IVR.GRammarImportTool.Stubs.Models.Chat;
 
 namespace CRM.CCaaS.IVR.GRammarImportTool.Stubs.Services;
 
-public class ChatGptService(IConfiguration config, ILogger<ChatGptService> logger)
+public class ChatGptService(ILogger<ChatGptService> logger)
 {
-    private readonly IConfiguration _config = config;
     private readonly ILogger _logger = logger;
     private static readonly char[] Separator = ['\n'];
 

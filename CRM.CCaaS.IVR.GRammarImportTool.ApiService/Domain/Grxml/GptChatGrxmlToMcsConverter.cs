@@ -47,9 +47,10 @@ public class GptChatGrxmlToMcsConverter : GptChatBase
         IChatService openAIChatServiceFactory,
         AiContentValidator aiContentValidator,
         TokenValidator tokenValidator)
-        : base(openAIChatServiceFactory, gptPrompterConfiguration.Value)
+        : base(
+            openAIChatServiceFactory,
+            (gptPrompterConfiguration ?? throw new ArgumentNullException(nameof(gptPrompterConfiguration))).Value)
     {
-        ArgumentNullException.ThrowIfNull(gptPrompterConfiguration);
         ArgumentNullException.ThrowIfNull(openAIChatServiceFactory);
         ArgumentNullException.ThrowIfNull(tokenValidator);
 

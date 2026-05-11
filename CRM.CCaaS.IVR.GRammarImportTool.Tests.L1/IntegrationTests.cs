@@ -1,5 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
+
+// Random is used only for non-cryptographic test timing jitter (Task.Delay)
+// so CA5394 is disabled at the file level.
+#pragma warning disable CA5394
+
 using System;
 using System.IO.Compression;
 using System.Linq;

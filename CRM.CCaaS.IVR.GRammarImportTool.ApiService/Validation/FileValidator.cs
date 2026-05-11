@@ -72,7 +72,7 @@ public partial class FileValidator(IOptions<GptChatGrxmlConfiguration> configura
     /// <returns>ValidationResult indicating success or failure with reason</returns>
     public virtual async Task<ValidationResult> ValidateUploadedFileAsync(IFormFile file, bool isGrxml = false)
     {
-        ArgumentNullException.ThrowIfNull(nameof(file));
+        ArgumentNullException.ThrowIfNull(file);
         // Validate file size
         if (file.Length <= 0)
         {

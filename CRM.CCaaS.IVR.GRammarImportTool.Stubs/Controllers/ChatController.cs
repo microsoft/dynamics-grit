@@ -84,8 +84,13 @@ public class ChatController(ChatGptService chatGptService, ILogger<ChatGptServic
                 await Response.Body.FlushAsync();
                 return;
             }
-            // Simulate streaming a valid response
-            foreach (var chunk in _chatGptService.StreamChatAsyncStub(ChatData.YAML_REPLY_DATA[Random.Shared.Next(ChatData.YAML_REPLY_DATA.Length)]))
+            // Simulate streaming a valid response. CA5394 is suppressed because this
+            // selection only varies which canned YAML payload is returned by the test
+            // stub; it is not used for any security decision.
+#pragma warning disable CA5394
+            var reply = ChatData.YAML_REPLY_DATA[Random.Shared.Next(ChatData.YAML_REPLY_DATA.Length)];
+#pragma warning restore CA5394
+            foreach (var chunk in _chatGptService.StreamChatAsyncStub(reply))
             {
                 await Response.WriteAsync($"data: {chunk}\n\n");
                 await Response.Body.FlushAsync();

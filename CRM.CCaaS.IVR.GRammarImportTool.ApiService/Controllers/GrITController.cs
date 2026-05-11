@@ -172,7 +172,7 @@ public class GrITController(FileValidator fileValidator) : ControllerBase
             string grxmlContent;
             using (var reader = new StreamReader(file.OpenReadStream()))
             {
-                grxmlContent = await reader.ReadToEndAsync();
+                grxmlContent = await reader.ReadToEndAsync(cancellationToken);
             }
 
             var converted = await gptGrxmlChat.ConvertFileAsync(grxmlContent);
