@@ -44,7 +44,7 @@ public class TestLogger : ILogger
 {
     private readonly List<string> _loggedMessages = [];
 
-    public IDisposable? BeginScope<TState>(TState state) => null;
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
 
     public bool IsEnabled(LogLevel logLevel) => true;
     public void Clear()
@@ -68,13 +68,11 @@ public class TestLogger : ILogger
 
     public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
     {
-        if (formatter != null)
+        ArgumentNullException.ThrowIfNull(formatter);
+        var message = formatter(state, exception);
+        lock (_loggedMessages)
         {
-            var message = formatter(state, exception);
-            lock (_loggedMessages)
-            {
-                _loggedMessages.Add($"{logLevel} - {message}");
-            }
+            _loggedMessages.Add($"{logLevel} - {message}");
         }
     }
 }

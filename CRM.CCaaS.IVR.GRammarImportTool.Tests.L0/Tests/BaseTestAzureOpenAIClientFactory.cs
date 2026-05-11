@@ -72,19 +72,18 @@ public class BaseTestAzureOpenAIClientFactory : IDisposable
 
     protected virtual void Dispose(bool disposing)
     {
+        if (_disposedValue)
         {
-            if (disposing)
-            {
-                LogProvider.Dispose(); // Dispose the LogProvider
-
-                if (ServiceProvider is IDisposable disposable)
-                    disposable.Dispose();
-            }
-
-            // TODO: free unmanaged resources (unmanaged objects) and override finalizer
-            // TODO: set large fields to null
-            _disposedValue = true;
+            return;
         }
+        if (disposing)
+        {
+            LogProvider.Dispose(); // Dispose the LogProvider
+
+            if (ServiceProvider is IDisposable disposable)
+                disposable.Dispose();
+        }
+        _disposedValue = true;
     }
 
     public void Dispose()

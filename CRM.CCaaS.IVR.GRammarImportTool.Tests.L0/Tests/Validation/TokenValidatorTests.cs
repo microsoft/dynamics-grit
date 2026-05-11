@@ -1,5 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
+using System;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Validation;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Configuration;
 using Microsoft.Extensions.Options;
@@ -68,8 +69,8 @@ public class TokenValidatorTests
 
         Assert.False(result.IsValid);
         Assert.NotNull(result.ErrorMessage);
-        Assert.Contains("Token count", result.ErrorMessage);
-        Assert.Contains("exceeds the maximum limit of 10000 tokens", result.ErrorMessage);
+        Assert.Contains("Token count", result.ErrorMessage, StringComparison.Ordinal);
+        Assert.Contains("exceeds the maximum limit of 10000 tokens", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -97,6 +98,6 @@ public class TokenValidatorTests
 
         Assert.False(result.IsValid);
         Assert.NotNull(result.ErrorMessage);
-        Assert.Contains("exceeds the maximum limit of 5000 tokens", result.ErrorMessage);
+        Assert.Contains("exceeds the maximum limit of 5000 tokens", result.ErrorMessage, StringComparison.Ordinal);
     }
 }

@@ -37,18 +37,24 @@ public class ExceptionMiddlewareTest
             m => m.Contains("An unhandled exception occurred.", StringComparison.OrdinalIgnoreCase));
     }
 
-    public static IEnumerable<object[]> ExceptionMap() =>
-        [
-            [new UnauthorizedAccessException(), StatusCodes.Status403Forbidden],
-            [new ArgumentException("bad arg"), StatusCodes.Status400BadRequest],
-            [new FileNotFoundException("missing"), StatusCodes.Status404NotFound],
-            [new DirectoryNotFoundException("missing dir"), StatusCodes.Status404NotFound],
-            [new IOException("io fail"), StatusCodes.Status503ServiceUnavailable],
-            [new InvalidOperationException("other"), StatusCodes.Status500InternalServerError]
-        ];
+    public static TheoryData<Exception, int> ExceptionMap() =>
+        new()
+        {
+            { new UnauthorizedAccessException(), StatusCodes.Status403Forbidden },
+            { new ArgumentException("bad arg"), StatusCodes.Status400BadRequest },
+            { new FileNotFoundException("missing"), StatusCodes.Status404NotFound },
+            { new DirectoryNotFoundException("missing dir"), StatusCodes.Status404NotFound },
+            { new IOException("io fail"), StatusCodes.Status503ServiceUnavailable },
+            { new InvalidOperationException("other"), StatusCodes.Status500InternalServerError },
+        };
 
     [Theory]
+    // xUnit1045: Exception is not natively serializable; Test Explorer cannot
+    // enumerate individual rows. Acceptable trade-off — the tests run correctly
+    // and a single combined row is good enough for this CI-only scenario.
+#pragma warning disable xUnit1045
     [MemberData(nameof(ExceptionMap))]
+#pragma warning restore xUnit1045
     public async Task When_ExceptionThrown_Then_MappedStatusAndJsonBody(Exception thrown, int expectedStatus)
     {
         var middleware = new ExceptionMiddleware(_ => Task.FromException(thrown));

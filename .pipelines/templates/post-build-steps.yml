@@ -41,7 +41,7 @@ steps:
 
       cd "$(Build.SourcesDirectory)"
 
-      dotnet restore .\CRM.CCaaS.IVR.GRammarImportTool.sln
+      dotnet restore .\CRM.CCaaS.IVR.GRammarImportTool.sln -p:ContinuousIntegrationBuild=true
       dotnet build --no-restore .\CRM.CCaaS.IVR.GRammarImportTool.sln -c Release -p:Platform="Any CPU"
 
       dotnet test --verbosity normal --no-build --logger "trx" --collect:"XPlat Code Coverage" `
@@ -107,5 +107,17 @@ steps:
       testResultsFiles: '$(Build.SourcesDirectory)/TestResults/**/*.trx'
       failTaskOnFailedTests: false
   condition: always()
+
+# Generate a Software Bill of Materials (SPDX 2.2) for the build output so the
+# exact set of NuGet packages and runtime artifacts shipped with each build is
+# auditable. The manifest is written under _manifest/spdx_2.2/ inside the
+# output directory and is uploaded together with build artifacts.
+- task: ManifestGeneratorTask@0
+  displayName: Generate SBOM (SPDX)
+  condition: succeeded()
+  inputs:
+    BuildDropPath: '$(Build.SourcesDirectory)\out'
+    PackageName: 'CRM.CCaaS.IVR.GRammarImportTool'
+    PackageVersion: '$(Build.BuildNumber)'
 
 - template: debug-environment.yml

@@ -38,6 +38,22 @@
     <WarningsAsErrors>CS8600,CS8601,CS8602,CS8603,CS8604,CS8618,CS8620,CS8625,CA2213</WarningsAsErrors>
     <LangVersion>12</LangVersion>
 
+    <!-- Static analysis: enable .NET analyzers at the latest level and turn on
+         every security CA-rule. Findings surface as warnings (build is not
+         broken by TreatWarningsAsErrors=false) so that supply-chain audits
+         can see consistent, comprehensive analyzer coverage. -->
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <AnalysisModeSecurity>All</AnalysisModeSecurity>
+
+    <!-- NuGet lock files: produce a per-project packages.lock.json so the
+         exact resolved dependency graph is committed and auditable. In CI
+         (ContinuousIntegrationBuild=true) restore runs in locked mode so a
+         drift between Directory.Packages.props and the lock file fails the
+         build instead of silently resolving newer transitive packages. -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RestoreLockedMode Condition=" '$(ContinuousIntegrationBuild)' == 'true' ">true</RestoreLockedMode>
+
     <!-- This will make all the projects not packable by default, force to true only for the projects
          that will generate packages or are deployable  -->
     <IsPackable>true</IsPackable>

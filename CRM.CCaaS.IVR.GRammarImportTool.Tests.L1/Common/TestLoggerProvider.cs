@@ -40,11 +40,14 @@ public class TestLoggerProvider : ILoggerProvider
         GC.SuppressFinalize(this);
     }
 
+    // CA1034: TestLogger is intentionally nested - it is part of the test
+    // infrastructure for TestLoggerProvider and is not consumed independently.
+#pragma warning disable CA1034
     public class TestLogger : ILogger
     {
         private readonly List<string> _loggedMessages = [];
 
-        public IDisposable BeginScope<TState>(TState state)
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull
         {
             return LoggerScope.Push(state);
         }
@@ -71,31 +74,30 @@ public class TestLoggerProvider : ILoggerProvider
 
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {
-            if (formatter != null)
+            ArgumentNullException.ThrowIfNull(formatter);
+            var message = formatter(state, exception);
+            var timestamp = DateTimeOffset.UtcNow;
+
+            var scopeInfo = string.Join(" | ", LoggerScope.Current?.Select(s =>
             {
-                var message = formatter(state, exception);
-                var timestamp = DateTimeOffset.UtcNow;
-
-                var scopeInfo = string.Join(" | ", LoggerScope.Current?.Select(s =>
+                if (s is IEnumerable<KeyValuePair<string, object>> scopeKvps)
                 {
-                    if (s is IEnumerable<KeyValuePair<string, object>> scopeKvps)
-                    {
-                        return string.Join(", ", scopeKvps
-                            .Where(kvp => kvp.Key != "{OriginalFormat}")
-                            .Select(kvp => $"{kvp.Key}: {kvp.Value}"));
-                    }
-                    return s?.ToString();
-                }) ?? []);
-
-                lock (_loggedMessages)
-                {
-                    _loggedMessages.Add($"[{timestamp.ToString("yyyy-MM-dd HH:mm:ss.fff")}] [{logLevel.ToString()}] - {message} => {scopeInfo}");
+                    return string.Join(", ", scopeKvps
+                        .Where(kvp => kvp.Key != "{OriginalFormat}")
+                        .Select(kvp => $"{kvp.Key}: {kvp.Value}"));
                 }
-                if (exception != null)
-                {
-                    _loggedMessages.Add(exception.ToString());
-                }
+                return s?.ToString();
+            }) ?? []);
+
+            lock (_loggedMessages)
+            {
+                _loggedMessages.Add($"[{timestamp.ToString("yyyy-MM-dd HH:mm:ss.fff")}] [{logLevel.ToString()}] - {message} => {scopeInfo}");
+            }
+            if (exception != null)
+            {
+                _loggedMessages.Add(exception.ToString());
             }
         }
     }
+#pragma warning restore CA1034
 }

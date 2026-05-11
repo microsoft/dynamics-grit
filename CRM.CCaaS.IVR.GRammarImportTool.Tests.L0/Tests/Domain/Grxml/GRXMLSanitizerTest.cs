@@ -1,5 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
+using System;
 using System.Xml.Linq;
 using CRM.CCaaS.IVR.GRammarImportTool.ApiService.Domain.Grxml;
 using Xunit;
@@ -61,9 +62,9 @@ public class GRXMLSanitizerTest
         var xml = @"<grammar><rule>   a   </rule>   <rule>   b   </rule></grammar>";
         var doc = XDocument.Parse(xml);
         var minified = GRXMLSanitizer.MinifyGRXMLContent(doc);
-        Assert.DoesNotContain(">   <", minified);
-        Assert.Contains("a", minified);
-        Assert.Contains("b", minified);
+        Assert.DoesNotContain(">   <", minified, StringComparison.Ordinal);
+        Assert.Contains("a", minified, StringComparison.Ordinal);
+        Assert.Contains("b", minified, StringComparison.Ordinal);
     }
 
     [Fact]
